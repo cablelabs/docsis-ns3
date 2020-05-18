@@ -1,0 +1,4 @@
+#!/bin/bash
+# This is a fake waf that calls the real waf four directories above
+cd ../../../../
+./waf "$@"
