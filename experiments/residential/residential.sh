@@ -68,7 +68,7 @@ then
 	if [ -z ${dirname} ]
 	then
 		echo "Error exit:  'dirname' argument to this script is unset"
-		echo "Usage: $0 dirname <map_interval>"
+		echo "Usage: $0 dirname"
 		exit 1	
 	fi
 
@@ -87,7 +87,7 @@ then
 		echo "$gitDiff" >> ${resultsDir}/version.txt
 	fi
 	PROFILE=$(./waf --check-profile | tail -1 | awk '{print $NF}')
-	VERSION=$(cat ../../../../VERSION | tr -d '\n')
+	VERSION=$(cat ${pathToTopLevelDir}/VERSION | tr -d '\n')
 	EXECUTABLE_NAME=ns${VERSION}-residential-example-${PROFILE}
 	EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
 	if [ -f "$EXECUTABLE" ]; then
@@ -118,7 +118,6 @@ then
 	exit 0
 fi
 shift
-export MapInterval=${2:-1ms}
 export summaryHeader="results directory: $1, ggr: $guaranteedGrantRate"
 
 function run-scenario () { 
@@ -217,7 +216,6 @@ function run-scenario () {
 		--enablePcap=${enablePcap} \
 		--fileNamePcap=${FilePcap} \
 		--RngRun=${RngRun} \
-		--ns3::docsis::DocsisNetDevice::MapInterval=${MapInterval} \
 		> $logfile  2>&1
 
 	python plot-latency.py ${numTcpDownloads} ${numTcpUploads} ${numTcpDashStreams} ${numDctcpDownloads} ${numDctcpUploads} ${numDctcpDashStreams} ${numWebUsers} ${heading} ${simulationEndTime} --fileNameCm=${fileNameCm} --fileNameCmts=${fileNameCmts} --plotNameCm=${pdfNameCm} --plotNameCmts=${pdfNameCmts} --plotNameRtt=${pdfNameRtt} --imageNameRtt=${imageNameRtt} --fileNameSummary=${fileNameSummary} --scenarioId=${scenario_id} >/dev/null  &

@@ -98,7 +98,7 @@ DocsisNetDevice::GetTypeId (void)
                    Mac48AddressValue (Mac48Address ("ff:ff:ff:ff:ff:ff")),
                    MakeMac48AddressAccessor (&DocsisNetDevice::m_address),
                    MakeMac48AddressChecker ())
-    .AddAttribute ("DataRate", 
+    .AddAttribute ("DataRate", // Deprecated
                    "The default data rate for DOCSIS links, used to compute serialization delay",
                    DataRateValue (DataRate ("32768b/s")),
                    MakeDataRateAccessor (&DocsisNetDevice::m_bps),

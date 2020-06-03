@@ -14,6 +14,44 @@ The ``patches/`` directory contains the patch to apply to ns-3-dev, with
 the patch file name indicating which version of ns-3-dev to use.
 Once ns-3 is rebuilt, the build system will include the new module.
 
+1. Download a development copy of ns-3-dev:
+
+    `$ git clone https://gitlab.com/nsnam/ns-3-dev.git`
+
+2. Change into the ns-3-dev/contrib directory:
+
+    `$ cd ns-3-dev/contrib`
+
+3. Clone this repository into a `docsis` directory:
+
+    `$ git clone https://github.com/cablelabs/docsis-ns3.git docsis`
+
+4. Try to patch ns-3 with some additional test applications used in the examples:
+
+    `$ cd ../`
+
+    `$ patch -p1 -i contrib/docsis/patches/ns-3-dev-a30639fc.patch --dry-run`
+
+5. If the above dry-run works, patch the code for real.
+
+    `$ patch -p1 -i contrib/docsis/patches/ns-3-dev-a30639fc.patch`
+
+   This patch will eventually go away once the applications are upstreamed.
+
+6. Now configure and build ns-3 as usual:
+
+    `$ ./waf configure --enable-examples --enable-tests -d optimized`
+
+    `$ ./waf build`
+
+   If the configuration complains that it `Could not find a task generator for the name 'ns3-docsis-ns3'`, this means that the directory was cloned without renaming it to `docsis`.
+
+7.  Try to run an example program:
+
+    `$ ./waf --run residential-example`
+
+Look at `contrib/docsis/experiments/residential/residential-documentation.md` for more documentation about this example.
+
 For users unfamiliar with ns-3, please consult the documentation available on
 the [app store page](https://apps.nsnam.org/app/docsis-ns3).
 

@@ -10,14 +10,14 @@ Service Flow Configuration
    ============= Subsection (#.#.#)
    ############# Paragraph (no number)
 
-Model overview
-**************
+Service Flow Model Overview
+***************************
 Service Flows are defined in DOCSIS as a unidirectional flow of packets
 to which certain Quality-of-Service properties are attributed or enforced.
 Each Service Flow (SF) has a unique identifier called a Service Flow Identifier
 (SFID) assigned by the CMTS.  In practice, upstream service flows also
 have a unique Service Identifier (SID), but the ns-3 model does not use
-SIDs.
+SIDs, and instead uses the SFIDs in place of SIDs.
 
 In DOCSIS 3.1, each cable modem would have at least one upstream and 
 one downstream service flow defined, with rate shaping enabled, and all
@@ -36,6 +36,12 @@ direction, and one for the downstream direction, and will need to
 add these objects to the appropriate device (the CmNetDevice for the
 upstream ASF or SF, and the CmtsNetDevice for the downstream ASF or SF).
 
+In a real DOCSIS system, SFIDs are unique across all of the upstream and
+downstream SFs within a "MAC Domain". Currently the ns-3 model uses a fixed
+SFID of 1 for the classic SF or for a single standalone SF, and uses a fixed
+SFID of 2 for the low latency SF.  These same SFIDs are used in both
+directions.
+
 Configuration of SFs or ASFs is essential for conducting a DOCSIS
 simulation and should be performed after the DOCSIS topology has
 been constructed.
@@ -46,7 +52,7 @@ Implementation
 The implementation can be found in ``docsis-configuration.h``.  Two
 classes are defined:  ``ServiceFlow`` and ``AggregateServiceFlow``.
 The members of these objects are organized according to Annex C
-of the specification; in practice, the elements of SF and ASF
+of [DOCSIS3.1.I19]_; in practice, the elements of SF and ASF
 configuration are encoded in TLV structures, and the ns-3
 representation of them closely mirrors the TLV structure and naming
 convention found in the specification.
@@ -179,11 +185,12 @@ Options
 
 Besides the setting of rate shaping parameters, optional overrides
 on some configuration parameters in the DualQueueCoupledAqm or
-QueueProtection models is possible.  In general, users may use the
+QueueProtection models is possible.  While its possible to use the
 typical ns-3 configuration techniques to configure non-default values
 on ns-3 Attribute values in the DualQueue and QueueProtection models,
-which are applied when a new object is instantiated.  Following
-instantiation, however, the configuration of some ASF and SF parameters
+which are applied when a new object is instantiated, it is recommended instead
+to use the ServiceFlow or AggregateServiceFlow configuration mechanism.  Following
+instantiation, the configuration of some ASF and SF parameters
 offers the opportunitity to override the initially instantiated
 configuration.  This is done by selectively changing the value of
 the following options away from their default value.

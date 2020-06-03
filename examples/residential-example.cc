@@ -758,9 +758,6 @@ main (int argc, char *argv[])
 
   Config::SetDefault ("ns3::QueueDisc::Quota", UintegerValue (1024));
 
-  // DOCSIS configuration
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::MapInterval", TimeValue (MilliSeconds (2)));
-
 ////////////////////////////////////////////////////////////
 // command-line argument handling                         //
 ////////////////////////////////////////////////////////////
@@ -1210,6 +1207,44 @@ main (int argc, char *argv[])
       docsis.GetDownstream (linkDocsis)->SetDownstreamAsf (asf);
     }
     
+// Configure DOCSIS Channel & System parameters
+
+  // Upstream channel parameters
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("UsScSpacing", DoubleValue (50e3));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("NumUsSc", UintegerValue (1880));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("SymbolsPerFrame", UintegerValue (6));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("UsSpectralEfficiency", DoubleValue (10.0));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("UsCpLen", UintegerValue (256));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("UsMacHdrSize", UintegerValue (10));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("UsSegHdrSize", UintegerValue (8));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("MapInterval", TimeValue (MilliSeconds (1)));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("CmtsMapProcTime", TimeValue (MicroSeconds (200)));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("CmtsUsPipelineFactor", UintegerValue (1));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("CmUsPipelineFactor", UintegerValue (1));
+
+  // Upstream parameters that affect downstream UCD and MAP message overhead
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("NumUsChannels", UintegerValue (1));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("AverageUsBurst", UintegerValue (150));
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("AverageUsUtilization", DoubleValue (0.1));
+
+  // Downstream channel parameters
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("DsScSpacing", DoubleValue (50e3));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("NumDsSc", UintegerValue (3745));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("DsSpectralEfficiency", DoubleValue (12.0));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("DsIntlvM", UintegerValue (3));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("DsCpLen", UintegerValue (512));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("CmtsDsPipelineFactor", UintegerValue (1));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("CmDsPipelineFactor", UintegerValue (1));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("DsMacHdrSize", UintegerValue (10));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("AverageCodewordFill", DoubleValue (0.99));
+  docsis.GetDownstream (linkDocsis)->SetAttribute ("NcpModulation", UintegerValue (4));
+
+  // Plant distance (km)
+  docsis.GetUpstream (linkDocsis)->SetAttribute ("MaximumDistance", DoubleValue (8.0));
+
+
+
+
   // Trace bytes granted, used, and unused
   bool connected;  // variable used to track whether trace was connected
   connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicGrantState", MakeCallback (&ClassicGrantStateTrace));
