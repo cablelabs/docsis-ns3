@@ -310,9 +310,6 @@ declare -a scenario=(\
 	"8  0   0   0    0   0    0    5   10ms   10ms  empirical 1000s"
 	"9  16  0   0    0   0    0    0   2ms    0ms   speedtest 100s"
 	"10 0   8   0    0   0    0    0   2ms    0ms   speedtest 100s"
-	"11 0   0   0    1   1    0    0   10ms   10ms  empirical 100s"
-	"12 1   1   0    1   1    0    1   10ms   10ms  empirical 100s"
-	"13 3   3   0    2   2    0    1   10ms   10ms  empirical 100s"
 	)
 
 # launch simulation scenarios using GNU Parallel if it is installed, otherwise use basic job control 
