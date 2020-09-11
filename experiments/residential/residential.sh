@@ -35,9 +35,14 @@
 #   Greg White <g.white@cablelabs.com>
 #   Tom Henderson <tomh@tomh.org>
 
+# Assumes that this file is four levels down from the top-level ns-3
+# directory; e.g. contrib/docsis/experiments/residential
 pathToTopLevelDir="../../../.."
+# detect if we are under the contrib/ or src/ directory
+srcdir=$(cd ../../../ && echo ${PWD##*/})
+# Set library path to find ns-3 libraries
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:`pwd`/${pathToTopLevelDir}/build/lib
-
+# Set various configuration options
 export heading="Residential"
 export downstreamMsr=200Mbps
 export upstreamMsr=50Mbps
@@ -89,14 +94,14 @@ then
 	PROFILE=$(./waf --check-profile | tail -1 | awk '{print $NF}')
 	VERSION=$(cat ${pathToTopLevelDir}/VERSION | tr -d '\n')
 	EXECUTABLE_NAME=ns${VERSION}-residential-example-${PROFILE}
-	EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+	EXECUTABLE=${pathToTopLevelDir}/build/${srcdir}/docsis/examples/${EXECUTABLE_NAME}
 	if [ -f "$EXECUTABLE" ]; then
 		cp ${EXECUTABLE} ${resultsDir}/residential-example
 	else
 		echo "$EXECUTABLE not found, exiting"
 		exit 1
 	fi
-	cp ${pathToTopLevelDir}/src/docsis/examples/residential-example.cc ${resultsDir}/.
+	cp ${pathToTopLevelDir}/${srcdir}/docsis/examples/residential-example.cc ${resultsDir}/.
 	cp plot-latency.py ${resultsDir}/.
 	cp plot-http.py ${resultsDir}/.
 	cp plot-grants-unused.py ${resultsDir}/.
@@ -313,7 +318,7 @@ declare -a scenario=(\
 	)
 
 # launch simulation scenarios using GNU Parallel if it is installed, otherwise use basic job control 
-if hash parallel; then
+if hash parallel 2>/dev/null; then
 	printf '%s\n' "${scenario[@]}" | parallel --no-notice --colsep '\s+' -u run-scenario {} 	
 else
 	for x in ${!scenario[@]}
