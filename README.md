@@ -18,7 +18,7 @@ Once ns-3 is rebuilt, the build system will include the new module.
 
     `$ git clone https://gitlab.com/nsnam/ns-3-dev.git`
 
-   Note:  the latest public release (ns-3.31) will also work.
+   Note:  the latest public release (ns-3.32) will also work.
 
 2. Change into the ns-3-dev/contrib directory:
 
@@ -34,11 +34,11 @@ Once ns-3 is rebuilt, the build system will include the new module.
 
     `$ cd ../`
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.31.patch --dry-run`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.32.patch --dry-run`
 
 5. If the above dry-run works, patch the code for real.
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.31.patch`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.32.patch`
 
    This patch will eventually go away once the applications are upstreamed.
 
