@@ -7,7 +7,9 @@ For example, ns-3-dev-a30639fc.patch means that the version of ns-3-dev
 at commit a30639fc (April 29, 2020), is known to work.
 
 The ns-3.31.patch applies to the ns-3.31 release.  The ns-3.32.patch applies
-to the ns-3.32 release.
+to the ns-3.32 release.  The ns-3.33 patch applies to the ns-3.33 release.
+To apply to the development version of ns-3 (ns-3-dev), please use the
+most recent release patch.
 
 In future revisions, this patch is expected to go away once the code
 in the patch is accepted to the ns-3 mainline.
