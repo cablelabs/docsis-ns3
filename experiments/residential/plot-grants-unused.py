@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 """
 # Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
 #
@@ -67,7 +67,7 @@ v=np.array(values).astype(float)
 cell_text = []
 cell_text.append ('%.1f' % np.mean(v))
 cell_rows=['Average']
-the_table=plt.table(cellText=zip(cell_text),colWidths=[0.1],rowLabels=cell_rows,loc='lower right')
+the_table=plt.table(cellText=list(zip(cell_text)),colWidths=[0.1],rowLabels=cell_rows,loc='lower right')
 the_table.set_fontsize(8)
 plt.title("Duration=" + args.simulationTime,size=10)
 plt.savefig(args.plotName, format='pdf')

@@ -60,10 +60,11 @@ export RngRun=1
 export queueDepthTime=250ms
 numSims=8 # number of simultaneous simulations to run.
 	  # Set this less than or equal to the number of cores on your machine
-if ((numSims > `nproc`)); then
-	echo "Error exit:  numSims greater than number of CPU cores"
-	exit 1	
-fi
+# `nproc` is not a command on macOS; use `sysctl -n hw.ncpu`
+#if ((numSims > `nproc`)); then
+#	echo "Error exit:  numSims greater than number of CPU cores"
+#	exit 1	
+#fi
 
 # If a directory name (label) is provided, create the appropriate results directory, copy all necessary scripts (including this one)
 # into that directory, cd there, and launch the copy of this script that lives there (using the -L flag), then exit.
@@ -223,16 +224,16 @@ function run-scenario () {
 		--RngRun=${RngRun} \
 		> $logfile  2>&1
 
-	python plot-latency.py ${numTcpDownloads} ${numTcpUploads} ${numTcpDashStreams} ${numDctcpDownloads} ${numDctcpUploads} ${numDctcpDashStreams} ${numWebUsers} ${heading} ${simulationEndTime} --fileNameCm=${fileNameCm} --fileNameCmts=${fileNameCmts} --plotNameCm=${pdfNameCm} --plotNameCmts=${pdfNameCmts} --plotNameRtt=${pdfNameRtt} --imageNameRtt=${imageNameRtt} --fileNameSummary=${fileNameSummary} --scenarioId=${scenario_id} >/dev/null  &
+	python3 plot-latency.py ${numTcpDownloads} ${numTcpUploads} ${numTcpDashStreams} ${numDctcpDownloads} ${numDctcpUploads} ${numDctcpDashStreams} ${numWebUsers} ${heading} ${simulationEndTime} --fileNameCm=${fileNameCm} --fileNameCmts=${fileNameCmts} --plotNameCm=${pdfNameCm} --plotNameCmts=${pdfNameCmts} --plotNameRtt=${pdfNameRtt} --imageNameRtt=${imageNameRtt} --fileNameSummary=${fileNameSummary} --scenarioId=${scenario_id} >/dev/null  &
 	
 	if [ -s ${fileNamePageLoad} ]
 	then
-		python plot-http.py ${heading} ${simulationEndTime} --fileName=${fileNamePageLoad} --plotName=${pdfNamePageLoad} >/dev/null &
+		python3 plot-http.py ${heading} ${simulationEndTime} --fileName=${fileNamePageLoad} --plotName=${pdfNamePageLoad} >/dev/null &
 	fi
 	if [ $guaranteedGrantRate != 0 ]
 	then
-		python plot-grants-unused.py ${heading} ${simulationEndTime} --fileName=${fileNameGrantsUnused} --plotName=${pdfNameGrantsUnused} >/dev/null &
-		python plot-grants-unused-bandwidth.py ${heading} ${simulationEndTime} --fileName=${fileNameUnusedBandwidth} --plotName=${pdfNameUnusedBandwidth} >/dev/null &
+		python3 plot-grants-unused.py ${heading} ${simulationEndTime} --fileName=${fileNameGrantsUnused} --plotName=${pdfNameGrantsUnused} >/dev/null &
+		python3 plot-grants-unused-bandwidth.py ${heading} ${simulationEndTime} --fileName=${fileNameUnusedBandwidth} --plotName=${pdfNameUnusedBandwidth} >/dev/null &
 	fi
 
 	titleCm=${fileNameCm%*.dat}
@@ -331,7 +332,7 @@ fi
 wait
 
 echo "producing summary report"
-python summary-report.py "$summaryHeader" &
+python3 summary-report.py "$summaryHeader" &
 
 flist=""
 for i in {1..100} # if there are ever more than 100 scenarios defined, this will need to change

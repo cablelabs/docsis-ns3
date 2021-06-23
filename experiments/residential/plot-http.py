@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 """
 # Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
 #
@@ -78,7 +78,7 @@ for j in range (1,l+1):
 plt.plot(m,m1)
 array_web =np.interp([1, 0.999, 0.99, 0.95, 0.90, 0.50, 0.1, 0], m1,m)
 myFormattedList = [ '%.2f' % elem for elem in array_web ]
-mm=zip(myFormattedList)
+mm=list(zip(myFormattedList))
 plt.xlabel('Page Load Time in seconds')
 plt.ylabel('CDF')
 plt.suptitle(args.plotHeading + ' - HTTP Page Load Time',size=11)
