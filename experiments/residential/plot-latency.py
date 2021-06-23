@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 """
 # Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
 #
@@ -223,7 +223,7 @@ for ip_index in range(len(cmUniq)):
 	start_val=end_val
 
 # plot annotations
-resultant=zip(array_EF,array_DF,array_TCP, array_DCTCP)
+resultant=list(zip(array_EF,array_DF,array_TCP, array_DCTCP))
 for i in resultant:
 	convertedTuple.append(tuple(map(lambda x: round(x, 2), i))) 
 columnLabels = columns
@@ -277,7 +277,7 @@ for ip_index in range(len(cmtsUniq)):
 	start_val=end_val
 
 # plot annotations
-resultant=zip(array_EF,array_DF,array_TCP,array_DCTCP)
+resultant=list(zip(array_EF,array_DF,array_TCP,array_DCTCP))
 for i in resultant:
 	convertedTuple.append(tuple(map(lambda x: round(x, 2), i))) 
 
@@ -343,7 +343,7 @@ else:
 	plt.plot(cdf_latency_vector.tolist(), rtt_cdf.tolist(), color='orange', label ='UDP-Default')
 percentiles = np.interp([1, 0.999, 0.99, 0.95, 0.90, 0.50, 0.10, 0.01, 0], rtt_cdf.tolist(), cdf_latency_vector.tolist())
 percentiles_list = [ '%.3f' % elem for elem in percentiles ]
-resultant=zip(percentiles_list)
+resultant=list(zip(percentiles_list))
 the_table=plt.table(cellText=resultant,colWidths = [0.24]*2,rowLabels=rows_rtt,colLabels=columns_rtt,loc='lower right')
 the_table.set_fontsize(8)
 the_table.scale(0.8, 1)
@@ -370,7 +370,7 @@ cdf_latency_vector=np.arange(0, len(rtt_ccdf)) * bin_width
 
 # save CCDF data
 ccdf_output_file = open('ccdf_' + args.scenarioId + '.dat', 'w')
-for index, elem in zip(cdf_latency_vector, rtt_ccdf):
+for index, elem in list(zip(cdf_latency_vector, rtt_ccdf)):
     ccdf_output_file.write("%s %s\n" % (index, elem))
 ccdf_output_file.close()
 

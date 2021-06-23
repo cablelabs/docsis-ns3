@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 # Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
 #
@@ -35,7 +35,7 @@
 """Produce summary PDF report after simulations have been run by latency.sh.
 
 Program inputs:
-  $ python summary-report.py <title> 
+  $ python3 summary-report.py <title> 
 
 Program operation:
    The program relies on summary data files and latency data files indexed
@@ -121,28 +121,28 @@ except ImportError:
     print("Python module reportlab not installed; exiting...")
     sys.exit(1)
 
-# Xlim value (milliseconds) for use in CDF  
-RTT_CDF_XLIM = 200 
-# Ylim value for use in CCDF  
+# Xlim value (milliseconds) for use in CDF
+RTT_CDF_XLIM = 200
+# Ylim value for use in CCDF
 RTT_CCDF_YLIM = 0.001
 # Histogram bin width value (units of milliseconds)
 BIN_WIDTH = 0.001
 
 def prepare_latency_data_for_rtt_cdf(scenario_ids):
     """Prepare latency sample files from input latency trace files.
-    
+
     Recurse into 'temp/' directory and process all latency-CM and
     latency-CMTS data files.  Use the structure of latency.cc topology
     to figure out the packet type by IP address.  Return two lists of
     2-D tuples (flow_type, delay_sample); one for CM and one for
-    CMTS.  The lists are sorted by delay across all flow types. 
-   
+    CMTS.  The lists are sorted by delay across all flow types.
+
     For debugging support, this function also writes two files, 
     temp/cm-total.dat and temp/cmts-total.dat, as line-delimited files
     of all of the values returned.
 
     Args:
-        scenario_ids: A list of scenario IDs of the form 
+        scenario_ids: A list of scenario IDs of the form
             'latency-CM' + id + '.dat'; each such file should be located
             in the 'temp' directory
 
@@ -157,42 +157,42 @@ def prepare_latency_data_for_rtt_cdf(scenario_ids):
         filename = 'latency-CM' + id + '.dat'
         with open(filename) as f:
             for line in f:
-		delay_sample,ip_addr =line.split()[1:3]
-		ipa,ipb,ipc,ipd=ip_addr.split('.')	
-		if (int(ipc) == 1 and int(ipd) >= 3):
-			flow_type = "TCP"
-		elif (ip_addr == "10.5.1.2"): 
-			flow_type = "TCP"
-		elif (int(ipc) >= 5):
-			flow_type = "TCP"
-		elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
-			flow_type = "UDP-EF"
-		elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
-			flow_type = "UDP-Default"
-		else:
-			print("ip_addr %s not mapped to flow" % ip_addr)
-			sys.exit(1)
-		cm_delay_samples += [(flow_type, float(delay_sample))]
+                delay_sample,ip_addr =line.split()[1:3]
+                ipa,ipb,ipc,ipd=ip_addr.split('.')
+                if (int(ipc) == 1 and int(ipd) >= 3):
+                        flow_type = "TCP"
+                elif (ip_addr == "10.5.1.2"): 
+                        flow_type = "TCP"
+                elif (int(ipc) >= 5):
+                        flow_type = "TCP"
+                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
+                        flow_type = "UDP-EF"
+                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
+                        flow_type = "UDP-Default"
+                else:
+                        print("ip_addr %s not mapped to flow" % ip_addr)
+                        sys.exit(1)
+                cm_delay_samples += [(flow_type, float(delay_sample))]
             f.close()
         filename = 'latency-CMTS' + id + '.dat'
         with open(filename) as f:
             for line in f:
-		delay_sample,ip_addr =line.split()[1:3]
-		ipa,ipb,ipc,ipd=ip_addr.split('.')	
-		if (int(ipc) == 1 and int(ipd) >= 3):
-			flow_type = "TCP"
-		elif (ip_addr == "10.5.1.2"): 
-			flow_type = "TCP"
-		elif (int(ipc) >= 5):
-			flow_type = "TCP"
-		elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
-			flow_type = "UDP-EF"
-		elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
-			flow_type = "UDP-Default"
-		else:
-			print("ip_addr %s not mapped to flow" % ip_addr)
-			sys.exit(1)
-		cmts_delay_samples += [(flow_type, float(delay_sample))]
+                delay_sample,ip_addr =line.split()[1:3]
+                ipa,ipb,ipc,ipd=ip_addr.split('.')
+                if (int(ipc) == 1 and int(ipd) >= 3):
+                        flow_type = "TCP"
+                elif (ip_addr == "10.5.1.2"): 
+                        flow_type = "TCP"
+                elif (int(ipc) >= 5):
+                        flow_type = "TCP"
+                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
+                        flow_type = "UDP-EF"
+                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
+                        flow_type = "UDP-Default"
+                else:
+                        print("ip_addr %s not mapped to flow" % ip_addr)
+                        sys.exit(1)
+                cmts_delay_samples += [(flow_type, float(delay_sample))]
             f.close()
     cm_delay_samples.sort(key=itemgetter(1))
     with open('cm-total.dat', 'w') as of:
@@ -208,12 +208,12 @@ def prepare_latency_data_for_rtt_cdf(scenario_ids):
 
 def process_files_for_rtt_cdf(cm_delay_samples, cmts_delay_samples, selected_flow_types, colors):
     """Generate RTT CDF plot based on provided latency samples.
-    
+
     Generates a 'rtt-cdf.jpg' and 'rtt-cdf.pdf' figure for report inclusion
     based on RTT estimation for each flow type (using convolution of
     CM and CMTS delay value samples for each flow type).
 
-    Also returns the ninety-ninth percentile estimate of the RTT CDF of the 
+    Also returns the ninety-ninth percentile estimate of the RTT CDF of the
     first of the selected flowtypes, for use in the summary table.
 
     Args:
@@ -225,7 +225,7 @@ def process_files_for_rtt_cdf(cm_delay_samples, cmts_delay_samples, selected_flo
     Returns:
         Ninety-ninth percentile estimate of the RTT CDF of the first of the
         selected flowtypes (for use in the summary table).
-      
+
     """
     global BIN_WIDTH
     ninety_ninth_percentiles = []
@@ -281,13 +281,13 @@ def process_files_for_rtt_cdf(cm_delay_samples, cmts_delay_samples, selected_flo
         percentiles_lists.append ([ '%.3f' % elem for elem in percentiles ])
         ninety_ninth_percentiles.append (percentiles_lists[0][1])
     if (len(selected_flow_types) == 1):
-        resultant=zip(percentiles_lists[0])
+        resultant=list(zip(percentiles_lists[0]))
         the_table=plt.table(cellText=resultant,colWidths = [0.24]*2,rowLabels=rows_rtt,colLabels=columns_rtt,loc='lower right')
     elif (len(selected_flow_types) == 2):
-        resultant=zip(percentiles_lists[0], percentiles_lists[1])
+        resultant=list(zip(percentiles_lists[0], percentiles_lists[1]))
         the_table=plt.table(cellText=resultant,colWidths = [0.24]*3,rowLabels=rows_rtt,colLabels=columns_rtt,loc='lower right')
     elif (len(selected_flow_types) == 3):
-        resultant=zip(percentiles_lists[0], percentiles_lists[1], percentiles_lists[2])
+        resultant=list(zip(percentiles_lists[0], percentiles_lists[1], percentiles_lists[2]))
         the_table=plt.table(cellText=resultant,colWidths = [0.24]*3,rowLabels=rows_rtt,colLabels=columns_rtt,loc='lower right')
     the_table.set_fontsize(8)
     the_table.scale(0.8, 1)
@@ -316,7 +316,7 @@ def process_files_for_rtt_cdf(cm_delay_samples, cmts_delay_samples, selected_flo
     cdf_latency_vector=np.arange(0, len(selected_rtt_ccdf)) * BIN_WIDTH
     # Save CCDF data
     ccdf_output_file = open('ccdf.dat', 'w')
-    for cbin, elem in zip(cdf_latency_vector, selected_rtt_ccdf):
+    for cbin, elem in list(zip(cdf_latency_vector, selected_rtt_ccdf)):
         ccdf_output_file.write("%s %s\n" % (cbin, elem))
     ccdf_output_file.close()
     # plot CCDF
@@ -339,7 +339,7 @@ summary_files = []
 if os.path.isdir('temp'):
     for file in os.listdir('temp'):
         if fnmatch.fnmatch(file, 'summary*.dat'):
-            summary_files.append(file) 
+            summary_files.append(file)
 if len(summary_files) == 0:
     print("No summary files found; exiting...")
     sys.exit(1)
@@ -357,16 +357,16 @@ c.drawString(0.5*inch, stringVpos, sys.argv[1])
 # Build summary table
 os.chdir('temp')
 scenario_ids = []
-rows=1 
+rows=1
 total_duration = 0
 total_grant = 0
 total_transmit = 0
 total_wasted = 0
 total_eff = 0
-data= [['', 'Duration', 'Granted\n Mbps', 'Transmitted\n Mbps', 'Wasted\n Mbps', 'Efficiency', 'P99 US\n Latency (ms)',  'P99 DS\n Latency (ms)','P99 DOCSIS\n RTT (ms)']] 
+data= [['', 'Duration', 'Granted\n Mbps', 'Transmitted\n Mbps', 'Wasted\n Mbps', 'Efficiency', 'P99 US\n Latency (ms)',  'P99 DS\n Latency (ms)','P99 DOCSIS\n RTT (ms)']]
 for filename in summary_files:
     with open(filename) as f:
-        p = re.compile('summary(\w+).dat')    
+        p = re.compile('summary(\w+).dat')
         m = p.match(filename)
         scenario_ids.append(m.group(1))
         l = f.read().split()
@@ -388,7 +388,7 @@ flow_colors = []
 # Insert UDP-EF into the list first, if present
 for (ftype, sample) in cm_samples:
     if ftype == "UDP-EF":
-        udp_ef_found = True      
+        udp_ef_found = True
         selected_flow_types.append("UDP-EF")
         flow_colors.append('green')
         break
@@ -439,7 +439,7 @@ t.drawOn(c, 0.5*inch, tableVpos)
 imgAspect=float(288)/float(243)
 imgHeight=3.375*inch
 imgWidth=imgHeight*imgAspect
-imgVpos=tableVpos -0.25*inch - imgHeight 
+imgVpos=tableVpos -0.25*inch - imgHeight
 try:
     # To display only a single image, uncomment the below and comment the others
     # c.drawImage("rtt-cdf.jpg", 0.5*inch, 0.5*inch, width=480, height=360)

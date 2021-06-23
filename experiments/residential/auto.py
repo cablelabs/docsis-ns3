@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 """
 # Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
 #
@@ -103,7 +103,7 @@ if args.plotType == "HTTP":
 	#plt.legend(loc="lower right")
 	array_web =np.interp([1, 0.999, 0.99, 0.95, 0.90, 0.50, 0.1, 0], m1,m)
 	myFormattedList = [ '%.2f' % elem for elem in array_web ]
-	mm=zip(myFormattedList)
+	mm=list(zip(myFormattedList))
 	plt.xlabel('Page Load Time in seconds')
 	plt.ylabel('CDF')
 	plt.suptitle(args.plotHeading + ' - HTTP Page Load Time',size=11)
@@ -136,7 +136,7 @@ if args.plotType == "GrantsUnused":
 	cell_text = []
 	cell_text.append ('%.1f' % np.mean(v))
 	cell_rows=['Average']
-	the_table=plt.table(cellText=zip(cell_text),colWidths=[0.1],rowLabels=cell_rows,loc='lower right')
+	the_table=plt.table(cellText=list(zip(cell_text)),colWidths=[0.1],rowLabels=cell_rows,loc='lower right')
 	the_table.set_fontsize(8)
 	plt.title("Duration=" + args.simulationTime,size=10)
 	plt.savefig(args.plotName, format='pdf')
@@ -318,7 +318,7 @@ for ip_index in range(len(cmUniq)):
 
 # plot annotations
 
-resultant=zip(array_EF,array_DF,array_TCP, array_DCTCP)
+resultant=list(zip(array_EF,array_DF,array_TCP, array_DCTCP))
 for i in resultant:
 	convertedTuple.append(tuple(map(lambda x: round(x, 2), i)))
 columnLabels = columns
@@ -372,7 +372,7 @@ for ip_index in range(len(cmtsUniq)):
 	start_val=end_val
 
 # plot annotations
-resultant=zip(array_EF,array_DF,array_TCP,array_DCTCP)
+resultant=list(zip(array_EF,array_DF,array_TCP,array_DCTCP))
 for i in resultant:
 	convertedTuple.append(tuple(map(lambda x: round(x, 2), i)))
 plt.legend(loc="center right")
@@ -433,7 +433,7 @@ else:
 	plt.plot(cdf_latency_vector.tolist(), rtt_cdf.tolist(), color='orange', label ='UDP-Default')
 percentiles = np.interp([0.999, 0.99, 0.95, 0.90, 0.50, 0.10], rtt_cdf.tolist(), cdf_latency_vector.tolist())
 percentiles_list = [ '%.3f' % elem for elem in percentiles ]
-resultant=zip(percentiles_list)
+resultant=list(zip(percentiles_list))
 the_table=plt.table(cellText=resultant,colWidths = [0.24]*2,rowLabels=rows_rtt,colLabels=columns_rtt,loc='lower right')
 the_table.set_fontsize(8)
 the_table.scale(0.8, 1)
