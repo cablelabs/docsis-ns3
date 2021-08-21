@@ -11,26 +11,30 @@ cable networks.  More information can be found on the
 For users familiar with ns-3, this module can be downloaded or cloned into
 the ``contrib/`` directory of a patched version of ns-3 mainline code.
 The ``patches/`` directory contains the patch to apply to ns-3-dev, with
-the patch file name indicating which version of ns-3-dev to use.
-Once ns-3 is rebuilt, the build system will include the new module.
+the patch file name indicating which version of ns-3 to use.
+Once ns-3 is reconfigured, the build system will include the new module.
 
-1. Download a development copy of ns-3-dev:
+1. Download and unpack the most recent release of ns-3 (ns-3.34), either with a browser or from the command-line as follows. 
+
+    `$ wget https://www.nsnam.org/releases/ns-allinone-3.34.tar.bz2`
+    `$ tar xjf ns-allinone-3.34.tar.bz2`
+    `$ cd ns-allinone-3.34/ns-3.34`
+  
+  **Note:**  The development version ``ns-3-dev`` might also work with the current code:
 
     `$ git clone https://gitlab.com/nsnam/ns-3-dev.git`
 
-   Note:  the latest public release (ns-3.34) will also work.
+2. Change into the `contrib` directory:
 
-2. Change into the ns-3-dev/contrib directory:
+    `$ cd contrib`
 
-    `$ cd ns-3-dev/contrib`
-
-3. Clone this repository into a `docsis` directory:
+3. Within the `contrib` directory, clone this repository into a `docsis` directory:
 
     `$ git clone https://github.com/cablelabs/docsis-ns3.git docsis`
 
-   Note:  Ensure that the directory's name is 'docsis' and not 'docsis-ns3'
+   **Note:**  Ensure that the directory's name is 'docsis' and not 'docsis-ns3'
 
-4. Try to patch ns-3 with some additional test applications used in the examples:
+4. Try to patch ns-3 with some additional test applications and changes used in the examples:
 
     `$ cd ../`
 
@@ -40,7 +44,7 @@ Once ns-3 is rebuilt, the build system will include the new module.
 
     `$ patch -p1 -i contrib/docsis/patches/ns-3.34.patch`
 
-   This patch will eventually go away once the applications are upstreamed.
+   This patch will eventually go away once the application changes are upstreamed.
    
    If the patch does not apply cleanly, please open an issue on the GitHub
    tracker for the docsis-ns3 project.
@@ -51,6 +55,8 @@ Once ns-3 is rebuilt, the build system will include the new module.
 
     `$ ./waf build`
 
+  Follow instructions in the [ns-3 tutorial](https://www.nsnam.org/releases/ns-3-34/documentation/) if you are unfamiliar with how to build ns-3 and run programs.
+
    If the configuration complains that it `Could not find a task generator for the name 'ns3-docsis-ns3'`, this means that the directory was cloned without renaming it to `docsis`.
 
 7.  Try to run an example program:
@@ -60,7 +66,8 @@ Once ns-3 is rebuilt, the build system will include the new module.
 Look at `contrib/docsis/experiments/residential/residential-documentation.md` for more documentation about this example.
 
 For users unfamiliar with ns-3, please consult the documentation available on
-the [app store page](https://apps.nsnam.org/app/docsis-ns3).
+the [app store page](https://apps.nsnam.org/app/docsis-ns3) or listed 
+in the tutorial link above.
 
 # About this module
 
