@@ -49,7 +49,6 @@ protected:
   void SetUpstreamRate (DataRate upstreamRate);
   Ptr<AggregateServiceFlow> GetUpstreamAsf (void) const;
   Ptr<AggregateServiceFlow> GetDownstreamAsf (void) const;
-  virtual void AddDualQueue (void);
 
   Ptr<CmNetDevice> m_upstream;
   Ptr<CmtsNetDevice> m_downstream;

@@ -70,6 +70,9 @@ namespace docsis {
 
 NS_OBJECT_ENSURE_REGISTERED (CmtsNetDevice);
 
+// Constants for improved code readability
+static bool DATA_PDU_BYTES = false;
+
 TypeId 
 CmtsNetDevice::GetTypeId (void)
 {
@@ -79,9 +82,9 @@ CmtsNetDevice::GetTypeId (void)
     .AddConstructor<CmtsNetDevice> ()
     .AddAttribute ("FreeCapacityMean",
                    "Average upstream free capacity (bits/sec)",
-                   UintegerValue (0),
-                   MakeUintegerAccessor (&CmtsNetDevice::m_freeCapacityMean),
-                   MakeUintegerChecker<uint32_t> ())
+                   DataRateValue (DataRate (0)),
+                   MakeDataRateAccessor (&CmtsNetDevice::m_freeCapacityMean),
+                   MakeDataRateChecker ())
     .AddAttribute ("FreeCapacityVariation",
                    "Bound (percent) on the variation of upstream free capacity",
                    UintegerValue (0),
@@ -95,10 +98,6 @@ CmtsNetDevice::GetTypeId (void)
                    BooleanValue (false),
                    MakeBooleanAccessor (&CmtsNetDevice::m_pointToPointMode),
                    MakeBooleanChecker ())
-   .AddTraceSource ("Tokens",
-                     "Traced value of tokens",
-                     MakeTraceSourceAccessor (&CmtsNetDevice::m_tokens),
-                     "ns3::TracedValueCallback::Double")
    .AddTraceSource ("State",
                      "Internal state report generated upon each packet send",
                      MakeTraceSourceAccessor (&CmtsNetDevice::m_state),
@@ -113,7 +112,7 @@ CmtsNetDevice::GetTypeId (void)
 
 
 CmtsNetDevice::CmtsNetDevice () 
-  : m_tokens (0),
+  : m_msrTokens (0),
     m_peakTokens (0),
     m_lastUpdateTime (Seconds (0)),
     m_req (0),    
@@ -124,7 +123,7 @@ CmtsNetDevice::CmtsNetDevice ()
     m_lastSduSize (0),
     m_scheduledBytes (0),
     m_symbolState (0),
-    m_queueFramedBytes (0)
+    m_queuePduBytes (0)
 {
   NS_LOG_FUNCTION (this);
   m_deviceQueue = CreateObject<DropTailQueue<QueueDiscItem> > ();
@@ -148,6 +147,13 @@ CmtsNetDevice::DoDispose ()
     {
       GetQueue ()->Dispose ();
     }
+  if (m_asf)
+    {
+      m_asf->SetLowLatencyServiceFlow (0);
+      m_asf->SetClassicServiceFlow (0);
+    }
+  m_asf = 0;
+  m_sf = 0;
   DocsisNetDevice::DoDispose ();
 }
 
@@ -186,11 +192,11 @@ CmtsNetDevice::DoInitialize ()
     {
       Simulator::Schedule (GetDsSymbolTime (), &CmtsNetDevice::HandleSymbolBoundary, this);
     }
-  if (m_freeCapacityMean == 0)
+  if (m_freeCapacityMean.GetBitRate () == 0)
     {
       // Special value of zero signifies that user has not configured to
       // a specific value, so change it to the peak rate
-      m_freeCapacityMean = static_cast<uint32_t> (m_peakRate.GetBitRate ());
+      m_freeCapacityMean = m_peakRate;
     }
 
   // Set up pipeline
@@ -200,11 +206,19 @@ CmtsNetDevice::DoInitialize ()
     {
       m_req[i] = 0;
     }
-  m_tokens = m_maxTrafficBurst;
+  m_msrTokens = m_maxTrafficBurst;
   m_peakTokens = m_maxPdu;
   m_lastUpdateTime = Simulator::Now ();
 
   NS_ABORT_MSG_UNLESS (GetQueue (), "Queue pointer not set");
+  if (m_asf)
+    {
+      GetQueue ()->SetAsf (m_asf);
+    }
+  else
+    {
+      GetQueue ()->SetSf (m_sf);
+    }
   // The service flow may contain overrides to default queue parameters
   // Set the queue's revised parameters before calling Initialize() on it
   if (m_classicSf)
@@ -333,7 +347,7 @@ CmtsNetDevice::Reset ()
     { 
       m_req[i] = 0;
     } 
-  m_tokens = 0;
+  m_msrTokens = 0;
   m_peakTokens = 0;
   m_lastUpdateTime = Simulator::Now ();
 }
@@ -351,6 +365,13 @@ CmtsNetDevice::SetDownstreamAsf (Ptr<AggregateServiceFlow> asf)
   m_asf = asf;
   m_classicSf = asf->GetClassicServiceFlow ();
   m_llSf = asf->GetLowLatencyServiceFlow ();
+  // QoS parameters on the Low Latency Service Flow are not supported
+  if (m_llSf)
+    {
+      NS_ABORT_MSG_UNLESS (m_llSf->m_maxSustainedRate.GetBitRate () == 0, "LL MSR unsupported");
+      NS_ABORT_MSG_UNLESS (m_llSf->m_peakRate.GetBitRate () == 0, "LL PeakRate unsupported");
+      NS_ABORT_MSG_UNLESS (m_llSf->m_maxTrafficBurst == 3044, "LL MaxTrafficBurst unsupported");
+    }
 }
 
 void
@@ -373,6 +394,10 @@ CmtsNetDevice::SetDownstreamSf (Ptr<ServiceFlow> sf)
     {
       m_llSf = sf;
       m_classicSf = 0;
+      // QoS parameters on the Low Latency Service Flow are not supported
+      NS_ABORT_MSG_UNLESS (sf->m_maxSustainedRate.GetBitRate () == 0, "LL MSR unsupported");
+      NS_ABORT_MSG_UNLESS (sf->m_peakRate.GetBitRate () == 0, "LL PeakRate unsupported");
+      NS_ABORT_MSG_UNLESS (sf->m_maxTrafficBurst == 3044, "LL MaxTrafficBurst unsupported");
     }
 }
 
@@ -417,10 +442,10 @@ CmtsNetDevice::GetPipelineData () const
 uint32_t
 CmtsNetDevice::GetInternallyQueuedBytes () const
 {
-  uint32_t returnValue = m_queueFramedBytes;
+  uint32_t returnValue = m_queuePduBytes;
   if (m_fragPkt)
     {
-      returnValue += (m_fragPkt->GetSize () + GetDsMacHdrSize () - m_fragSentBytes);
+      returnValue += (m_fragPkt->GetSize () - m_fragSentBytes);
     }
   return returnValue;
 }
@@ -500,7 +525,7 @@ CmtsNetDevice::SendSymbol (uint32_t scheduledBytes, uint32_t symbolState)
       // save size of item because the call to SendOut() will modify
       // the encapsulated packet by adding Ethernet framing
       uint32_t framedSize = item->GetSize ();
-      m_queueFramedBytes -= framedSize;
+      m_queuePduBytes -= GetDataPduSize (item->GetPacket ()->GetSize ());
       sent = SendOut (item->GetPacket (), item->GetSource (), item->GetAddress (), item->GetProtocol ());
       NS_LOG_DEBUG ("Sent bytes (including Ethernet headers) " << sent);
       if (sent == framedSize)
@@ -548,7 +573,7 @@ CmtsNetDevice::HandleSymbolBoundary (void)
   m_symbolState = 0;
   IncrementTokens (Simulator::Now () - m_lastUpdateTime);
   Simulator::Schedule (GetDsSymbolTime (), &CmtsNetDevice::HandleSymbolBoundary, this);
-  if (m_tokens <= 0 || m_peakTokens <= 0)
+  if (m_msrTokens <= 0 || m_peakTokens <= 0)
     {
       NS_LOG_DEBUG ("Insufficient tokens to prepare data for future symbol");
       PushToPipeline (0);
@@ -594,7 +619,7 @@ CmtsNetDevice::HandleSymbolBoundary (void)
       NS_LOG_DEBUG ("Dequeue to staging queue");
       if (m_deviceQueue->Enqueue (item))
         {
-          m_queueFramedBytes += GetMacFrameSize (packet->GetSize ());
+          m_queuePduBytes += GetDataPduSize (packet->GetSize ());
           NS_LOG_DEBUG ("Packet enqueued at time " << Simulator::Now ().GetMicroSeconds () << "us");
           if (GetQueue ()->GetCurrentSize ().GetValue () == 0)
             {
@@ -609,7 +634,7 @@ void
 CmtsNetDevice::AdvanceTokenState (uint32_t bytes)
 {
   NS_LOG_FUNCTION (this << bytes);
-  m_tokens -= bytes;
+  m_msrTokens -= bytes;
   m_peakTokens -= bytes;
 }
 
@@ -685,7 +710,7 @@ CmtsNetDevice::SendFragment (void)
       // Provide to pcap trace hooks
       m_snifferTrace (packetCopy);
       m_promiscSnifferTrace (packetCopy);
-      m_state (packetCopy->GetSize () + GetDsMacHdrSize (), m_tokens, m_peakTokens, GetInternallyQueuedBytes (), GetQueue ()->GetCurrentSize ().GetValue (), GetPipelineData ());
+      m_state (packetCopy->GetSize () + GetDsMacHdrSize (), m_msrTokens, m_peakTokens, GetInternallyQueuedBytes (), GetQueue ()->GetCurrentSize ().GetValue (), GetPipelineData ());
     }
   else
     {
@@ -702,18 +727,18 @@ void
 CmtsNetDevice::IncrementTokens (Time elapsed)
 {
   NS_LOG_FUNCTION (this);
-  NS_LOG_DEBUG ("Tokens before increment " << m_tokens << " " << m_peakTokens);
-  double currentTokens = m_tokens;
+  NS_LOG_DEBUG ("Tokens before increment " << m_msrTokens << " " << m_peakTokens);
+  uint32_t currentTokens = m_msrTokens;
   currentTokens += (elapsed.GetSeconds () * m_maxSustainedRate.GetBitRate () / 8);
   currentTokens = (currentTokens > m_maxTrafficBurst) ? m_maxTrafficBurst : currentTokens;
-  double peakTokens = m_peakTokens;
+  uint32_t peakTokens = m_peakTokens;
   peakTokens += (elapsed.GetSeconds () * m_peakRate.GetBitRate () / 8);
   peakTokens = (peakTokens > m_maxPdu) ? m_maxPdu : peakTokens;
   // Update these at the end of arithmetic, since they are traced values
-  m_tokens = currentTokens;
+  m_msrTokens = currentTokens;
   m_peakTokens = peakTokens;
   m_lastUpdateTime = Simulator::Now ();
-  NS_LOG_DEBUG ("Tokens after increment " << m_tokens << " " << m_peakTokens);
+  NS_LOG_DEBUG ("Tokens after increment " << m_msrTokens << " " << m_peakTokens);
 }
 
 Time
@@ -727,17 +752,16 @@ uint32_t
 CmtsNetDevice::GetEligibleTokens (void) const
 {
   NS_LOG_FUNCTION (this);
-  if (m_tokens < 0 || m_peakTokens < 0)
+  if (m_msrTokens < 0 || m_peakTokens < 0)
     {
       return 0;
     }
-  NS_LOG_DEBUG ("m_tokens " << m_tokens << " m_peakTokens " << m_peakTokens);
-  uint32_t eligibleTokens = static_cast<uint32_t> (std::floor (m_tokens));
-  uint32_t peakTokensInt = static_cast<uint32_t> (std::floor (m_peakTokens));
-  if (eligibleTokens > peakTokensInt)
+  NS_LOG_DEBUG ("m_msrTokens " << m_msrTokens << " m_peakTokens " << m_peakTokens);
+  uint32_t eligibleTokens = m_msrTokens;
+  if (eligibleTokens > m_peakTokens)
     {
       NS_LOG_DEBUG ("Bytes limited by peak tokens " << m_peakTokens);
-      eligibleTokens = peakTokensInt;
+      eligibleTokens = m_peakTokens;
     }
   return eligibleTokens;
 }
@@ -746,10 +770,10 @@ uint32_t
 CmtsNetDevice::CalculateFreeCapacity (void)
 {
   NS_LOG_FUNCTION (this);
-  uint32_t symbolCapacity = m_freeCapacityMean / 8; // bytes
+  uint32_t symbolCapacity = m_freeCapacityMean.GetBitRate () / 8; // bytes
   if (m_freeCapacityVariation == 0)
     {
-      NS_LOG_DEBUG ("FreeCapacityMean " << m_freeCapacityMean << " symbolCapacity " << std::min<uint32_t> (GetDsSymbolCapacity (), symbolCapacity));
+      NS_LOG_DEBUG ("FreeCapacityMean " << m_freeCapacityMean.GetBitRate () << " symbolCapacity " << std::min<uint32_t> (GetDsSymbolCapacity (), symbolCapacity));
       return std::min<uint32_t> (GetDsSymbolCapacity (), symbolCapacity);
     }
   // Allow symbolCapacity to range lower or higher, based on the allowable
@@ -856,7 +880,7 @@ CmtsNetDevice::Send (
   if (m_deviceQueue->Enqueue (item))
     {
       result = true;
-      m_queueFramedBytes += GetMacFrameSize (packet->GetSize ());
+      m_queuePduBytes += GetDataPduSize (packet->GetSize ());
       NS_LOG_DEBUG ("Packet enqueued at time " << Simulator::Now ().GetMicroSeconds () << "us");
     }
   return result;
@@ -877,7 +901,7 @@ CmtsNetDevice::SendOut (
   Ptr<Packet> sduPacket = packet->Copy (); // Service data unit
   m_lastSduSize = packet->GetSize ();
 
-  NS_LOG_DEBUG ("Frame size " << GetMacFrameSize (packet->GetSize ()) << " tokens " << m_tokens << " peak tokens " << m_peakTokens);
+  NS_LOG_DEBUG ("Frame size " << GetMacFrameSize (packet->GetSize ()) << " tokens " << m_msrTokens << " peak tokens " << m_peakTokens);
 
   Mac48Address destination = Mac48Address::ConvertFrom (dest);
   Mac48Address source = Mac48Address::ConvertFrom (src);
@@ -961,7 +985,7 @@ CmtsNetDevice::SendOut (
         }
       AdvanceSymbolState (packetSizeOnWire);
       AdvanceTokenState (packetSizeOnWire);
-      m_state (packetSizeOnWire, m_tokens, m_peakTokens, GetInternallyQueuedBytes (), GetQueue ()->GetCurrentSize ().GetValue (), GetPipelineData ());
+      m_state (packetSizeOnWire, m_msrTokens, m_peakTokens, GetInternallyQueuedBytes (), GetQueue ()->GetCurrentSize ().GetValue (), GetPipelineData ());
       PopFromPipeline (packetSizeOnWire);
     }
   else
@@ -1002,7 +1026,7 @@ uint32_t
 CmtsNetDevice::GetMacFrameSize (uint32_t sduSize) const
 {
   NS_LOG_FUNCTION (this << sduSize);
-  return (GetEthernetFrameSize (sduSize) + GetDsMacHdrSize ());
+  return (GetDataPduSize (sduSize) + GetDsMacHdrSize ());
 }
 
 void
@@ -1025,24 +1049,40 @@ Time
 CmtsNetDevice::ExpectedDelay (void) const
 {
   NS_LOG_FUNCTION (this);
-  uint32_t queueSize = GetQueue ()->GetNBytes ();
-  queueSize += GetInternallyQueuedBytes ();
-  double latency;
-
-  if (queueSize <= m_tokens)
+  if (!IsInitialized ())
     {
-      latency = (8 * queueSize / m_peakRate.GetBitRate ());
+      return Seconds (0);
+    }
+  if (m_classicSf->m_maxSustainedRate.GetBitRate () == 0)
+    {
+      return Seconds (0);
+    }
+  uint32_t byteLength = GetQueue ()->GetClassicQueueSize (DATA_PDU_BYTES) + GetInternallyQueuedBytes ();
+  double latency = 0;
+  if (byteLength  <= m_msrTokens)
+    {
+      if (m_classicSf->m_peakRate.GetBitRate () == 0)
+        {
+          latency = 0;
+        }
+      else
+        {
+          latency = 8 * static_cast<double> (byteLength) / m_classicSf->m_peakRate.GetBitRate ();
+        }
     }
   else
     {
-      double tokens = m_tokens.Get ();
-      latency = 8 * (queueSize - tokens) / m_maxSustainedRate.GetBitRate ();
-      if (tokens > 0)
+      if (m_classicSf->m_peakRate.GetBitRate () == 0)
         {
-          latency +=  (8 * tokens) / m_peakRate.GetBitRate ();
+          latency = 8 * static_cast<double> (byteLength - m_msrTokens) / m_classicSf->m_maxSustainedRate.GetBitRate ();
+        }
+      else
+        {
+          latency = 8 * static_cast<double> (byteLength - m_msrTokens) / m_classicSf->m_maxSustainedRate.GetBitRate ();
+          latency += 8 * static_cast<double> (m_msrTokens) / m_classicSf->m_peakRate.GetBitRate ();
         }
     }
-  NS_LOG_DEBUG ("queue size " << queueSize << " tokens " << m_tokens << " expected delay " << latency);
+  NS_LOG_DEBUG ("queue size " << byteLength << " tokens " << m_msrTokens << " expected delay " << latency);
   return Seconds (latency);
 }
 

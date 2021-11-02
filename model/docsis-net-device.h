@@ -56,6 +56,7 @@
 namespace ns3 {
 
 class FdNetDevice;
+class ErrorModel;
 
 namespace docsis {
 
@@ -67,12 +68,21 @@ class DualQueueCoupledAqm;
  * \defgroup docsis DOCSIS models for cable access networks
  */
 
+/**
+ *\ingroup docsis
+ * 
+ * A MAP Information Element.
+ */
 struct MapIe
 {
   uint16_t m_sfid;
-  uint32_t m_offset;
+  uint32_t m_offset; //!< Minislot offset
 };
 
+/**
+ * A MAP message.  The minislot numbering (Alloc Start Time and ACK Time)
+ * is a full 32-bit counter that wraps back to zero.
+ */
 struct MapMessage
 {
   bool m_dataGrantPending;
@@ -148,6 +158,7 @@ public:
    * \param source source address
    * \param dest destination address
    * \param packetType type of packet received (broadcast/multicast/unicast/otherhost)
+   * \param promiscuous Whether to receive packets in promiscuous mode
    *
    * \return whether the reception succeeds
    */
@@ -311,6 +322,18 @@ public:
    * \return the simulation time at the start of the minislot
    */
   Time MinislotsToTime (uint32_t minislots) const;
+  /**
+   * Attach a receive ErrorModel to the DocsisNetDevice
+   *
+   * The device may optionally include an ErrorModel in
+   * the data path.  This does not affect the notional control
+   * channel.
+   *
+   * \see ErrorModel
+   * \param em Ptr to the ErrorModel.
+   */
+  void SetReceiveErrorModel (Ptr<ErrorModel> em);
+
 protected:
   virtual void NotifyNewAggregate (void);
 
@@ -323,11 +346,12 @@ protected:
    * Calculate the size of an eventual Ethernet frame based on the input
    * SDU size (by adding 14 header bytes, 4 trailer bytes, and accounting
    * for 64-byte minimum frame size).  The IP packet is the SDU.
+   * See Figure 18 (Generic MAC Frame Format) of specification
    *
    * \param sduSize size in bytes of SDU (IP packet)
    * \return size of frame in bytes
    */
-  uint32_t GetEthernetFrameSize (uint32_t sduSize) const;
+  uint32_t GetDataPduSize (uint32_t sduSize) const;
 
   /**
    * Calculate the size of an eventual upstream MAC frame based on the input
@@ -605,6 +629,7 @@ private:
   bool m_useConfigurationCache; //!< whether to cache configuration values
   Ptr<FdNetDevice> m_fdNetDevice; //!< Emulation device
   Ptr<CmtsUpstreamScheduler> m_cmtsUpstreamScheduler; //!< CMTS upstream scheduler
+  Ptr<ErrorModel> m_receiveErrorModel; //!< Optional receive error model.
 
   // DOCSIS 3.1 parameters
   // Upstream

@@ -48,6 +48,7 @@ NS_LOG_COMPONENT_DEFINE ("DocsisConfiguration");
 
 namespace docsis {
 
+NS_OBJECT_ENSURE_REGISTERED (AggregateServiceFlow);
 NS_OBJECT_ENSURE_REGISTERED (ServiceFlow);
 
 TypeId 

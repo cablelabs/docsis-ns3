@@ -8,3 +8,5 @@ def build(bld):
     obj = bld.create_ns3_program('docsis-configuration-example', ['core', 'network', 'docsis'])
     obj.source = 'docsis-configuration-example.cc'
 
+    obj = bld.create_ns3_program('simple-docsislink', ['core', 'config-store', 'network', 'bridge', 'docsis', 'point-to-point', 'mobility', 'internet', 'traffic-control', 'applications', 'flow-monitor'])
+    obj.source = 'simple-docsislink.cc'

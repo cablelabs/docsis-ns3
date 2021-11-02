@@ -40,6 +40,8 @@ class CmtsNetDevice;
 class CmtsUpstreamScheduler;
 class DualQueueCoupledAqm;
 class QueueProtection;
+class AggregateServiceFlow;
+class ServiceFlow;
 
 /**
  * \ingroup docsis
@@ -66,20 +68,103 @@ public:
   /**
    * \brief Create a basic DOCSIS network topology with 16 client nodes
    *        on the LAN and 16 server nodes on the WAN
-   * \param upstreamMsr Upstream MSR
-   * \param downstreamMsr Downstream MSR
-   * \param classicQueueDepthTime classic queue size (expressed in time)
+   *
+   * This method requires the caller to later add upstream and downstream
+   * service flow configuration.
    */
-  void CreateBasicNetwork (DataRate upstreamMsr, DataRate downstreamMsr, Time classicQueueDepthTime);
+  void CreateBasicNetwork ();
 
   /**
    * \brief Create a basic DOCSIS network topology with 16 client nodes
-   *        on the LAN and 16 server nodes on the WAN, and a default classic
-   *        queue depth time of 250ms
-   * \param upstreamMsr Upstream MSR
-   * \param downstreamMsr Downstream MSR
+   *        on the LAN and 16 server nodes on the WAN
+   * \param upstreamAsf Upstream ASF 
+   * \param downstreamAsf Downstream ASF 
    */
-  void CreateBasicNetwork (DataRate upstreamMsr, DataRate downstreamMsr);
+  void CreateBasicNetwork (Ptr<AggregateServiceFlow> upstreamAsf, Ptr<AggregateServiceFlow> downstreamAsf);
+
+  /**
+   * \brief Create a basic DOCSIS network topology with 16 client nodes
+   *        on the LAN and 16 server nodes on the WAN
+   * \param upstreamAsf Upstream ASF 
+   * \param downstreamSf Downstream SF 
+   */
+  void CreateBasicNetwork (Ptr<AggregateServiceFlow> upstreamAsf, Ptr<ServiceFlow> downstreamSf);
+
+  /**
+   * \brief Create a basic DOCSIS network topology with 16 client nodes
+   *        on the LAN and 16 server nodes on the WAN
+   * \param upstreamSf Upstream SF 
+   * \param downstreamAsf Downstream ASF 
+   */
+  void CreateBasicNetwork (Ptr<ServiceFlow> upstreamSf, Ptr<AggregateServiceFlow> downstreamAsf);
+
+  /**
+   * \brief Create a basic DOCSIS network topology with 16 client nodes
+   *        on the LAN and 16 server nodes on the WAN
+   * \param upstreamSf Upstream SF 
+   * \param downstreamSf Downstream SF 
+   */
+  void CreateBasicNetwork (Ptr<ServiceFlow> upstreamSf, Ptr<ServiceFlow> downstreamSf);
+
+  /**
+   * Add upstream aggregate service flow.  This operation must be done after
+   * CreateBasicNetwork has been called, and is intended for use with the
+   * variant of CreateBasicNetwork that takes no arguments.  
+   * 
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.  If an ASF has already been set, this method will
+   * overwrite the previous ASF.  If a SF has already been set, this method
+   * will abort the simulation.
+   *
+   * \param asf pointer to the AggregateServiceFlow object
+   */
+  void SetUpstreamAsf (Ptr<AggregateServiceFlow> asf);
+
+  /**
+   * Add downstream aggregate service flow.  This operation must be done after
+   * CreateBasicNetwork has been called, and is intended for use with the
+   * variant of CreateBasicNetwork that takes no arguments.  
+   * 
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.  If an ASF has already been set, this method will
+   * overwrite the previous ASF.  If a SF has already been set, this method
+   * will abort the simulation.
+   *
+   * \param asf pointer to the AggregateServiceFlow object
+   */
+  void SetDownstreamAsf (Ptr<AggregateServiceFlow> asf);
+
+  /**
+   * Add upstream service flow.  This operation must be done after
+   * CreateBasicNetwork has been called, and is intended for use with the
+   * variant of CreateBasicNetwork that takes no arguments.  
+   * 
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.  If an SF has already been set, this method will
+   * overwrite the previous SF.  If an ASF has already been set, this method
+   * will abort the simulation.
+   *
+   * \param sf pointer to the ServiceFlow object
+   */
+  void SetUpstreamSf (Ptr<ServiceFlow> sf);
+
+  /**
+   * Add downstream service flow.  This operation must be done after
+   * CreateBasicNetwork has been called, and is intended for use with the
+   * variant of CreateBasicNetwork that takes no arguments.  
+   * 
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.  If an SF has already been set, this method will
+   * overwrite the previous SF.  If a ASF has already been set, this method
+   * will abort the simulation.
+   *
+   * \param sf pointer to the ServiceFlow object
+   */
+  void SetDownstreamSf (Ptr<ServiceFlow> sf);
 
   /**
    * \brief Utility function to return properly casted device pointer
@@ -179,9 +264,25 @@ public:
    * Configure pcap tracing on the LAN side of the CM and the WAN side
    * of the CMTS.  Must be called after CreateBasicNetwork () 
    *
-   * \param scenarioId prefix of pcap file name
+   * \param prefix of pcap file name
    */
   void EnablePcap (std::string prefix);
+
+  /**
+  * Assign a fixed random variable stream number to the random variables
+  * used by the DOCSIS objects that have been instantiated by
+  * CreateBasicNetwork().  This prevents the random variable stream
+  * assignments from being perturbed by other, unrelated configuration
+  * changes in the program.
+  *
+  * The argument passed in should be a non-negative integer < 2^63.  The
+  * value returned is the number of stream indices that have been used;
+  * in general, stream assignments should not be reused in a simulation.
+  *
+  * \param stream first stream index to use
+  * \return the number of stream indices assigned by this helper
+  */
+  int64_t AssignStreams (int64_t stream);
 
 private:
   DocsisHelper m_docsisHelper;

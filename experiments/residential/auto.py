@@ -443,7 +443,11 @@ plt.ylabel('CDF of RTT estimate')
 plt.suptitle("CDF of RTT estimate", size=11)
 plt.title(generate_titlestring(), size=10)
 plt.savefig(args.plotNameRtt, format='pdf')
-plt.savefig(args.imageNameRtt, format='jpg')
+try:
+    plt.savefig(args.imageNameRtt, format='jpg')
+except ValueError:
+    print("Error, jpg format not supported")
+    pass
 plt.close()
 
 # Append 99% US, DS & RTT to summary file

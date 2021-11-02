@@ -88,6 +88,12 @@ struct DscpOverwrite
  *
  * Parameters not presently used by the model are labeled as 'for future use'
  * or omitted.
+ *
+ * A current limitation of the model is that QoS parameters for Low Latency
+ * Service Flows are unused (not used to rate shape any best effort requests).
+ * These parameters (m_maxSustainedTrafficRate, m_peakRate, m_maxTrafficBurst)
+ * should be left as defaults for the Low Latency Service Flow definition,
+ * or the simulation will error exit.
  */
 class ServiceFlow : public Object
 {
@@ -111,12 +117,12 @@ public:
 
   uint16_t m_sfid {0}; //!< C.2.2.5.2: Service Flow Identifier; either CLASSIC_SFID or LOW_LATENCY_SFID 
   uint8_t m_priority {0}; //!< C.2.2.7.1: Traffic Priority; for future use
-  DataRate m_maxSustainedRate {DataRate (std::numeric_limits<uint64_t>::max ())}; //!< C.2.2.7.2: Maximum Sustained Traffic Rate
-  uint32_t m_maxTrafficBurst {std::numeric_limits<uint32_t>::max ()}; //!< C.2.2.7.3: Maximum Traffic Burst
+  DataRate m_maxSustainedRate {DataRate (0)}; //!< C.2.2.7.2: Maximum Sustained Traffic Rate
+  uint32_t m_maxTrafficBurst {3044}; //!< C.2.2.7.3: Maximum Traffic Burst
   DataRate m_minReservedRate {DataRate (0)}; //!< C.2.2.7.4:  Minimum Reserved Traffic Rate; for future use
   uint32_t m_minReservedRatePacketSize {0}; //!< C.2.2.7.5 Assumed Minimum Reserved Rate Packet Size; for future use
   Ipv4Header::DscpType m_tosOverwrite {Ipv4Header::DscpDefault}; //!< C.2.2.7.9 IP Type Of Service (DSCP) Overwrite
-  DataRate m_peakRate {DataRate (std::numeric_limits<uint64_t>::max ())}; //!< C.2.2.7.10: Peak Traffic Rate
+  DataRate m_peakRate {DataRate (0)}; //!< C.2.2.7.10: Peak Traffic Rate
   uint32_t m_targetBuffer {0}; //!< C.2.2.7.11.4: Target Buffer (bytes); if set to 0 on SF instantiation, defaults to expression (3) in MULPI C.2.2.7.11.4 for LL SFs and 100 ms * (A)MSR for Classic or Individual SFs
   bool  m_aqmDisable {false}; //!< C.2.2.7.15.1: SF AQM Disable
   uint8_t m_classicAqmTarget {0}; //!< C.2.2.7.15.2 Classic AQM Latency Target (ms); set to non-zero value to override DualQueue default
@@ -210,11 +216,11 @@ public:
   };
   TriState m_coupled {UNSPECIFIED}; //!< Set to change COUPLED behavior of Annex M.
   uint8_t m_priority {0}; //!< C.2.2.7.1: Traffic Priority; for future use
-  DataRate m_maxSustainedRate {DataRate (std::numeric_limits<uint64_t>::max ())}; //!< C.2.2.7.2: Maximum Sustained Traffic Rate
-  uint32_t m_maxTrafficBurst {std::numeric_limits<uint32_t>::max ()}; //!< C.2.2.7.3: Maximum Traffic Burst
+  DataRate m_maxSustainedRate {DataRate (0)}; //!< C.2.2.7.2: Maximum Sustained Traffic Rate
+  uint32_t m_maxTrafficBurst {3044}; //!< C.2.2.7.3: Maximum Traffic Burst
   DataRate m_minReservedRate {DataRate (0)}; //!< C.2.2.7.4:  Minimum Reserved Traffic Rate; for future use
   uint32_t m_minReservedRatePacketSize {0}; //!< C.2.2.7.5 Assumed Minimum Reserved Rate Packet Size; for future use
-  DataRate m_peakRate {DataRate (std::numeric_limits<uint64_t>::max ())}; //!< C.2.2.7.10: Peak Traffic Rate
+  DataRate m_peakRate {DataRate (0)}; //!< C.2.2.7.10: Peak Traffic Rate
   uint8_t m_aqmCouplingFactor {255}; //!< C.2.2.7.17.5: AQM Coupling Factor (tenths); ranges from 0-25.4.  The value of 255 is a reserved value that will not change DualQueue configuration.
   uint8_t m_schedulingWeight {0}; //!< C.2.2.7.17.6: Scheduling Weight (range from 1-255).  The value of 0 is a reserved value that will not change DualQueue configuration.
   TriState m_queueProtectionEnable {UNSPECIFIED}; //!< C.2.2.7.17.7: Queue Protection Enable; the value UNSPECIFIED will not change the DualQueue configuration.
@@ -239,13 +245,14 @@ struct TokenBucketState
 };
 
 /**
- * A structure to encapsulate grant requests
+ * A structure to encapsulate grant requests.  In this model, the minislot
+ * time counter (request time) is a full 32-bit counter that wraps back to zero
  */
 struct GrantRequest
 {
   uint16_t m_sfid {0};
   uint32_t m_bytes {0};
-  uint32_t m_requestTime {0};
+  uint32_t m_requestTime {0}; //!< time represented in units of minislots
 };
 
 /**
@@ -254,8 +261,8 @@ struct GrantRequest
 struct Grant
 {
   uint16_t m_sfid {0};
-  uint32_t m_offset {0};
-  uint32_t m_length {0};
+  uint32_t m_offset {0}; //!< offset represented in units of minislots
+  uint32_t m_length {0}; //!< length represented in units of minislots
 };
 
 } // namespace docsis

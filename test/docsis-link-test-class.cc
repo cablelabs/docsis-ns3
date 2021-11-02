@@ -58,19 +58,6 @@ DocsisLinkTestCase::~DocsisLinkTestCase ()
 }
 
 void
-DocsisLinkTestCase::AddDualQueue (void)
-{
-  DocsisHelper docsis;
-  // Install AQM directly into the device; provide 250ms of buffer at MSR rate
-  uint32_t upstreamFeederQueueDepth = m_upstreamRate.GetBitRate () / (4 * 8);
-  QueueSize upstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, upstreamFeederQueueDepth);
-  uint32_t downstreamFeederQueueDepth = m_downstreamRate.GetBitRate () / (4 * 8);
-  QueueSize downstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, downstreamFeederQueueDepth);
-  docsis.InstallLldCoupledQueue (m_upstream, upstreamMaxSize, m_upstreamRate);
-  docsis.InstallLldCoupledQueue (m_downstream, downstreamMaxSize, m_downstreamRate);
-}
-
-void
 DocsisLinkTestCase::TraceBytesInQueue (std::string context, uint32_t oldValue, uint32_t newValue)
 {
   if (context == "upstream")
@@ -98,6 +85,7 @@ DocsisLinkTestCase::GetUpstreamAsf (void) const
   asf->m_peakRate = DataRate (2 * m_upstreamRate.GetBitRate ());
   asf->m_maxTrafficBurst = static_cast<uint32_t> (m_upstreamRate.GetBitRate () * 0.1 / 8); // 100ms at MSR
   Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
+  sf->m_targetBuffer = static_cast<uint32_t> (m_upstreamRate.GetBitRate () * 0.25 / 8); // 250 ms at MSR
   asf->SetClassicServiceFlow (sf);
   Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
   asf->SetLowLatencyServiceFlow (sf2);
@@ -113,6 +101,7 @@ DocsisLinkTestCase::GetDownstreamAsf (void) const
   asf->m_peakRate = DataRate (2 * m_downstreamRate.GetBitRate ());
   asf->m_maxTrafficBurst = static_cast<uint32_t> (m_downstreamRate.GetBitRate () * 0.1 / 8); // 100ms at MSR
   Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
+  sf->m_targetBuffer = static_cast<uint32_t> (m_downstreamRate.GetBitRate () * 0.25 / 8); // 250 ms at MSR
   asf->SetClassicServiceFlow (sf);
   Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
   asf->SetLowLatencyServiceFlow (sf2);

@@ -149,6 +149,8 @@ QueueProtectionBasicTestCase::DoRun (void)
   uint32_t qSizePkts = 50;
 
   Ptr<DualQueueCoupledAqm> queue = CreateObject<DualQueueCoupledAqm> ();
+  Ptr<AggregateServiceFlow> asf = CreateObject<AggregateServiceFlow> ();
+  queue->SetAsf (asf);
   Ptr<DualQueueTestFilter> filter = CreateObject<DualQueueTestFilter> ();
   queue->AddPacketFilter (filter);
   queue->SetQDelaySingleCallback (MakeCallback (&QDelaySingle));

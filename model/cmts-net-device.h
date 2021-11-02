@@ -46,6 +46,7 @@
 #include "ns3/traced-callback.h"
 #include "ns3/drop-tail-queue.h"
 #include "ns3/queue-item.h"
+#include "ns3/data-rate.h"
 
 namespace ns3 {
 
@@ -95,7 +96,7 @@ public:
    * \param [in] feederBytes feeder queue bytes waiting for transmission
    * \param [in] pipeline pipeline of data scheduled for transmission
     */
-  typedef void (* StateTracedCallback) (double tokensUsed, double tokensRemaining, double peakTokensRemaining, uint32_t internalBytes, uint32_t feederBytes, uint32_t pipeline);
+  typedef void (* StateTracedCallback) (uint32_t tokensUsed, uint32_t tokensRemaining, uint32_t peakTokensRemaining, uint32_t internalBytes, uint32_t feederBytes, uint32_t pipeline);
 
   void Reset (void);
 
@@ -210,15 +211,15 @@ private:
   uint32_t CalculateFreeCapacity (void);
 
   // DOCSIS configuration variables tied to attributes
-  uint32_t m_freeCapacityMean;  //!< Model congestion on the DOCSIS link by limiting available downstream capacity (bps)
+  DataRate m_freeCapacityMean;  //!< Model congestion on the DOCSIS link by limiting available downstream capacity
   uint32_t m_freeCapacityVariation;     //!< Model congestion variation on the DOCSIS link by specifying a percentage bound (RANGE: 0 - 100)
 
   DataRate m_maxSustainedRate;  //!<  Maximum Sustained Traffic Rate
   DataRate m_peakRate;          //!<  Peak Traffic Rate
   uint32_t m_maxTrafficBurst;   //!<  Maximum Traffic Burst
   uint32_t m_maxPdu;            //!<  MaxPDU parameter in Peak Traffic Rate
-  TracedValue<double> m_tokens; //!<  Accumulated tokens
-  double m_peakTokens;          //!<  Accumulated peak rate tokens
+  uint32_t m_msrTokens;         //!<  Accumulated tokens
+  uint32_t m_peakTokens;          //!<  Accumulated peak rate tokens
   Time m_lastUpdateTime;
   bool m_pointToPointMode {false};
   bool m_pointToPointBusy {false};
@@ -249,13 +250,13 @@ private:
    * notionally being prepared for transmission one or more symbols later.
    */
   Ptr<DropTailQueue<QueueDiscItem> > m_deviceQueue {nullptr};
-  uint32_t m_queueFramedBytes; //!< Account for Ethernet framing/padding
+  uint32_t m_queuePduBytes; //!< Account for Data PDU bytes
 
   /**
    * The trace source fired when a packet is sent out, to report on the
    * internal state of the token bucket.
    */
-  TracedCallback<double, double, double, uint32_t, uint32_t, uint32_t> m_state;
+  TracedCallback<uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t> m_state;
 
 };
 

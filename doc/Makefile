@@ -13,6 +13,7 @@ FIGURES = $(SOURCE)/figures
 IMAGES_DIA = \
 	$(FIGURES)/docsis-ofdma.dia \
 	$(FIGURES)/docsis-pipeline.dia \
+	$(FIGURES)/docsis-map-generation.dia \
 	$(FIGURES)/docsis-stack.dia \
 	$(FIGURES)/docsis-timeline.dia \
 	$(FIGURES)/docsis-uplink-example.dia \
@@ -44,6 +45,7 @@ RESCALE = ../../../utils/rescale-pdf.sh
 $(FIGURES)/docsis-stack.pdf_width = 3in
 $(FIGURES)/docsis-ofdma.pdf_width = 5in
 $(FIGURES)/docsis-pipeline.pdf_width = 5in
+$(FIGURES)/docsis-map-generation.pdf_width = 5in
 $(FIGURES)/docsis-timeline.pdf_width = 5in
 $(FIGURES)/docsis-uplink-example.pdf_width = 5in
 

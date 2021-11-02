@@ -1,0 +1,2026 @@
+diff --git a/src/applications/model/bulk-send-application.cc b/src/applications/model/bulk-send-application.cc
+index a4a7521c7..dc0e8f3f9 100644
+--- a/src/applications/model/bulk-send-application.cc
++++ b/src/applications/model/bulk-send-application.cc
+@@ -81,6 +81,9 @@ BulkSendApplication::GetTypeId (void)
+     .AddTraceSource ("TxWithSeqTsSize", "A new packet is created with SeqTsSizeHeader",
+                      MakeTraceSourceAccessor (&BulkSendApplication::m_txTraceWithSeqTsSize),
+                      "ns3::PacketSink::SeqTsSizeCallback")
++    .AddTraceSource ("ConnectionCompleted", "Report statistics on successfully completed connection",
++                     MakeTraceSourceAccessor (&BulkSendApplication::m_traceCompleted),
++                     "ns3::BulkSendApplication::ConnectionCompletedTracedCallback")
+   ;
+   return tid;
+ }
+@@ -88,6 +91,7 @@ BulkSendApplication::GetTypeId (void)
+ 
+ BulkSendApplication::BulkSendApplication ()
+   : m_socket (0),
++    m_closed (true),
+     m_connected (false),
+     m_totBytes (0),
+     m_unsentPacket (0)
+@@ -100,6 +104,46 @@ BulkSendApplication::~BulkSendApplication ()
+   NS_LOG_FUNCTION (this);
+ }
+ 
++void
++BulkSendApplication::NormalClose (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_ASSERT_MSG (socket == m_socket, "Received callback for other socket");
++  NS_LOG_DEBUG ("Connection completed for " << m_totBytes << " in " << (Simulator::Now () - m_connectionStartTime).As (Time::S));
++  m_traceCompleted (m_totBytes, Simulator::Now () - m_connectionStartTime);
++  m_closed = true;
++}
++
++void
++BulkSendApplication::Restart ()
++{
++  NS_LOG_FUNCTION (this);
++  if (m_closed)
++    {
++      if (m_socket)
++        {
++          m_socket = 0;
++        }
++    }
++  else
++    {
++      StopApplication ();
++      m_closed = true;
++      m_socket = 0;
++    }
++  m_totBytes = 0;
++  m_connected = false;
++  StartApplication ();
++}
++
++void
++BulkSendApplication::ErrorClose (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_ASSERT_MSG (socket == m_socket, "Received callback for other socket");
++  NS_LOG_WARN ("Error close received");
++}
++
+ void
+ BulkSendApplication::SetMaxBytes (uint64_t maxBytes)
+ {
+@@ -177,6 +221,9 @@ void BulkSendApplication::StartApplication (void) // Called at time specified by
+         MakeCallback (&BulkSendApplication::ConnectionFailed, this));
+       m_socket->SetSendCallback (
+         MakeCallback (&BulkSendApplication::DataSend, this));
++      m_socket->SetCloseCallbacks (
++        MakeCallback (&BulkSendApplication::NormalClose, this),
++        MakeCallback (&BulkSendApplication::ErrorClose, this));
+     }
+   if (m_connected)
+     {
+@@ -291,6 +338,7 @@ void BulkSendApplication::ConnectionSucceeded (Ptr<Socket> socket)
+   NS_LOG_FUNCTION (this << socket);
+   NS_LOG_LOGIC ("BulkSendApplication Connection succeeded");
+   m_connected = true;
++  m_connectionStartTime = Simulator::Now ();
+   Address from, to;
+   socket->GetSockName (from);
+   socket->GetPeerName (to);
+diff --git a/src/applications/model/bulk-send-application.h b/src/applications/model/bulk-send-application.h
+index f8fedef31..3e913c268 100644
+--- a/src/applications/model/bulk-send-application.h
++++ b/src/applications/model/bulk-send-application.h
+@@ -106,6 +106,17 @@ public:
+    */
+   Ptr<Socket> GetSocket (void) const;
+ 
++  /**
++   * \brief Reset the state of the application to its initialized state,
++   *        and start another transfer.
++   */
++  void Restart (void);
++
++  /**
++   * \brief Documentation string ConnectionCompleted for traced callback
++   */
++  typedef void (* ConnectionCompletedTracedCallback)(uint64_t bytes, Time duration);
++
+ protected:
+   virtual void DoDispose (void);
+ private:
+@@ -123,6 +134,7 @@ private:
+   Ptr<Socket>     m_socket;       //!< Associated socket
+   Address         m_peer;         //!< Peer address
+   Address         m_local;        //!< Local address to bind to
++  bool            m_closed;       //!< True if closed
+   bool            m_connected;    //!< True if connected
+   uint32_t        m_sendSize;     //!< Size of data to send each time
+   uint64_t        m_maxBytes;     //!< Limit total number of bytes sent
+@@ -131,6 +143,7 @@ private:
+   uint32_t        m_seq {0};      //!< Sequence
+   Ptr<Packet>     m_unsentPacket; //!< Variable to cache unsent packet
+   bool            m_enableSeqTsSizeHeader {false}; //!< Enable or disable the SeqTsSizeHeader
++  Time            m_connectionStartTime; //!< Start time of connection
+ 
+   /// Traced Callback: sent packets
+   TracedCallback<Ptr<const Packet> > m_txTrace;
+@@ -138,6 +151,8 @@ private:
+   /// Callback for tracing the packet Tx events, includes source, destination,  the packet sent, and header
+   TracedCallback<Ptr<const Packet>, const Address &, const Address &, const SeqTsSizeHeader &> m_txTraceWithSeqTsSize;
+ 
++  /// Callback for tracing completion
++  TracedCallback<uint64_t, Time> m_traceCompleted;
+ private:
+   /**
+    * \brief Connection Succeeded (called by Socket through a callback)
+@@ -157,7 +172,10 @@ private:
+    * \param socket socket to use
+    * \param unused actually unused
+    */
+-  void DataSend (Ptr<Socket> socket, uint32_t unused);
++  void DataSend (Ptr<Socket> socket, uint32_t unused); // for socket's SetSendCallback
++
++  void NormalClose (Ptr<Socket> socket);
++  void ErrorClose (Ptr<Socket> socket);
+ };
+ 
+ } // namespace ns3
+diff --git a/src/applications/model/onoff-application.cc b/src/applications/model/onoff-application.cc
+index c028a1395..4612c6783 100644
+--- a/src/applications/model/onoff-application.cc
++++ b/src/applications/model/onoff-application.cc
+@@ -60,6 +60,22 @@ OnOffApplication::GetTypeId (void)
+                    DataRateValue (DataRate ("500kb/s")),
+                    MakeDataRateAccessor (&OnOffApplication::m_cbrRate),
+                    MakeDataRateChecker ())
++    .AddAttribute ("RandomSize", "An optional random variable that replaces the use of fixed PacketSize variable",
++                   StringValue ("ns3::ConstantRandomVariable[Constant=512.0]"),
++                   MakePointerAccessor (&OnOffApplication::m_randomSize),
++                   MakePointerChecker <RandomVariableStream>())
++    .AddAttribute ("UseRandomSize", "Flag for whether packet distribution or fixed packet size is used",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&OnOffApplication::m_useRandomSize),
++                   MakeBooleanChecker ())
++    .AddAttribute ("RandomInterval", "An optional random variable that replaces the use of fixed DataRate",
++                   StringValue ("ns3::ConstantRandomVariable[Constant=512.0]"),
++                   MakePointerAccessor (&OnOffApplication::m_randomInterval),
++                   MakePointerChecker <RandomVariableStream>())
++    .AddAttribute ("UseRandomInterval", "Flag for whether interval distribution or fixed DataRate is used",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&OnOffApplication::m_useRandomInterval),
++                   MakeBooleanChecker ())
+     .AddAttribute ("PacketSize", "The size of packets sent in on state",
+                    UintegerValue (512),
+                    MakeUintegerAccessor (&OnOffApplication::m_pktSize),
+@@ -149,7 +165,9 @@ OnOffApplication::AssignStreams (int64_t stream)
+   NS_LOG_FUNCTION (this << stream);
+   m_onTime->SetStream (stream);
+   m_offTime->SetStream (stream + 1);
+-  return 2;
++  m_randomInterval->SetStream (stream + 2);
++  m_randomSize->SetStream (stream + 3);
++  return 4;
+ }
+ 
+ void
+@@ -283,8 +301,24 @@ void OnOffApplication::ScheduleNextTx ()
+       NS_ABORT_MSG_IF (m_residualBits > m_pktSize * 8, "Calculation to compute next send time will overflow");
+       uint32_t bits = m_pktSize * 8 - m_residualBits;
+       NS_LOG_LOGIC ("bits = " << bits);
++#if 0
+       Time nextTime (Seconds (bits /
+                               static_cast<double>(m_cbrRate.GetBitRate ()))); // Time till next packet
++#endif
++      Time nextTime; // Time till next packet
++      if (m_useRandomInterval)
++        {
++          nextTime = Seconds (m_randomInterval->GetValue ());
++          NS_ASSERT_MSG (nextTime.IsPositive (),
++                                        "Packet interval is unexpectedly zero or negative. "
++                                        "Please verify the configuration of "
++                                        "`ns3::OnOffApplication::RandomInterval` "
++                                        "random variable.");
++        }
++      else
++        {
++          nextTime = Seconds (bits / static_cast<double>(m_cbrRate.GetBitRate ()));
++        }
+       NS_LOG_LOGIC ("nextTime = " << nextTime.As (Time::S));
+       m_sendEvent = Simulator::Schedule (nextTime,
+                                          &OnOffApplication::SendPacket, this);
+@@ -321,34 +355,51 @@ void OnOffApplication::SendPacket ()
+   NS_ASSERT (m_sendEvent.IsExpired ());
+ 
+   Ptr<Packet> packet;
++  uint32_t packetSize = 0;
+   if (m_unsentPacket)
+     {
+       packet = m_unsentPacket;
++      packetSize = packet->GetSize ();
+     }
+-  else if (m_enableSeqTsSizeHeader)
+-    {
+-      Address from, to;
+-      m_socket->GetSockName (from);
+-      m_socket->GetPeerName (to);
+-      SeqTsSizeHeader header;
+-      header.SetSeq (m_seq++);
+-      header.SetSize (m_pktSize);
+-      NS_ABORT_IF (m_pktSize < header.GetSerializedSize ());
+-      packet = Create<Packet> (m_pktSize - header.GetSerializedSize ());
+-      // Trace before adding header, for consistency with PacketSink
+-      m_txTraceWithSeqTsSize (packet, from, to, header);
+-      packet->AddHeader (header);
+-    }
+-  else
++  else 
+     {
+-      packet = Create<Packet> (m_pktSize);
++      if (m_useRandomSize)
++        {
++          packetSize = m_randomSize->GetInteger ();
++          NS_ASSERT_MSG (packetSize > 0, "Packet size was unexpectedly zero. "
++                                         "Please verify the configuration of "
++                                         "`ns3::OnOffApplication::RandomSize` "
++                                         "random variable.");
++        }
++      else
++        {
++          packetSize = m_pktSize;
++        }
++      if (m_enableSeqTsSizeHeader)
++        {
++          Address from, to;
++          m_socket->GetSockName (from);
++          m_socket->GetPeerName (to);
++          SeqTsSizeHeader header;
++          header.SetSeq (m_seq++);
++          packetSize = std::max<uint32_t> (packetSize, header.GetSerializedSize ());
++          header.SetSize (packetSize);
++          packet = Create<Packet> (packetSize - header.GetSerializedSize ());
++          // Trace before adding header, for consistency with PacketSink
++          m_txTraceWithSeqTsSize (packet, from, to, header);
++          packet->AddHeader (header);
++        }
++      else
++        {
++          packet = Create<Packet> (packetSize);
++        }
+     }
+ 
+   int actual = m_socket->Send (packet);
+-  if ((unsigned) actual == m_pktSize)
++  if ((unsigned) actual == packetSize)
+     {
+       m_txTrace (packet);
+-      m_totBytes += m_pktSize;
++      m_totBytes += packetSize;
+       m_unsentPacket = 0;
+       Address localAddress;
+       m_socket->GetSockName (localAddress);
+@@ -375,7 +426,7 @@ void OnOffApplication::SendPacket ()
+     }
+   else
+     {
+-      NS_LOG_DEBUG ("Unable to send packet; actual " << actual << " size " << m_pktSize << "; caching for later attempt");
++      NS_LOG_DEBUG ("Unable to send packet; actual " << actual << " size " << packetSize << "; caching for later attempt");
+       m_unsentPacket = packet;
+     }
+   m_residualBits = 0;
+diff --git a/src/applications/model/onoff-application.h b/src/applications/model/onoff-application.h
+index 3aba54514..bb42aba03 100644
+--- a/src/applications/model/onoff-application.h
++++ b/src/applications/model/onoff-application.h
+@@ -163,6 +163,10 @@ private:
+   bool            m_connected;    //!< True if connected
+   Ptr<RandomVariableStream>  m_onTime;       //!< rng for On Time
+   Ptr<RandomVariableStream>  m_offTime;      //!< rng for Off Time
++  Ptr<RandomVariableStream>  m_randomSize; //!< rng for packet size distribution
++  bool            m_useRandomSize;    //!< boolean to use packet distribution
++  Ptr<RandomVariableStream>  m_randomInterval;  //!< rng for interarrival time
++  bool            m_useRandomInterval; //!< boolean to use interval distribution
+   DataRate        m_cbrRate;      //!< Rate that data is generated
+   DataRate        m_cbrRateFailSafe;      //!< Rate that data is generated (check copy)
+   uint32_t        m_pktSize;      //!< Size of packets
+diff --git a/src/applications/model/three-gpp-http-client.cc b/src/applications/model/three-gpp-http-client.cc
+index ab626d4f3..b3fd81f23 100644
+--- a/src/applications/model/three-gpp-http-client.cc
++++ b/src/applications/model/three-gpp-http-client.cc
+@@ -20,7 +20,6 @@
+  */
+ 
+ #include "three-gpp-http-client.h"
+-
+ #include <ns3/log.h>
+ #include <ns3/simulator.h>
+ #include <ns3/callback.h>
+@@ -79,6 +78,11 @@ ThreeGppHttpClient::GetTypeId ()
+                    UintegerValue (80), // the default HTTP port
+                    MakeUintegerAccessor (&ThreeGppHttpClient::m_remoteServerPort),
+                    MakeUintegerChecker<uint16_t> ())
++    .AddAttribute ("Protocol",
++                   "The type id of the transport protocol to use",
++                   TypeIdValue (TcpSocketFactory::GetTypeId ()),
++                   MakeTypeIdAccessor (&ThreeGppHttpClient::m_tid),
++                   MakeTypeIdChecker ())
+     .AddTraceSource ("ConnectionEstablished",
+                      "Connection to the destination web server has been established.",
+                      MakeTraceSourceAccessor (&ThreeGppHttpClient::m_connectionEstablishedTrace),
+@@ -377,8 +381,7 @@ ThreeGppHttpClient::OpenConnection ()
+   if (m_state == NOT_STARTED || m_state == EXPECTING_EMBEDDED_OBJECT
+       || m_state == PARSING_MAIN_OBJECT || m_state == READING)
+     {
+-      m_socket = Socket::CreateSocket (GetNode (),
+-                                       TcpSocketFactory::GetTypeId ());
++      m_socket = Socket::CreateSocket (GetNode (), m_tid);
+ 
+       int ret;
+ 
+@@ -430,7 +433,10 @@ ThreeGppHttpClient::OpenConnection ()
+                                                  this));
+       m_socket->SetRecvCallback (MakeCallback (&ThreeGppHttpClient::ReceivedDataCallback,
+                                                this));
+-      m_socket->SetAttribute ("MaxSegLifetime", DoubleValue (0.02)); // 20 ms.
++      if (m_socket->GetInstanceTypeId().GetName () != "ns3::NscTcpSocketImpl")
++        {
++          m_socket->SetAttribute ("MaxSegLifetime", DoubleValue (0.02)); // 20 ms.
++        }
+ 
+     } // end of `if (m_state == {NOT_STARTED, EXPECTING_EMBEDDED_OBJECT, PARSING_MAIN_OBJECT, READING})`
+   else
+@@ -660,7 +666,7 @@ ThreeGppHttpClient::ReceiveEmbeddedObject (Ptr<Packet> packet, const Address &fr
+                * downloaded completely. Now is the time to read it.
+                */
+               NS_LOG_INFO (this << " Finished receiving a web page.");
+-              EnterReadingTime ();
++               EnterReadingTime ();
+             }
+ 
+         } // end of else of `if (m_objectBytesToBeReceived > 0)`
+diff --git a/src/applications/model/three-gpp-http-client.h b/src/applications/model/three-gpp-http-client.h
+index 7885bf56a..b1661ee4f 100644
+--- a/src/applications/model/three-gpp-http-client.h
++++ b/src/applications/model/three-gpp-http-client.h
+@@ -369,6 +369,8 @@ private:
+   Address                               m_remoteServerAddress;
+   /// The `RemoteServerPort` attribute.
+   uint16_t                              m_remoteServerPort;
++  /// Protocol TypeId
++  TypeId                        m_tid;
+ 
+   // TRACE SOURCES
+ 
+diff --git a/src/applications/model/three-gpp-http-server.cc b/src/applications/model/three-gpp-http-server.cc
+index 2a99207ad..d8ee5c4df 100644
+--- a/src/applications/model/three-gpp-http-server.cc
++++ b/src/applications/model/three-gpp-http-server.cc
+@@ -87,6 +87,11 @@ ThreeGppHttpServer::GetTypeId ()
+                    UintegerValue (80), // the default HTTP port
+                    MakeUintegerAccessor (&ThreeGppHttpServer::m_localPort),
+                    MakeUintegerChecker<uint16_t> ())
++    .AddAttribute ("Protocol",
++                   "The type id of the transport protocol to use",
++                   TypeIdValue (TcpSocketFactory::GetTypeId ()),
++                   MakeTypeIdAccessor (&ThreeGppHttpServer::m_tid),
++                   MakeTypeIdChecker ())
+     .AddAttribute ("Mtu",
+                    "Maximum transmission unit (in bytes) of the TCP sockets "
+                    "used in this application, excluding the compulsory 40 "
+@@ -219,8 +224,7 @@ ThreeGppHttpServer::StartApplication ()
+             }
+ 
+           // Creating a TCP socket to connect to the server.
+-          m_initialSocket = Socket::CreateSocket (GetNode (),
+-                                                  TcpSocketFactory::GetTypeId ());
++          m_initialSocket = Socket::CreateSocket (GetNode (), m_tid);
+           m_initialSocket->SetAttribute ("SegmentSize", UintegerValue (m_mtuSize));
+ 
+           int ret;
+diff --git a/src/applications/model/three-gpp-http-server.h b/src/applications/model/three-gpp-http-server.h
+index a471df0d5..c33c75416 100644
+--- a/src/applications/model/three-gpp-http-server.h
++++ b/src/applications/model/three-gpp-http-server.h
+@@ -277,6 +277,8 @@ private:
+   uint16_t                    m_localPort;
+   /// The `Mtu` attribute.
+   uint32_t                    m_mtuSize;
++  /// Protocol TypeId
++  TypeId                      m_tid;
+ 
+   // TRACE SOURCES
+ 
+diff --git a/src/applications/model/udp-client.cc b/src/applications/model/udp-client.cc
+index 1d9edb1b1..c76c12524 100644
+--- a/src/applications/model/udp-client.cc
++++ b/src/applications/model/udp-client.cc
+@@ -28,6 +28,7 @@
+ #include "ns3/socket-factory.h"
+ #include "ns3/packet.h"
+ #include "ns3/uinteger.h"
++#include "ns3/boolean.h"
+ #include "udp-client.h"
+ #include "seq-ts-header.h"
+ #include <cstdlib>
+@@ -46,6 +47,11 @@ UdpClient::GetTypeId (void)
+     .SetParent<Application> ()
+     .SetGroupName("Applications")
+     .AddConstructor<UdpClient> ()
++    .AddAttribute ("OnDemand",
++                   "If true, will only send packets on demand and not at regular interval",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&UdpClient::m_onDemand),
++                   MakeBooleanChecker ())
+     .AddAttribute ("MaxPackets",
+                    "The maximum number of packets the application will send",
+                    UintegerValue (100),
+@@ -64,11 +70,19 @@ UdpClient::GetTypeId (void)
+                    UintegerValue (100),
+                    MakeUintegerAccessor (&UdpClient::m_peerPort),
+                    MakeUintegerChecker<uint16_t> ())
++    .AddAttribute ("LocalPort", "The local port of the outbound packets (IPv4 "
++                   "only); the value 0 will cause an ephemeral port to be used",
++                   UintegerValue (0),
++                   MakeUintegerAccessor (&UdpClient::m_localPort),
++                   MakeUintegerChecker<uint16_t> ())
+     .AddAttribute ("PacketSize",
+                    "Size of packets generated. The minimum packet size is 12 bytes which is the size of the header carrying the sequence number and the time stamp.",
+                    UintegerValue (1024),
+                    MakeUintegerAccessor (&UdpClient::m_size),
+                    MakeUintegerChecker<uint32_t> (12,65507))
++    .AddTraceSource ("Tx", "A new packet is created and is sent",
++                   MakeTraceSourceAccessor (&UdpClient::m_txTrace),
++                   "ns3::Packet::TracedCallback")
+   ;
+   return tid;
+ }
+@@ -85,6 +99,11 @@ UdpClient::UdpClient ()
+ UdpClient::~UdpClient ()
+ {
+   NS_LOG_FUNCTION (this);
++  Simulator::Cancel (m_sendEvent);
++  for (auto it = m_sendEvents.begin (); it != m_sendEvents.end (); it++)
++    {
++      Simulator::Cancel (it->second);
++    }
+ }
+ 
+ void
+@@ -120,7 +139,15 @@ UdpClient::StartApplication (void)
+       m_socket = Socket::CreateSocket (GetNode (), tid);
+       if (Ipv4Address::IsMatchingType(m_peerAddress) == true)
+         {
+-          if (m_socket->Bind () == -1)
++          if (m_localPort > 0)
++            {
++              InetSocketAddress socketAddr (Ipv4Address::GetAny (), m_localPort);
++              if (m_socket->Bind (socketAddr) == -1)
++                {
++                  NS_FATAL_ERROR ("Failed to bind socket");
++                }
++            }
++          else if (m_socket->Bind () == -1)
+             {
+               NS_FATAL_ERROR ("Failed to bind socket");
+             }
+@@ -136,7 +163,15 @@ UdpClient::StartApplication (void)
+         }
+       else if (InetSocketAddress::IsMatchingType (m_peerAddress) == true)
+         {
+-          if (m_socket->Bind () == -1)
++          if (m_localPort > 0)
++            {
++              InetSocketAddress socketAddr (Ipv4Address::GetAny (), m_localPort);
++              if (m_socket->Bind (socketAddr) == -1)
++                {
++                  NS_FATAL_ERROR ("Failed to bind socket");
++                }
++            }
++          else if (m_socket->Bind () == -1)
+             {
+               NS_FATAL_ERROR ("Failed to bind socket");
+             }
+@@ -179,7 +214,10 @@ UdpClient::StartApplication (void)
+ 
+   m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
+   m_socket->SetAllowBroadcast (true);
+-  m_sendEvent = Simulator::Schedule (Seconds (0.0), &UdpClient::Send, this);
++  if (m_onDemand == false)
++    {
++      m_sendEvent = Simulator::Schedule (Seconds (0.0), &UdpClient::Send, this);
++    }
+ }
+ 
+ void
+@@ -187,6 +225,67 @@ UdpClient::StopApplication (void)
+ {
+   NS_LOG_FUNCTION (this);
+   Simulator::Cancel (m_sendEvent);
++  for (auto it = m_sendEvents.begin (); it != m_sendEvents.end (); it++)
++    {
++      Simulator::Cancel (it->second);
++    }
++  if (m_socket)
++    {
++      m_socket->Close ();
++    }
++}
++
++void
++UdpClient::SendPacket (uint32_t size)
++{
++  NS_LOG_FUNCTION (this << size);
++  SeqTsHeader seqTs;
++  seqTs.SetSeq (m_sent);
++  Ptr<Packet> p;
++  if (size < 12)
++    {
++      NS_LOG_DEBUG ("Limiting size to 12");
++      p = Create<Packet> ();
++      size = 12;
++    }
++  else
++    {
++      p = Create<Packet> (size - (8+4)); // 8+4 : the size of the seqTs header
++    }
++  p->AddHeader (seqTs);
++  std::stringstream peerAddressStringStream;
++  if (Ipv4Address::IsMatchingType (m_peerAddress))
++    {
++      peerAddressStringStream << Ipv4Address::ConvertFrom (m_peerAddress);
++    }
++  else if (Ipv6Address::IsMatchingType (m_peerAddress))
++    {
++      peerAddressStringStream << Ipv6Address::ConvertFrom (m_peerAddress);
++    }
++  if ((m_socket->Send (p)) >= 0)
++    {
++      ++m_sent;
++      m_txTrace (p);
++      NS_LOG_INFO ("TraceDelay TX " << size << " bytes to "
++                                    << peerAddressStringStream.str () << " Uid: "
++                                    << p->GetUid () << " Time: "
++                                    << (Simulator::Now ()).GetSeconds ());
++
++    }
++  else
++    {
++      NS_LOG_INFO ("Error while sending " << size << " bytes to "
++                                          << peerAddressStringStream.str ());
++    }
++}
++
++void
++UdpClient::SendPacketAt (Time t, uint32_t size)
++{
++  NS_LOG_FUNCTION (this << t << size);
++  EventId e = Simulator::Schedule (t, &UdpClient::SendPacket, this, size);
++  // For future work:  store a per-object UID to be used to remove from map
++  m_sendEvents.insert (std::map<uint32_t, EventId>::value_type (e.GetUid (), e));
+ }
+ 
+ void
+@@ -202,6 +301,7 @@ UdpClient::Send (void)
+   if ((m_socket->Send (p)) >= 0)
+     {
+       ++m_sent;
++      m_txTrace (p);
+       m_totalTx += p->GetSize ();
+ #ifdef NS3_LOG_ENABLE
+     NS_LOG_INFO ("TraceDelay TX " << m_size << " bytes to "
+diff --git a/src/applications/model/udp-client.h b/src/applications/model/udp-client.h
+index 1575f05a1..255be331d 100644
+--- a/src/applications/model/udp-client.h
++++ b/src/applications/model/udp-client.h
+@@ -23,8 +23,10 @@
+ #ifndef UDP_CLIENT_H
+ #define UDP_CLIENT_H
+ 
++#include <map>
+ #include "ns3/application.h"
+ #include "ns3/event-id.h"
++#include "ns3/traced-callback.h"
+ #include "ns3/ptr.h"
+ #include "ns3/ipv4-address.h"
+ 
+@@ -70,6 +72,22 @@ public:
+    */
+   uint64_t GetTotalTx () const;
+ 
++  /// Traced Callback: transmitted packets.
++  TracedCallback<Ptr<const Packet> > m_txTrace;
++
++  /**
++   * \param size Payload size in bytes
++   * \brief Immediately send one packet
++   */
++  void SendPacket (uint32_t size);
++
++  /**
++   * \param t Time from now to schedule a send
++   * \param size Payload size in bytes
++   * \brief Send one packet at t time in the future
++   */
++  void SendPacketAt (Time t, uint32_t size);
++
+ protected:
+   virtual void DoDispose (void);
+ 
+@@ -92,10 +110,13 @@ private:
+   Ptr<Socket> m_socket; //!< Socket
+   Address m_peerAddress; //!< Remote peer address
+   uint16_t m_peerPort; //!< Remote peer port
++  uint16_t m_localPort; //!< Local port
+   EventId m_sendEvent; //!< Event to send the next packet
+ #ifdef NS3_LOG_ENABLE
+   std::string m_peerAddressString; //!< Remote peer address string
+ #endif // NS3_LOG_ENABLE
++  bool m_onDemand; //!< Mode flag for on-demand operation
++  std::map<uint32_t, EventId> m_sendEvents;  //!< Container for on-demand events
+ };
+ 
+ } // namespace ns3
+diff --git a/src/applications/model/udp-server.cc b/src/applications/model/udp-server.cc
+index 5c4aa17ba..d0f0900d8 100644
+--- a/src/applications/model/udp-server.cc
++++ b/src/applications/model/udp-server.cc
+@@ -29,6 +29,7 @@
+ #include "ns3/socket-factory.h"
+ #include "ns3/packet.h"
+ #include "ns3/uinteger.h"
++#include "ns3/traced-callback.h"
+ #include "packet-loss-counter.h"
+ 
+ #include "seq-ts-header.h"
+@@ -59,6 +60,9 @@ UdpServer::GetTypeId (void)
+                    MakeUintegerAccessor (&UdpServer::GetPacketWindowSize,
+                                          &UdpServer::SetPacketWindowSize),
+                    MakeUintegerChecker<uint16_t> (8,256))
++    .AddTraceSource ("PacketLatency", "Latency sample for received packet",
++                     MakeTraceSourceAccessor (&UdpServer::m_packetLatency),
++                     "ns3::TracedValueCallback::Time")
+     .AddTraceSource ("Rx", "A packet has been received",
+                      MakeTraceSourceAccessor (&UdpServer::m_rxTrace),
+                      "ns3::Packet::TracedCallback")
+@@ -159,6 +163,12 @@ UdpServer::StopApplication ()
+   if (m_socket != 0)
+     {
+       m_socket->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
++      m_socket->Close ();
++    }
++  if (m_socket6 != 0)
++    {
++      m_socket6->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
++      m_socket6->Close ();
+     }
+ }
+ 
+@@ -180,6 +190,7 @@ UdpServer::HandleRead (Ptr<Socket> socket)
+           SeqTsHeader seqTs;
+           packet->RemoveHeader (seqTs);
+           uint32_t currentSequenceNumber = seqTs.GetSeq ();
++          m_packetLatency (Simulator::Now (), Simulator::Now () - seqTs.GetTs ());
+           if (InetSocketAddress::IsMatchingType (from))
+             {
+               NS_LOG_INFO ("TraceDelay: RX " << receivedSize <<
+diff --git a/src/applications/model/udp-server.h b/src/applications/model/udp-server.h
+index f6a42ae83..856641396 100644
+--- a/src/applications/model/udp-server.h
++++ b/src/applications/model/udp-server.h
+@@ -24,6 +24,7 @@
+ #define UDP_SERVER_H
+ 
+ #include "ns3/application.h"
++#include "ns3/traced-callback.h"
+ #include "ns3/event-id.h"
+ #include "ns3/ptr.h"
+ #include "ns3/address.h"
+@@ -103,12 +104,12 @@ private:
+   uint64_t m_received; //!< Number of received packets
+   PacketLossCounter m_lossCounter; //!< Lost packet counter
+ 
++  TracedCallback<Time, Time> m_packetLatency;
+   /// Callbacks for tracing the packet Rx events
+   TracedCallback<Ptr<const Packet> > m_rxTrace;
+ 
+   /// Callbacks for tracing the packet Rx events, includes source and destination addresses
+   TracedCallback<Ptr<const Packet>, const Address &, const Address &> m_rxTraceWithAddresses;
+-
+ };
+ 
+ } // namespace ns3
+diff --git a/src/applications/wscript b/src/applications/wscript
+index 8f5326b5c..a3aa8480e 100644
+--- a/src/applications/wscript
++++ b/src/applications/wscript
+@@ -5,6 +5,7 @@ def build(bld):
+     module.source = [
+         'model/bulk-send-application.cc',
+         'model/onoff-application.cc',
++        'model/file-transfer-application.cc',
+         'model/packet-sink.cc',
+         'model/udp-client.cc',
+         'model/udp-server.cc',
+@@ -20,8 +21,10 @@ def build(bld):
+         'model/three-gpp-http-server.cc',
+         'model/three-gpp-http-header.cc',
+         'model/three-gpp-http-variables.cc', 
++        'model/game-client.cc',
+         'helper/bulk-send-helper.cc',
+         'helper/on-off-helper.cc',
++        'helper/file-transfer-helper.cc',
+         'helper/packet-sink-helper.cc',
+         'helper/udp-client-server-helper.cc',
+         'helper/udp-echo-helper.cc',
+@@ -46,6 +49,7 @@ def build(bld):
+     headers.source = [
+         'model/bulk-send-application.h',
+         'model/onoff-application.h',
++        'model/file-transfer-application.h',
+         'model/packet-sink.h',
+         'model/udp-client.h',
+         'model/udp-server.h',
+@@ -61,8 +65,10 @@ def build(bld):
+         'model/three-gpp-http-server.h',
+         'model/three-gpp-http-header.h',
+         'model/three-gpp-http-variables.h',
++        'model/game-client.h',
+         'helper/bulk-send-helper.h',
+         'helper/on-off-helper.h',
++        'helper/file-transfer-helper.h',
+         'helper/packet-sink-helper.h',
+         'helper/udp-client-server-helper.h',
+         'helper/udp-echo-helper.h',
+diff --git a/src/applications/helper/file-transfer-helper.cc b/src/applications/helper/file-transfer-helper.cc
+new file mode 100644
+index 000000000..33e87acaa
+--- /dev/null
++++ b/src/applications/helper/file-transfer-helper.cc
+@@ -0,0 +1,78 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2008 INRIA
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation;
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Author: Geoge Riley <riley@ece.gatech.edu>
++ * Adapted from OnOffHelper by:
++ * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
++ */
++
++#include "file-transfer-helper.h"
++#include "ns3/inet-socket-address.h"
++#include "ns3/packet-socket-address.h"
++#include "ns3/string.h"
++#include "ns3/names.h"
++
++namespace ns3 {
++
++FileTransferHelper::FileTransferHelper (std::string protocol, Address address)
++{
++  m_factory.SetTypeId ("ns3::FileTransferApplication");
++  m_factory.Set ("Protocol", StringValue (protocol));
++  m_factory.Set ("Remote", AddressValue (address));
++}
++
++void
++FileTransferHelper::SetAttribute (std::string name, const AttributeValue &value)
++{
++  m_factory.Set (name, value);
++}
++
++ApplicationContainer
++FileTransferHelper::Install (Ptr<Node> node) const
++{
++  return ApplicationContainer (InstallPriv (node));
++}
++
++ApplicationContainer
++FileTransferHelper::Install (std::string nodeName) const
++{
++  Ptr<Node> node = Names::Find<Node> (nodeName);
++  return ApplicationContainer (InstallPriv (node));
++}
++
++ApplicationContainer
++FileTransferHelper::Install (NodeContainer c) const
++{
++  ApplicationContainer apps;
++  for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
++    {
++      apps.Add (InstallPriv (*i));
++    }
++
++  return apps;
++}
++
++Ptr<Application>
++FileTransferHelper::InstallPriv (Ptr<Node> node) const
++{
++  Ptr<Application> app = m_factory.Create<Application> ();
++  node->AddApplication (app);
++
++  return app;
++}
++
++} // namespace ns3
+diff --git a/src/applications/helper/file-transfer-helper.h b/src/applications/helper/file-transfer-helper.h
+new file mode 100644
+index 000000000..105b297ed
+--- /dev/null
++++ b/src/applications/helper/file-transfer-helper.h
+@@ -0,0 +1,110 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2008 INRIA
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation;
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Author: Geoge Riley <riley@ece.gatech.edu>
++ * Adapted from OnOffHelper by:
++ * Author: Mathieu Lacage <mathieu.lacage@sophia.inria.fr>
++ */
++
++#ifndef FILE_TRANSFER_HELPER_H
++#define FILE_TRANSFER_HELPER_H
++
++#include <stdint.h>
++#include <string>
++#include "ns3/object-factory.h"
++#include "ns3/address.h"
++#include "ns3/attribute.h"
++#include "ns3/net-device.h"
++#include "ns3/node-container.h"
++#include "ns3/application-container.h"
++
++namespace ns3 {
++
++/**
++ * \ingroup filetransfer
++ * \brief A helper to make it easier to instantiate an ns3::FileTransferApplication
++ * on a set of nodes.
++ */
++class FileTransferHelper
++{
++public:
++  /**
++   * Create an FileTransferHelper to make it easier to work with FileTransferApplications
++   *
++   * \param protocol the name of the protocol to use to send traffic
++   *        by the applications. This string identifies the socket
++   *        factory type used to create sockets for the applications.
++   *        A typical value would be ns3::UdpSocketFactory.
++   * \param address the address of the remote node to send traffic
++   *        to.
++   */
++  FileTransferHelper (std::string protocol, Address address);
++
++  /**
++   * Helper function used to set the underlying application attributes, 
++   * _not_ the socket attributes.
++   *
++   * \param name the name of the application attribute to set
++   * \param value the value of the application attribute to set
++   */
++  void SetAttribute (std::string name, const AttributeValue &value);
++
++  /**
++   * Install an ns3::FileTransferApplication on each node of the input container
++   * configured with all the attributes set with SetAttribute.
++   *
++   * \param c NodeContainer of the set of nodes on which an FileTransferApplication
++   * will be installed.
++   * \returns Container of Ptr to the applications installed.
++   */
++  ApplicationContainer Install (NodeContainer c) const;
++
++  /**
++   * Install an ns3::FileTransferApplication on the node configured with all the
++   * attributes set with SetAttribute.
++   *
++   * \param node The node on which an FileTransferApplication will be installed.
++   * \returns Container of Ptr to the applications installed.
++   */
++  ApplicationContainer Install (Ptr<Node> node) const;
++
++  /**
++   * Install an ns3::FileTransferApplication on the node configured with all the
++   * attributes set with SetAttribute.
++   *
++   * \param nodeName The node on which an FileTransferApplication will be installed.
++   * \returns Container of Ptr to the applications installed.
++   */
++  ApplicationContainer Install (std::string nodeName) const;
++
++private:
++  /**
++   * Install an ns3::FileTransferApplication on the node configured with all the
++   * attributes set with SetAttribute.
++   *
++   * \param node The node on which an FileTransferApplication will be installed.
++   * \returns Ptr to the application installed.
++   */
++  Ptr<Application> InstallPriv (Ptr<Node> node) const;
++
++  ObjectFactory m_factory; //!< Object factory.
++};
++
++} // namespace ns3
++
++#endif /* FILE_TRANSFER_HELPER_H */
++
+diff --git a/src/applications/model/file-transfer-application.cc b/src/applications/model/file-transfer-application.cc
+new file mode 100644
+index 000000000..55b4cde5c
+--- /dev/null
++++ b/src/applications/model/file-transfer-application.cc
+@@ -0,0 +1,410 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2010 Georgia Institute of Technology
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation;
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Author: George F. Riley <riley@ece.gatech.edu>
++ */
++
++#include "ns3/log.h"
++#include "ns3/address.h"
++#include "ns3/node.h"
++#include "ns3/nstime.h"
++#include "ns3/socket.h"
++#include "ns3/simulator.h"
++#include "ns3/socket-factory.h"
++#include "ns3/packet.h"
++#include "ns3/uinteger.h"
++#include "ns3/boolean.h"
++#include "ns3/pointer.h"
++#include "ns3/event-id.h"
++#include "ns3/string.h"
++#include "ns3/trace-source-accessor.h"
++#include "ns3/random-variable-stream.h"
++#include "ns3/tcp-socket-factory.h"
++#include "ns3/tcp-socket.h"
++#include "ns3/udp-socket-factory.h"
++#include "file-transfer-application.h"
++
++namespace ns3 {
++
++NS_LOG_COMPONENT_DEFINE ("FileTransferApplication");
++
++NS_OBJECT_ENSURE_REGISTERED (FileTransferApplication);
++
++TypeId
++FileTransferApplication::GetTypeId (void)
++{
++  static TypeId tid = TypeId ("ns3::FileTransferApplication")
++    .SetParent<Application> ()
++    .SetGroupName("Applications") 
++    .AddConstructor<FileTransferApplication> ()
++    .AddAttribute ("SendSize", "The number of bytes to write per socket send",
++                   UintegerValue (512),
++                   MakeUintegerAccessor (&FileTransferApplication::m_sendSize),
++                   MakeUintegerChecker<uint32_t> (1))
++    .AddAttribute ("Remote", "The address of the destination",
++                   AddressValue (),
++                   MakeAddressAccessor (&FileTransferApplication::m_peer),
++                   MakeAddressChecker ())
++    .AddAttribute ("SndBufSize",
++                   "TCP transmit buffer size (bytes);"
++                   "if non-zero, overrides TcpSocket default",
++                   UintegerValue (0),
++                   MakeUintegerAccessor (&FileTransferApplication::m_tcpSndBufSize),
++                   MakeUintegerChecker<uint32_t> ())
++    .AddAttribute ("RcfBufSize",
++                   "TCP receive buffer size (bytes);"
++                   "if non-zero, overrides TcpSocket default",
++                   UintegerValue (0),
++                   MakeUintegerAccessor (&FileTransferApplication::m_tcpRcvBufSize),
++                   MakeUintegerChecker<uint32_t> ())
++    .AddAttribute ("FileSize",
++                   "The total number of bytes to send. The value zero means "
++                   "that there is no limit.",
++                   UintegerValue (0),
++                   MakeUintegerAccessor (&FileTransferApplication::m_fileSize),
++                   MakeUintegerChecker<uint32_t> ())
++    .AddAttribute ("UseRandomFileSize", "Flag for whether file size should be drawn from random distribution",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&FileTransferApplication::m_useRandomFileSize),
++                   MakeBooleanChecker ())
++    .AddAttribute ("RandomFileSize", "A random variable that governs file size (bytes)",
++                   StringValue ("ns3::ConstantRandomVariable[Constant=1]"),
++                   MakePointerAccessor (&FileTransferApplication::m_randomFileSize),
++                   MakePointerChecker <RandomVariableStream>())
++    .AddAttribute ("Protocol", "The type of protocol to use.",
++                   TypeIdValue (TcpSocketFactory::GetTypeId ()),
++                   MakeTypeIdAccessor (&FileTransferApplication::m_tid),
++                   MakeTypeIdChecker ())
++    .AddAttribute ("UseReadingTime", "Flag for whether reading time (FTP Model 2) is used",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&FileTransferApplication::m_useReadingTime),
++                   MakeBooleanChecker ())
++    .AddAttribute ("ReadingTime", "A random variable that governs reading time",
++                   StringValue ("ns3::ConstantRandomVariable[Constant=5]"),
++                   MakePointerAccessor (&FileTransferApplication::m_readingTime),
++                   MakePointerChecker <RandomVariableStream>())
++    .AddAttribute ("UseRestartInterval", "Flag for whether repeating transfers (similar to FTP model 1) is used",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&FileTransferApplication::m_useRestartInterval),
++                   MakeBooleanChecker ())
++    .AddAttribute ("RestartInterval", "A random variable that governs restart time",
++                   StringValue ("ns3::ConstantRandomVariable[Constant=5]"),
++                   MakePointerAccessor (&FileTransferApplication::m_restartInterval),
++                   MakePointerChecker <RandomVariableStream>())
++    .AddAttribute ("UseFileTransferDuration", "Flag for whether file transfers are truncated",
++                   BooleanValue (false),
++                   MakeBooleanAccessor (&FileTransferApplication::m_useFileTransferDuration),
++                   MakeBooleanChecker ())
++    .AddAttribute ("FileTransferDuration", "Time after which to terminate a transfer and close the socket if not yet completed",
++                   TimeValue (Seconds (2.5)),
++                   MakeTimeAccessor (&FileTransferApplication::m_fileTransferDuration),
++                   MakeTimeChecker ())
++    .AddTraceSource ("Tx", "A new packet is created and is sent",
++                     MakeTraceSourceAccessor (&FileTransferApplication::m_txTrace),
++                     "ns3::Packet::TracedCallback")
++    .AddTraceSource ("Connected",
++                     "Set to true upon socket connection, false upon close",
++                     MakeTraceSourceAccessor (&FileTransferApplication::m_connected),
++                     "ns3::TracedValueCallback::Bool")
++    .AddTraceSource ("FileTransferCompletion",
++                     "Report on the socket event CloseSucceeded",
++                     MakeTraceSourceAccessor (&FileTransferApplication::m_report),
++                     "ns3::FileTransferApplication::FileTransferCompletionCallback")
++  ;
++  return tid;
++}
++
++
++FileTransferApplication::FileTransferApplication ()
++  : m_socket (0),
++    m_tcpSndBufSize (0),
++    m_tcpRcvBufSize (0),
++    m_connected (false),
++    m_totBytes (0),
++    m_sendFileEvent (EventId ())
++{
++  NS_LOG_FUNCTION (this);
++}
++
++FileTransferApplication::~FileTransferApplication ()
++{
++  NS_LOG_FUNCTION (this);
++}
++
++void
++FileTransferApplication::SetFileSize (uint32_t fileSize)
++{
++  NS_LOG_FUNCTION (this << fileSize);
++  m_fileSize = fileSize;
++}
++
++uint32_t
++FileTransferApplication::GetTotalBytes (void) const
++{
++  NS_LOG_FUNCTION (this);
++  return m_totBytes;
++}
++
++Ptr<Socket>
++FileTransferApplication::GetSocket (void) const
++{
++  NS_LOG_FUNCTION (this);
++  return m_socket;
++}
++
++int64_t 
++FileTransferApplication::AssignStreams (int64_t stream)
++{
++  NS_LOG_FUNCTION (this << stream);
++  m_readingTime->SetStream (stream + 1);
++  m_randomFileSize->SetStream (stream + 2);
++  return 2;
++}
++
++void
++FileTransferApplication::DoDispose (void)
++{
++  NS_LOG_FUNCTION (this);
++
++  m_socket = 0;
++  // chain up
++  Application::DoDispose ();
++}
++
++bool
++FileTransferApplication::SendFile (void)
++{
++  NS_LOG_FUNCTION (this);
++  if (m_socket)
++    {
++      NS_LOG_FUNCTION ("Socket exists; ignoring request");
++      return false;
++    }
++  m_totBytes = 0;
++  m_socket = Socket::CreateSocket (GetNode (), m_tid);
++  Ptr<TcpSocket> tcpSocket = m_socket->GetObject<TcpSocket> ();
++  if (tcpSocket && m_tcpSndBufSize > 0)
++    {
++      NS_LOG_DEBUG ("Setting TCP send buffer size to " << m_tcpSndBufSize);
++      tcpSocket->SetAttribute ("SndBufSize", UintegerValue (m_tcpSndBufSize));
++    }
++  if (tcpSocket && m_tcpRcvBufSize > 0)
++    {
++      NS_LOG_DEBUG ("Setting TCP receive buffer size to " << m_tcpRcvBufSize);
++      tcpSocket->SetAttribute ("RcvBufSize", UintegerValue (m_tcpRcvBufSize));
++    }
++  if (Inet6SocketAddress::IsMatchingType (m_peer))
++    {
++      m_socket->Bind6 ();
++    }
++  else if (InetSocketAddress::IsMatchingType (m_peer))
++    {
++      m_socket->Bind ();
++    }
++
++  m_socket->Connect (m_peer);
++  m_socket->ShutdownRecv ();
++  m_socket->SetConnectCallback (
++    MakeCallback (&FileTransferApplication::ConnectionSucceeded, this),
++    MakeCallback (&FileTransferApplication::ConnectionFailed, this));
++  m_socket->SetSendCallback (
++    MakeCallback (&FileTransferApplication::DataSend, this));
++  m_socket->SetCloseCallbacks (
++    MakeCallback (&FileTransferApplication::CloseSucceeded, this),
++    MakeCallback (&FileTransferApplication::CloseFailed, this));
++  NS_LOG_LOGIC ("FileTransferApplication: Starting file transfer of size " << m_fileSize << " at time " << Simulator::Now ().GetSeconds ());
++  m_fileStartTime = Simulator::Now ();
++  if (m_connected || m_tid == UdpSocketFactory::GetTypeId ())
++    {
++      SendData ();
++    }
++  return true;
++}
++
++// Application Methods
++void FileTransferApplication::StartApplication (void) // Called at time specified by Start
++{
++  NS_LOG_FUNCTION (this);
++  NS_ABORT_MSG_IF (m_useReadingTime && m_useRestartInterval, "Flags cannot both be set");
++  SendFile ();
++}
++
++void FileTransferApplication::StopApplication (void) // Called at time specified by Stop
++{
++  NS_LOG_FUNCTION (this);
++
++  if (m_socket != 0)
++    {
++      m_socket->Close ();
++      m_connected = false;
++    }
++  else
++    {
++      NS_LOG_WARN ("FileTransferApplication found null socket to close in StopApplication");
++    }
++  if (m_sendFileEvent.IsRunning ())
++    {
++      Simulator::Cancel (m_sendFileEvent);
++    }
++  if (m_scheduledFileTransferEnd.IsRunning ())
++    {
++      Simulator::Cancel (m_scheduledFileTransferEnd);
++    }
++}
++
++// Private helpers
++
++void FileTransferApplication::SendData (void)
++{
++  NS_LOG_FUNCTION (this);
++
++  while (m_fileSize == 0 || m_totBytes < m_fileSize)
++    { // Time to send more
++      uint32_t toSend = m_sendSize;
++      // Make sure we don't send too many
++      if (m_fileSize > 0)
++        {
++          toSend = std::min (m_sendSize, m_fileSize - m_totBytes);
++        }
++      NS_LOG_LOGIC ("sending packet at " << Simulator::Now ());
++      Ptr<Packet> packet = Create<Packet> (toSend);
++      m_txTrace (packet);
++      int actual = m_socket->Send (packet);
++      if (actual > 0)
++        {
++          m_totBytes += actual;
++        }
++      // We exit this loop when actual < toSend as the send side
++      // buffer is full. The "DataSent" callback will pop when
++      // some buffer space has freed ip.
++      if ((unsigned)actual != toSend)
++        {
++          break;
++        }
++    }
++  // Check if time to close (all sent)
++  if (m_totBytes == m_fileSize && (m_connected || m_tid == UdpSocketFactory::GetTypeId ()))
++    {
++      NS_LOG_LOGIC ("FileTransferApplication closing");
++      m_socket->Close ();
++      m_connected = false;
++    }
++  if (m_tid == UdpSocketFactory::GetTypeId ())
++    {
++      m_socket = 0;
++    }
++}
++
++void FileTransferApplication::ConnectionSucceeded (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_LOG_LOGIC ("FileTransferApplication Connection succeeded");
++  m_connected = true;
++  if (m_useFileTransferDuration && m_tid != UdpSocketFactory::GetTypeId ())
++    {
++      Time duration = m_fileTransferDuration - (Simulator::Now ()- m_fileStartTime);
++      if (duration < Seconds (0))
++        {
++          NS_LOG_WARN ("The connection setup time " << (Simulator::Now () - m_fileStartTime).GetSeconds () << " exceeded the max file duration time " << m_fileTransferDuration.GetSeconds ());
++          // Handle this as if the connection succeeded by closing.  This will
++          // not be logged as an actual file transfer, but a new file transfer
++          // can subsequently be started (i.e. do not error exit from this).
++          HandleScheduledFileTransferEnd ();
++          return;
++        }
++      else
++        {
++          m_scheduledFileTransferEnd = Simulator::Schedule (duration, &FileTransferApplication::HandleScheduledFileTransferEnd, this);
++        }
++    }
++  if (m_useRandomFileSize)
++    {
++      m_fileSize = m_randomFileSize->GetInteger ();
++      NS_LOG_LOGIC ("Drawing file size " << m_fileSize << " from distribution");
++    }
++  SendData ();
++}
++
++void FileTransferApplication::ConnectionFailed (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_LOG_LOGIC ("FileTransferApplication Connection failed");
++  m_socket->Close ();
++}
++
++void FileTransferApplication::CloseSucceeded (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_LOG_LOGIC ("FileTransferApplication Close succeeded");
++  m_socket = 0;
++  if (m_scheduledFileTransferEnd.IsRunning ())
++    {
++      Simulator::Cancel (m_scheduledFileTransferEnd);
++    }
++  m_report (Simulator::Now () - m_fileStartTime, m_totBytes, m_totBytes * 8 / (Simulator::Now () - m_fileStartTime).GetSeconds ());
++  NS_LOG_DEBUG ("CloseSucceeded duration: " << (Simulator::Now () - m_fileStartTime).GetSeconds () << " bytes: " <<  m_totBytes << " rate (bps) " <<  m_totBytes * 8 / (Simulator::Now () - m_fileStartTime).GetSeconds ());
++  if (m_useReadingTime)
++    {
++      double nextTimeValue = m_readingTime->GetValue ();
++      NS_ABORT_MSG_UNLESS (nextTimeValue > 0, "Illegal next time");
++      NS_LOG_LOGIC ("Scheduling another file transfer in " << nextTimeValue << " seconds");
++      m_sendFileEvent = Simulator::Schedule (Seconds (nextTimeValue), &FileTransferApplication::SendFile, this);
++    }
++  else if (m_useRestartInterval)
++    {
++      Time nextTime = m_fileStartTime + Seconds (m_restartInterval->GetValue ());
++      if (Simulator::Now () > nextTime)
++        {
++          nextTime = Simulator::Now ();
++        }
++      NS_LOG_LOGIC ("Scheduling another file transfer in " << (nextTime - Simulator::Now ()).GetSeconds () << " seconds");
++      m_sendFileEvent = Simulator::Schedule ((nextTime - Simulator::Now ()), &FileTransferApplication::SendFile, this);
++    }
++}
++
++void FileTransferApplication::CloseFailed (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++  NS_LOG_LOGIC ("FileTransferApplication Close failed");
++  m_socket = 0;
++  if (m_scheduledFileTransferEnd.IsRunning ())
++    {
++      Simulator::Cancel (m_scheduledFileTransferEnd);
++    }
++}
++
++
++void FileTransferApplication::DataSend (Ptr<Socket>, uint32_t)
++{
++  NS_LOG_FUNCTION (this);
++
++  if (m_connected || m_tid == UdpSocketFactory::GetTypeId ())
++    { // Only send new data if the connection has completed
++      NS_LOG_LOGIC ("FileTransferApplication DataSent callback triggers new SendData() call");
++      Simulator::ScheduleNow (&FileTransferApplication::SendData, this);
++    }
++}
++
++void FileTransferApplication::HandleScheduledFileTransferEnd (void)
++{
++  NS_LOG_FUNCTION (this);
++  NS_LOG_LOGIC ("FileTransferApplication closing based on scheduled end");
++  m_socket->Close ();
++  m_connected = false;
++}
++
++} // Namespace ns3
+diff --git a/src/applications/model/file-transfer-application.h b/src/applications/model/file-transfer-application.h
+new file mode 100644
+index 000000000..a83af331e
+--- /dev/null
++++ b/src/applications/model/file-transfer-application.h
+@@ -0,0 +1,205 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2010 Georgia Institute of Technology
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation;
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Author: George F. Riley <riley@ece.gatech.edu>
++ */
++
++#ifndef FILE_TRANSFER_APPLICATION_H
++#define FILE_TRANSFER_APPLICATION_H
++
++#include "ns3/address.h"
++#include "ns3/application.h"
++#include "ns3/event-id.h"
++#include "ns3/ptr.h"
++#include "ns3/traced-callback.h"
++#include "ns3/traced-value.h"
++
++namespace ns3 {
++
++class Address;
++class Socket;
++class RandomVariableStream;
++
++/**
++ * \ingroup applications
++ * \defgroup filetransfer FileTransferApplication
++ *
++ * This traffic generator simply sends data
++ * as fast as possible up to FileSize or until
++ * the application is stopped (if FileSize is
++ * zero). Once the lower layer send buffer is
++ * filled, it waits until space is free to
++ * send more data, essentially keeping a
++ * constant flow of data. Only SOCK_STREAM 
++ * and SOCK_SEQPACKET sockets are supported. 
++ * For example, TCP sockets can be used, but 
++ * UDP sockets can not be used.
++ */
++
++/**
++ * \ingroup filetransfer
++ *
++ * \brief Send as much traffic as possible, trying to fill the bandwidth.
++ *
++ * This traffic generator simply sends data
++ * as fast as possible up to FileSize or until
++ * the application is stopped (if FileSize is
++ * zero). Once the lower layer send buffer is
++ * filled, it waits until space is free to
++ * send more data, essentially keeping a
++ * constant flow of data. Only SOCK_STREAM
++ * and SOCK_SEQPACKET sockets are supported.
++ * For example, TCP sockets can be used, but
++ * UDP sockets can not be used.
++ *
++ */
++class FileTransferApplication : public Application
++{
++public:
++  /**
++   * \brief Get the type ID.
++   * \return the object TypeId
++   */
++  static TypeId GetTypeId (void);
++
++  FileTransferApplication ();
++
++  virtual ~FileTransferApplication ();
++
++  /**
++   * \brief Set the file size to try to transfer
++   *
++   * \param fileSize the size of a file to try to transfer
++   */
++  void SetFileSize (uint32_t fileSize);
++
++  /**
++   * \brief Get the total number of bytes that have been sent during this
++   *        object's lifetime.
++   *
++   * return the total number of bytes that have been sent
++   */
++  uint32_t GetTotalBytes (void) const;
++ 
++  /**
++   * \brief Send another file
++   *
++   * return true if another file was started; false if the request
++   *        didn't succeed (possibly because another transfer is ongoing)
++   */
++  bool SendFile (void);
++
++  /**
++   * \brief Get the socket this application is attached to.
++   * \return pointer to associated socket
++   */
++  Ptr<Socket> GetSocket (void) const;
++
++ /**
++  * \brief Assign a fixed random variable stream number to the random variables
++  * used by this model.
++  *
++  * \param stream first stream index to use
++  * \return the number of stream indices assigned by this model
++  */
++  int64_t AssignStreams (int64_t stream);
++
++  /**
++   * TracedCallback signature for file transfer completion report
++   *
++   * \param [in] completionTime completion time for the transfer
++   * \param [in] bytes number of bytes transferred
++   * \param [in] throughput throughput in bits/sec
++   */
++  typedef void (* FileTransferCompletionCallback)
++    (Time completionTime, uint32_t bytes, double throughput);
++
++protected:
++  virtual void DoDispose (void);
++private:
++  // inherited from Application base class.
++  virtual void StartApplication (void);    // Called at time specified by Start
++  virtual void StopApplication (void);     // Called at time specified by Stop
++
++  /**
++   * \brief Send data until the L4 transmission buffer is full.
++   */
++  void SendData ();
++
++  Ptr<Socket>     m_socket;       //!< Associated socket
++  Address         m_peer;         //!< Peer address
++  uint32_t        m_tcpSndBufSize; //!< TCP send buffer size (if non-zero)
++  uint32_t        m_tcpRcvBufSize; //!< TCP receive buffer size (if non-zero)
++  TracedValue<bool>  m_connected; //!< True if connected
++  uint32_t        m_sendSize;     //!< Size of data to send each time
++  uint32_t        m_fileSize;     //!< Limit total number of bytes sent
++  uint32_t        m_totBytes;     //!< Total bytes sent so far
++  TypeId          m_tid;          //!< The type of protocol to use.
++  bool            m_useRandomFileSize; //!< Whether to use random file size
++  Ptr<RandomVariableStream>  m_randomFileSize;  //!< rng for file size
++  bool            m_useReadingTime; //!< Whether to start again after reading time
++  Ptr<RandomVariableStream>  m_readingTime;  //!< rng for reading time
++  bool            m_useRestartInterval; //!< Whether to restart transfer periodically
++  Ptr<RandomVariableStream>  m_restartInterval;  //!< rng for restartInterval
++  bool            m_useFileTransferDuration; //!< Whether to use file transfer duration
++  Time            m_fileTransferDuration;  //!< Time after which to terminate a transfer and close the socket if not yet completed
++  EventId         m_sendFileEvent; //!< Event id of pending SendFile()
++  EventId         m_scheduledFileTransferEnd; //!< Event id of pending Close
++
++  Time            m_fileStartTime; //!< Start time of current file transfer
++
++  /// Traced Callback: sent packets
++  TracedCallback<Ptr<const Packet> > m_txTrace;
++
++  /// Traced Callback: report on successful connection close
++  TracedCallback<Time, uint32_t, double> m_report;
++
++private:
++  /**
++   * \brief Connection Succeeded (called by Socket through a callback)
++   * \param socket the connected socket
++   */
++  void ConnectionSucceeded (Ptr<Socket> socket);
++  /**
++   * \brief Connection Failed (called by Socket through a callback)
++   * \param socket the connected socket
++   */
++  void ConnectionFailed (Ptr<Socket> socket);
++  /**
++   * \brief Close Succeeded (called by Socket through a callback)
++   * \param socket the closed socket
++   */
++  void CloseSucceeded (Ptr<Socket> socket);
++  /**
++   * \brief Close Failed (called by Socket through a callback)
++   * \param socket the closed socket
++   */
++  void CloseFailed (Ptr<Socket> socket);
++  /**
++   * \brief Send more data as soon as some has been transmitted.
++   */
++  void DataSend (Ptr<Socket>, uint32_t); // for socket's SetSendCallback
++
++  /**
++   * Event handler for forcing scheduled TCP file transfer connection close
++   */
++  void HandleScheduledFileTransferEnd (void);
++};
++
++} // namespace ns3
++
++#endif /* FTP_APPLICATION_H */
+diff --git a/src/applications/model/game-client.cc b/src/applications/model/game-client.cc
+new file mode 100644
+index 000000000..364dc22ce
+--- /dev/null
++++ b/src/applications/model/game-client.cc
+@@ -0,0 +1,280 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
++ * 
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions, and the following disclaimer,
++ *    without modification.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. The names of the authors may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * Alternatively, provided that this notice is retained in full, this
++ * software may be distributed under the terms of the GNU General
++ * Public License ("GPL") version 2, in which case the provisions of the
++ * GPL apply INSTEAD OF those given above.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++*/
++
++#include "ns3/log.h"
++#include "ns3/address.h"
++#include "ns3/ipv4-header.h"
++#include "ns3/inet-socket-address.h"
++#include "ns3/inet6-socket-address.h"
++#include "ns3/packet-socket-address.h"
++#include "ns3/node.h"
++#include "ns3/nstime.h"
++#include "ns3/random-variable-stream.h"
++#include "ns3/socket.h"
++#include "ns3/simulator.h"
++#include "ns3/socket-factory.h"
++#include "ns3/packet.h"
++#include "ns3/uinteger.h"
++#include "ns3/trace-source-accessor.h"
++#include "ns3/udp-socket-factory.h"
++#include "ns3/string.h"
++#include "ns3/pointer.h"
++#include "ns3/boolean.h"
++#include "ns3/double.h"
++#include "ns3/enum.h"
++#include "game-client.h"
++
++namespace ns3 {
++
++NS_LOG_COMPONENT_DEFINE ("GameClient");
++
++NS_OBJECT_ENSURE_REGISTERED (GameClient);
++
++TypeId
++GameClient::GetTypeId (void)
++{
++  static TypeId tid = TypeId ("ns3::GameClient")
++    .SetParent<Application> ()
++    .SetGroupName ("Applications")
++    .AddConstructor<GameClient> ()
++    .AddAttribute ("InterarrivalTime", "Interarrival time",
++                   TimeValue (MilliSeconds (33)),
++                   MakeTimeAccessor (&GameClient::m_interarrivalTime),
++                   MakeTimeChecker ())
++    .AddAttribute ("InterarrivalDeviation", "Standard deviation around mean IAT",
++                   TimeValue (MilliSeconds (3)),
++                   MakeTimeAccessor (&GameClient::SetInterarrivalDeviation,
++                                     &GameClient::GetInterarrivalDeviation),
++                   MakeTimeChecker ())
++    .AddAttribute ("Size", "The mean size of packets sent in on state",
++                   UintegerValue (82),
++                   MakeUintegerAccessor (&GameClient::m_size),
++                   MakeUintegerChecker<uint32_t> (4))
++    .AddAttribute ("SizeDeviation", "Standard deviation around mean size (bytes)",
++                   UintegerValue (20),
++                   MakeUintegerAccessor (&GameClient::SetSizeDeviation,
++                                         &GameClient::GetSizeDeviation),
++                   MakeUintegerChecker<uint32_t> ())
++    .AddAttribute ("ServerAddress", "The address of the destination",
++                   AddressValue (),
++                   MakeAddressAccessor (&GameClient::m_server),
++                   MakeAddressChecker ())
++    .AddAttribute ("Dscp", "The DSCP value to use.",
++                   EnumValue (Ipv4Header::DscpType::DSCP_EF),
++                   MakeEnumAccessor (&GameClient::m_dscp),
++                   MakeEnumChecker (Ipv4Header::DscpType::DSCP_EF, "DSCP_EF",
++                                    Ipv4Header::DscpType::DscpDefault, "DscpDefault"))
++    .AddTraceSource ("Tx", "A new packet is created and is sent",
++                     MakeTraceSourceAccessor (&GameClient::m_txTrace),
++                     "ns3::Packet::TracedCallback")
++  ;
++  return tid;
++}
++
++
++GameClient::GameClient ()
++  : m_socket (0)
++{
++  NS_LOG_FUNCTION (this);
++  m_interarrivalRv = CreateObject<NormalRandomVariable> ();
++  m_sizeRv = CreateObject<NormalRandomVariable> ();
++}
++
++GameClient::~GameClient ()
++{
++  NS_LOG_FUNCTION (this);
++}
++
++Ptr<Socket>
++GameClient::GetSocket (void) const
++{
++  NS_LOG_FUNCTION (this);
++  return m_socket;
++}
++
++void
++GameClient::SetRemote (Address addr)
++{
++  NS_LOG_FUNCTION (this << addr);
++  m_server = addr;
++}
++
++int64_t
++GameClient::AssignStreams (int64_t stream)
++{
++  NS_LOG_FUNCTION (this << stream);
++  m_interarrivalRv->SetStream (stream);
++  m_sizeRv->SetStream (stream);
++  return 2;
++}
++
++void
++GameClient::DoDispose (void)
++{
++  NS_LOG_FUNCTION (this);
++
++  m_socket = 0;
++  // chain up
++  Application::DoDispose ();
++}
++
++void
++GameClient::StartApplication (void)
++{
++  NS_LOG_FUNCTION (this);
++
++  // Create the socket if not already
++  if (!m_socket)
++    {
++      TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
++      m_socket = Socket::CreateSocket (GetNode (), tid);
++      if (Inet6SocketAddress::IsMatchingType (m_server))
++        {
++          if (m_socket->Bind6 () == -1)
++            {
++              NS_FATAL_ERROR ("Failed to bind socket");
++            }
++        }
++      else if (InetSocketAddress::IsMatchingType (m_server)
++               || PacketSocketAddress::IsMatchingType (m_server))
++        {
++          if (m_socket->Bind () == -1)
++            {
++              NS_FATAL_ERROR ("Failed to bind socket");
++            }
++        }
++      m_socket->Connect (m_server);
++      m_socket->SetAllowBroadcast (true);
++      m_socket->ShutdownRecv ();
++
++      m_socket->SetConnectCallback (
++        MakeCallback (&GameClient::ConnectionSucceeded, this),
++        MakeCallback (&GameClient::ConnectionFailed, this));
++    }
++
++  // Insure no pending event
++  CancelEvents ();
++  SendPacket (Seconds (0));
++}
++
++void
++GameClient::StopApplication (void)
++{
++  NS_LOG_FUNCTION (this);
++
++  CancelEvents ();
++  if (m_socket != 0)
++    {
++      m_socket->Close ();
++    }
++  else
++    {
++      NS_LOG_WARN ("GameClient found null socket to close in StopApplication");
++    }
++}
++
++void GameClient::CancelEvents (void)
++{
++  NS_LOG_FUNCTION (this);
++  Simulator::Cancel (m_sendEvent);
++}
++
++void GameClient::SendPacket (Time lastJitter)
++{
++  NS_LOG_FUNCTION (this);
++  int32_t size = m_size + static_cast<int32_t> (m_sizeRv->GetValue ());
++  size = (size >= 4) ? size : 4;
++
++  Ptr<Packet> packet = Create<Packet> (static_cast<uint32_t> (size));
++  m_txTrace (packet);
++  m_socket->Send (packet);
++  if (InetSocketAddress::IsMatchingType (m_server))
++    {
++      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds ()
++                              << "s; sent " <<  packet->GetSize () << " bytes to "
++                              << InetSocketAddress::ConvertFrom (m_server).GetIpv4 ()
++                              << " port " << InetSocketAddress::ConvertFrom (m_server).GetPort ());
++    }
++  else if (Inet6SocketAddress::IsMatchingType (m_server))
++    {
++      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds ()
++                              << "s sent " <<  packet->GetSize () << " bytes to "
++                              << Inet6SocketAddress::ConvertFrom (m_server).GetIpv6 ()
++                              << " port " << Inet6SocketAddress::ConvertFrom (m_server).GetPort ());
++    }
++  Time jitter = Seconds (m_interarrivalRv->GetValue ());
++  m_sendEvent = Simulator::Schedule (m_interarrivalTime - lastJitter + jitter, &GameClient::SendPacket, this, jitter);
++}
++
++
++void
++GameClient::ConnectionSucceeded (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++}
++
++void
++GameClient::ConnectionFailed (Ptr<Socket> socket)
++{
++  NS_LOG_FUNCTION (this << socket);
++}
++
++void
++GameClient::SetInterarrivalDeviation (Time interarrivalDeviation)
++{
++  m_interarrivalDeviation = interarrivalDeviation;
++  m_interarrivalRv->SetAttribute ("Variance", DoubleValue (interarrivalDeviation.GetSeconds () * interarrivalDeviation.GetSeconds ()));
++}
++
++Time
++GameClient::GetInterarrivalDeviation (void) const
++{
++  return m_interarrivalDeviation;
++}
++
++void
++GameClient::SetSizeDeviation (uint32_t sizeDeviation)
++{
++  m_sizeDeviation = sizeDeviation;
++  m_sizeRv->SetAttribute ("Variance", DoubleValue (sizeDeviation * sizeDeviation));
++}
++
++uint32_t
++GameClient::GetSizeDeviation (void) const
++{
++  return m_sizeDeviation;
++}
++
++
++} // Namespace ns3
+diff --git a/src/applications/model/game-client.h b/src/applications/model/game-client.h
+new file mode 100644
+index 000000000..197f2157e
+--- /dev/null
++++ b/src/applications/model/game-client.h
+@@ -0,0 +1,156 @@
++/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
++/*
++ * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
++ * 
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ * 1. Redistributions of source code must retain the above copyright
++ *    notice, this list of conditions, and the following disclaimer,
++ *    without modification.
++ * 2. Redistributions in binary form must reproduce the above copyright
++ *    notice, this list of conditions and the following disclaimer in the
++ *    documentation and/or other materials provided with the distribution.
++ * 3. The names of the authors may not be used to endorse or promote products
++ *    derived from this software without specific prior written permission.
++ *
++ * Alternatively, provided that this notice is retained in full, this
++ * software may be distributed under the terms of the GNU General
++ * Public License ("GPL") version 2, in which case the provisions of the
++ * GPL apply INSTEAD OF those given above.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
++ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
++ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
++ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
++ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
++ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
++ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
++ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++*/
++
++#ifndef GAME_CLIENT_H
++#define GAME_CLIENT_H
++
++#include "ns3/address.h"
++#include "ns3/application.h"
++#include "ns3/event-id.h"
++#include "ns3/ptr.h"
++#include "ns3/data-rate.h"
++#include "ns3/traced-callback.h"
++#include "ns3/ipv4-header.h"
++
++namespace ns3 {
++
++class Address;
++class NormalRandomVariable;
++class Socket;
++
++/**
++ * \ingroup applications
++ *
++ * This traffic generator generates notional game packets, characterized
++ * by a fixed interarrival time varied by a jitter component; the jitter
++ * component is a zero-mean normal random variable.  The packet size
++ * is also drawn from a second normal random variable (again, based on
++ * a mean plus or minus a random variate drawn from a zero-mean normal
++ * random variable).  This approach is chosen to avoid variance on the
++ * game packet arrival time from growing over simulation time.
++ */
++class GameClient : public Application
++{
++public:
++  /**
++   * \brief Get the type ID.
++   * \return the object TypeId
++   */
++  static TypeId GetTypeId (void);
++
++  GameClient ();
++
++  virtual ~GameClient ();
++
++  /**
++   * \brief Return a pointer to associated socket.
++   * \return pointer to associated socket
++   */
++  Ptr<Socket> GetSocket (void) const;
++
++  /**
++   * \brief set the remote address
++   * \param addr remote address
++   */
++  void SetRemote (Address addr);
++
++  /**
++   * \brief Assign a fixed random variable stream number to the random variables
++   * used by this model.
++   *
++   * \param stream first stream index to use
++   * \return the number of stream indices assigned by this model
++   */
++  int64_t AssignStreams (int64_t stream);
++
++protected:
++  virtual void DoDispose (void);
++private:
++  // inherited from Application base class.
++  virtual void StartApplication (void);    // Called at time specified by Start
++  virtual void StopApplication (void);     // Called at time specified by Stop
++
++  //helpers
++  /**
++   * \brief Cancel all pending events.
++   */
++  void CancelEvents ();
++
++  /**
++   * \brief Send a packet and schedule the next send
++   *
++   * Packets are sent every interarrival time +/- a small amount of jitter
++   * provided by a zero-mean normal random variable.
++   * The packet size is also varied according to a random variable.
++   *
++   * \param jitter the amount of jitter around the interarrival mean that
++   * was used to schedule this event
++   */
++  void SendPacket (Time jitter);
++
++  Ptr<Socket>     m_socket;       //!< Associated socket
++  Address         m_server;       //!< Peer address
++  Time            m_interarrivalTime; //!< Mean interarrival time
++  Time            m_interarrivalDeviation; //!< Standard dev. around mean IAT
++  Ptr<NormalRandomVariable>  m_interarrivalRv; //!< rng for interarrival time
++  uint32_t        m_size;         //!< Size of packets
++  uint32_t        m_sizeDeviation;  //!< Standard dev. around size
++  Ptr<NormalRandomVariable>  m_sizeRv;  //!< rng for packet size
++  Ipv4Header::DscpType m_dscp;    //!< DSCP value to use
++  EventId         m_sendEvent;    //!< Event id of pending "send packet" event
++
++  /// Traced Callback: transmitted packets.
++  TracedCallback<Ptr<const Packet> > m_txTrace;
++
++private:
++  /**
++   * \brief Handle a Connection Succeed event
++   * \param socket the connected socket
++   */
++  void ConnectionSucceeded (Ptr<Socket> socket);
++  /**
++   * \brief Handle a Connection Failed event
++   * \param socket the not connected socket
++   */
++  void ConnectionFailed (Ptr<Socket> socket);
++
++  void SetInterarrivalDeviation (Time interarrivalDeviation);
++  Time GetInterarrivalDeviation (void) const;
++  void SetSizeDeviation (uint32_t sizeDeviation);
++  uint32_t GetSizeDeviation (void) const;
++};
++
++} // namespace ns3
++
++#endif /* GAME_CLIENT */

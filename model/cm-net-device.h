@@ -61,7 +61,8 @@ namespace docsis {
 /**
  * \ingroup docsis
  * \class CmPipeline
- * \brief A data structure to hold request or transmit pipeline information
+ * \brief A data structure to hold request, grant, or transmit pipeline
+ * information
  *
  * Stores data counters with eligibility timestamps associated with them
  */
@@ -69,7 +70,11 @@ class CmPipeline
 {
 public: 
   /**
-   * \return sum of values for elements whose timestamps >= Simulator::Now ()
+   * \return sum of values for elements whose timestamps <= deadline
+   */
+  uint32_t GetEligible (Time deadline) const;
+  /**
+   * \return sum of values for elements whose timestamps <= Simulator::Now ()
    */
   uint32_t GetEligible (void) const;
   /**
@@ -77,11 +82,33 @@ public:
    */
   uint32_t GetTotal (void) const;
   /**
+   * Return the number of elements in the pipeline 
+   *
+   * \return number of elements in the pipeline
+   */
+  uint32_t GetSize (void) const;
+  /**
+   * Add an element to the pipeline.
+   *
    * \param value Add an element to the pipeline
+   * \param eligible deadline time to consider for eligibility
    */
   void Add (uint32_t value, Time eligible);
   /**
-   * Remove value from front of pipeline
+   * Peek element from front of pipeline.
+   *
+   * \return element element peeked from front of pipeline
+   */
+  std::pair<uint32_t, Time> Peek (void) const;
+  /**
+   * Pop (remove) element from front of pipeline and return it.
+   *
+   * \return element removed from front of pipeline
+   */
+  std::pair<uint32_t, Time> Pop (void);
+  /**
+   * Remove value from front of pipeline.  Any elements that become empty
+   * are also removed.
    *
    * \param value quantity to remove from the front
    */
@@ -248,20 +275,29 @@ protected:
   /*
    * The number of bytes that exist in the device include any unsent
    * bytes from the fragmented packet (if any), and bytes that exist
-   * in the local FIFO queue m_queue.
+   * in the local FIFO staging queue m_queue, and bytes in the AQM.
    *
-   * These quantities account for MAC header overheads, Ethernet header,
-   * and padding overheads (MAC Segment Header is not modeled, however)
+   * A CmNetDevice needs to keep track of two quantities:  framed MAC
+   * bytes (which must be serialized into granted minislots) and
+   * Data PDU bytes (which are used for rate shaping of requests)
    *
-   * \return number of bytes in the device waiting for transmission
+   * By default, these quantities account for MAC header overheads,
+   * Ethernet header, and padding overheads (MAC Segment Header
+   * is not modeled, however); i.e. the default is to count MAC Frame
+   * bytes.
+   * 
+   * If the parameter includeMacHeaders is false, the quantities 
+   * return Data PDU bytes (without MAC header bytes counted).
+   *
+   * \param includeMacHeaders if true, return MAC frame bytes
+   * \return number of corresponding bytes in the device 
    */
-  uint32_t GetUnsentBytes (void) const;
-  uint32_t GetCUnsentBytes (void) const;
-  uint32_t GetCAqmBytes (void) const;
-  uint32_t GetCDeviceBytes (void) const;
-  uint32_t GetLUnsentBytes (void) const;
-  uint32_t GetLAqmBytes (void) const;
-  uint32_t GetLDeviceBytes (void) const;
+  uint32_t GetCUnsentBytes (bool includeMacHeaders = true) const;
+  uint32_t GetCDeviceBytes (bool includeMacHeaders = true) const;
+  uint32_t GetCAqmBytes (bool includeMacHeaders = true) const;
+  uint32_t GetLUnsentBytes (bool includeMacHeaders = true) const;
+  uint32_t GetLDeviceBytes (bool includeMacHeaders = true) const;
+  uint32_t GetLAqmBytes (bool includeMacHeaders = true) const;
 
 private:
   void Reset (void);
@@ -342,6 +378,7 @@ private:
    * current MAP state for DOCSIS 3.1 model).
    *
    * \param bytes the number of bytes to determine completion time
+   * \param mapState current MAP state of the model
    * \return the amount of time until transmission completes for bytes
    */
   Time GetCompletionTime (uint32_t bytes, struct MapState mapState) const;
@@ -383,13 +420,12 @@ private:
 
   uint32_t m_grantBytes {0};        //!< accumulated/granted tokens
   uint32_t m_grantBytesNext {0};    //!< granted tokens for next interval (DOCSIS 3.0)
-  uint32_t m_cGrantBytesInPipeline {0}; //!< accumulated/granted tokens (DOCSIS 3.1)
-  uint32_t m_lGrantBytesInPipeline {0}; //!< accumulated/granted tokens (DOCSIS 3.1)
+  CmPipeline m_lGrantPipeline;  //!< pipeline of upcoming L-queue grants
+  CmPipeline m_cGrantPipeline;  //!< pipeline of upcoming C-queue grants
   CmPipeline m_cTransmitPipeline;  //!< track internal data eligible to be sent
   CmPipeline m_lTransmitPipeline;  //!< track internal data eligible to be sent
-
-  uint32_t m_cRequestPipeline {0};    //!< Previous requests outstanding
-  uint32_t m_lRequestPipeline {0};    //!< Previous requests outstanding
+  CmPipeline m_lRequestPipeline; //!< Previous requests outstanding
+  CmPipeline m_cRequestPipeline; //!< Previous requests outstanding
 
   /**
    * Encapsulate the state of a packet fragment
@@ -419,22 +455,21 @@ private:
   Ptr<RandomVariableStream> m_requestTimeVariable;
 
   /**
-   * Request list for virtual queue grant tracking
-   */
-  std::deque<struct GrantRequest> m_lRequestQueue;
-
-  /**
    * The device makes use of FIFO DropTailQueues to store data that is
    * notionally being prepared for transmission one or more symbols later.
    */
   Ptr<DropTailQueue<QueueDiscItem> > m_cQueue;
   Ptr<DropTailQueue<QueueDiscItem> > m_lQueue;
   
-  uint32_t m_cQueueFramedBytes {0}; //!< Accounts for Ethernet framing/padding
-  uint32_t m_lQueueFramedBytes {0}; //!< Accounts for Ethernet framing/padding
+  uint32_t m_cQueueFramedBytes {0}; //!< Accounts for MAC Frame bytes
+  uint32_t m_cQueuePduBytes {0};    //!< Accounts for Data PDU bytes
+  uint32_t m_lQueueFramedBytes {0}; //!< Accounts for MAC Frame bytes
+  uint32_t m_lQueuePduBytes {0};    //!< Accounts for Data PDU bytes
 
-  uint32_t m_cAqmFramedBytes {0}; //!< Accounts for Ethernet framing/padding
-  uint32_t m_lAqmFramedBytes {0}; //!< Accounts for Ethernet framing/padding
+  uint32_t m_cAqmFramedBytes {0};   //!< Accounts for MAC Frame bytes
+  uint32_t m_cAqmPduBytes {0};      //!< Accounts for Data PDU bytes
+  uint32_t m_lAqmFramedBytes {0};   //!< Accounts for MAC Frame bytes
+  uint32_t m_lAqmPduBytes {0};      //!< Accounts for Data PDU bytes
 
   // Trace sinks for queue events
   void InternalClassicEnqueueCallback (Ptr<const QueueDiscItem> item);

@@ -9,8 +9,8 @@ Introduction
    ============= Subsection (#.#.#)
    ############# Paragraph (no number)
 
-The DOCSIS® extension module for ns-3 (``docsis-ns3``) allows users to
-experiment with models of low latency DOCSIS® operation in the ns-3
+The DOCSIS® extension module for |ns3| (``docsis-ns3``) allows users to
+experiment with models of low latency DOCSIS® operation in the |ns3|
 simulation environment.
 
 
@@ -29,27 +29,28 @@ Getting Started
 What is ns-3?
 =============
 
-ns-3 is an open-source packet-level network simulator. ns-3 is written in C++,
-with optional Python bindings. ns-3 is a command-line tool that uses native
+|ns3| is an open-source packet-level network simulator. |ns3| is written in C++,
+with optional Python bindings. |ns3| is a command-line tool that uses native
 C++ as its modeling languange. Users must be comfortable with at least basic
 C++ and compiling code using g++ or clang++ compilers. Linux and MacOS are
 supported; Windows native Visual Studio C++ compiler is not supported, but
-Windows 10 machines can run ns-3 either through the Bash Subsystem for Linux,
+Windows 10 machines can run |ns3| either through the Windows Subsystem for Linux,
 or on a virtual machine.
 
-An ns-3 simulation program is a C++ main() executable, or a Python program,
+An |ns3| simulation program is a C++ main() executable, or a Python program,
 that links the necessary libraries and constructs a simulation scenario to
 generate output data. Users are often interested in conducting a study in
 which scenarios are re-run with slightly different configurations. This is
 usually accomplished by a script written in Bash or Python (or another
-scripting language) calling the ns-3 program with slightly different
+scripting language) calling the |ns3| program with slightly different
 configurations, and taking care to label and save the output data for
 post-processing. Data presentation is usually done by users constructing their
 own custom scripts and generating plots through tools such as Matplotlib or
 gnuplot.
 
 Some animators, visualizers, and graphical configuration editors exist for
-ns-3 but are not actively maintained.
+|ns3| but most are not actively maintained.  Some extensions to |ns3|
+can be found in the `ns-3 App Store <https://apps.nsnam.org>`_.
 
 ns-3 documentation 
 ==================
@@ -60,24 +61,24 @@ New readers are suggested to thoroughly read the |ns3| tutorial.
 
 Please note that this documentation attempts to quickly summarize how
 users can get started with the specific features related
-to DOCSIS.  There are portions of ns-3 that are not relevant to DOCSIS
+to DOCSIS.  There are portions of |ns3| that are not relevant to DOCSIS
 simulations (e.g. the Python bindings or NetAnim network animator) so we
 will skip over them.
 
 What version of ns-3 is this?
 =============================
 
-This extension module is designed to be run with ns-3.31 release (expected
-for May 2020) or later versions of ns-3.
+This extension module is designed to be run with *ns3.35* release (October
+2021) or later versions of |ns3|.
 
 Prerequisites
 =============
 
-This version of ns-3 requires, at minimum, a modern C++ compiler 
+This version of |ns3| requires, at minimum, a modern C++ compiler 
 supporting C++11 (g++ or clang++), a Python 3 installation,
 and Linux or macOS.  
 
-For Linux, distributions such as Ubuntu 16.04, RedHat 7, or anything
+For Linux, distributions such as Ubuntu 18.04, RedHat 7, or anything
 newer, should suffice.  For macOS, users will either need to install
 the Xcode command line tools or the full Xcode environment.  
 
@@ -95,16 +96,17 @@ What is `waf`?
 ==============
 
 This is a Python-based build system, similar to ``make``.  See the
-ns-3 documentation (https://www.nsnam.org/documentation) for more information.
+`ns-3 documentation <https://www.nsnam.org/documentation>`_ for more information.
 
 How do I build ns-3?
 ====================
 
 There are two steps, ``waf configure`` and ``waf build``.
 
-There are two main build modes supported by waf: `debug` and `optimized`.  When running a simulation campaign, use `optimized` for faster code.  If you are debugging and want ns-3 logging, use `debug` code.
+There are two main build modes supported by waf: `debug` and `optimized`.  When running a simulation campaign, use `optimized` for faster code.  If you are debugging and want to disable optimizations or use |ns3| logging and asserts,
+use `debug` code.
 
-Try this set of commands to get started from within the top level ns-3 directory:
+Try this set of commands to get started from within the top level |ns3| directory:
 
 .. sourcecode:: bash
 
@@ -112,7 +114,7 @@ Try this set of commands to get started from within the top level ns-3 directory
     $ ./waf build
     $ ./test.py
 
-The last line above will run all of the ns-3 unit tests.  To build a debug version:
+The last line above will run all of the |ns3| unit tests.  To build a debug version:
 
 .. sourcecode:: bash
 
@@ -142,13 +144,19 @@ for DOCSIS simulations.
 Where are the interesting programs located?
 =========================================== 
 
-The ``examples/`` directory contains an example DOCSIS simulation
-program.  Only one example, ``residential-example.cc``, is provided
-at this time.
+The ``examples/`` directory contains example DOCSIS simulation
+programs.  Presently, three examples are provided:
 
-the ``experiments/residential/`` contains plotting and execution
-scripting around this program, to automate the running of some
-interesting experiments.
+* ``residential-example.cc``
+* ``simple-docsislink.cc``
+* ``docsis-configuration-example.cc``
+
+In addition, the ``experiments/`` directory
+contains bash scripts to automate the running and plotting of
+scenarios.  The ``experiments/residential/`` contains plotting and execution
+scripting around ``residential-example.cc``.
+The ``experiments/simple-docsislink/`` contains plotting and execution
+scripting around ``simple-docsislink.cc``.
 
 Try these commands:
 
@@ -173,20 +181,18 @@ When all simulations have finished, you can recurse into the
 timestamped directory named: ``results/test-YYYYMMDD-HHMMSS`` to find the
 outputs.
 
-More thorough documentation about this is found in the same directory
+More thorough documentation about the residential example program
+is found in the same experiments directory
 (in Markdown format) in the file named ``residential-documentation.md``.
-
 
 Users can also inspect the unit test programs in ``test/`` for simpler examples
 of how to put together simulations (although the test code is constructed
 for testing purposes).
-
-
 
 Editing the code
 ================
 
 In most cases, the act of running a program or experiment script will
 trigger the rebuilding of the simulator if needed, but you can force a
-rebuild by typing ``./waf build`` at the top-level ns-3 directory.
+rebuild by typing ``./waf build`` at the top-level |ns3| directory.
 

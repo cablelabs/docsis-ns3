@@ -68,7 +68,6 @@ public:
   void TraceBytesInQueue (std::string context, uint32_t oldValue, uint32_t newValue);
 protected:
   virtual void SetupFourNodeTopology (uint32_t numServiceFlows);
-  virtual void AddDualQueue (void);
   void CheckUpstreamLQueueSize (uint32_t expected);
   void CheckUpstreamCQueueSize (uint32_t expected);
   Ptr<CmNetDevice> m_upstream;
@@ -82,6 +81,8 @@ protected:
   uint32_t m_downstreamBytesInQueue;
   DataRate m_upstreamRate;
   DataRate m_downstreamRate;
+  DataRate m_ggr;
+  uint16_t m_ggi;
 private:
 };
 
@@ -90,25 +91,14 @@ DocsisLldTestCase::DocsisLldTestCase (std::string name)
     m_upstreamBytesInQueue (0),
     m_downstreamBytesInQueue (0),
     m_upstreamRate (DataRate (50000000)),
-    m_downstreamRate (DataRate (200000000))
+    m_downstreamRate (DataRate (200000000)),
+    m_ggr (DataRate (0)),
+    m_ggi (0)
 {
 }
 
 DocsisLldTestCase::~DocsisLldTestCase ()
 {
-}
-
-void
-DocsisLldTestCase::AddDualQueue (void)
-{
-  DocsisHelper docsis;
-  // Install AQM directly into the device; provide 250ms of buffer at MSR rate
-  uint32_t upstreamFeederQueueDepth = m_upstreamRate.GetBitRate () / (4 * 8);
-  QueueSize upstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, upstreamFeederQueueDepth);
-  uint32_t downstreamFeederQueueDepth = m_downstreamRate.GetBitRate () / (4 * 8);
-  QueueSize downstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, downstreamFeederQueueDepth);
-  docsis.InstallLldCoupledQueue (m_upstream, upstreamMaxSize, m_upstreamRate);
-  docsis.InstallLldCoupledQueue (m_downstream, downstreamMaxSize, m_downstreamRate);
 }
 
 void
@@ -147,10 +137,40 @@ DocsisLldTestCase::SetupFourNodeTopology (uint32_t numServiceFlows)
   simpleDevice = n2n3Device.Get (0)->GetObject<SimpleNetDevice> ();
   simpleDevice->GetChannel ()->SetAttribute ("Delay", TimeValue (MicroSeconds (1)));
 
+  Ptr<AggregateServiceFlow> upstreamAsf = CreateObject<AggregateServiceFlow> ();
+  upstreamAsf->m_asfid = 1;
+  upstreamAsf->m_maxSustainedRate = m_upstreamRate;
+  upstreamAsf->m_peakRate = DataRate (4 * m_upstreamRate.GetBitRate ());
+  upstreamAsf->m_maxTrafficBurst = 3064;
+  Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
+  sf->m_targetBuffer = static_cast<uint32_t> (m_upstreamRate.GetBitRate () * 0.25 /8); // 250ms at MSR
+  upstreamAsf->SetClassicServiceFlow (sf);
+  if (numServiceFlows == 2)
+    {
+      Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
+      sf2->m_guaranteedGrantRate = m_ggr;
+      sf2->m_guaranteedGrantInterval = m_ggi;
+      upstreamAsf->SetLowLatencyServiceFlow (sf2);
+    }
+  // Downstream
+  Ptr<AggregateServiceFlow> downstreamAsf = CreateObject<AggregateServiceFlow> ();
+  downstreamAsf->m_asfid = 1;
+  downstreamAsf->m_maxSustainedRate = m_downstreamRate;
+  downstreamAsf->m_peakRate = DataRate (4 * m_downstreamRate.GetBitRate ());
+  downstreamAsf->m_maxTrafficBurst = 3064;
+  downstreamAsf->SetClassicServiceFlow (sf);
+  sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
+  sf->m_targetBuffer = static_cast<uint32_t> (m_downstreamRate.GetBitRate () * 0.25 /8); // 250ms at MSR
+  if (numServiceFlows == 2)
+    {
+      Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
+      downstreamAsf->SetLowLatencyServiceFlow (sf2);
+    }
+
   DocsisHelper docsis;
   docsis.SetChannelAttribute ("Delay", StringValue ("1ms"));
   // Install arguments for DocsisHelper: (downstream (cmts), upstream (cm)). 
-  NetDeviceContainer n2n1Device = docsis.Install (m_cmtsNode, m_cmNode);
+  NetDeviceContainer n2n1Device = docsis.Install (m_cmtsNode, m_cmNode, upstreamAsf, downstreamAsf);
   m_upstream = docsis.GetUpstream (n2n1Device);
   m_downstream = docsis.GetDownstream (n2n1Device);
   m_channel = docsis.GetChannel (n2n1Device);
@@ -200,35 +220,6 @@ DocsisLldTestCase::SetupFourNodeTopology (uint32_t numServiceFlows)
   entry1->SetMacAddress (iface0->GetDevice ()->GetAddress ());
   entry1->MarkPermanent ();
 
-  AddDualQueue ();
-
-  Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
-  Ptr<AggregateServiceFlow> asf = CreateObject<AggregateServiceFlow> ();
-  asf->m_asfid = 1;
-  asf->m_maxSustainedRate = m_upstreamRate;
-  asf->m_peakRate = DataRate (4 * m_upstreamRate.GetBitRate ());
-  asf->m_maxTrafficBurst = 3064;
-  asf->SetClassicServiceFlow (sf);
-  if (numServiceFlows == 2)
-    {
-      Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
-      asf->SetLowLatencyServiceFlow (sf2);
-    }
-  m_upstream->SetUpstreamAsf (asf);
-  // Downstream
-  asf = CreateObject<AggregateServiceFlow> ();
-  sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
-  asf->m_asfid = 1;
-  asf->m_maxSustainedRate = m_downstreamRate;
-  asf->m_peakRate = DataRate (4 * m_downstreamRate.GetBitRate ());
-  asf->m_maxTrafficBurst = 3064;
-  asf->SetClassicServiceFlow (sf);
-  if (numServiceFlows == 2)
-    {
-      Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
-      asf->SetLowLatencyServiceFlow (sf2);
-    }
-  m_downstream->SetDownstreamAsf (asf);
 }
 
 void 
@@ -371,13 +362,13 @@ DocsisLldSingleUpstreamPacketTest::DoRun (void)
   NS_TEST_ASSERT_MSG_EQ (m_txCount, 1*(1000), "Did not see transmitted packet");
 
   // The packet arrives at time       0.100001 (100ms plus 1us)
-  // The request is sent at           0.100170
-  // The MAP message is received at   0.1013025
+  // The request is sent at           0.107100
+  // The MAP message is received at   0.1022475
   // Frame preparation  is at time    0.101925
-  // Sending time is at time          0.102060
-  // Receive time end decoding is at  0.102370
+  // Sending time is at time          0.10287
+  // Receive time end decoding is at  0.10331499
   //
-  Time expectedTime = Seconds (0.102370);
+  Time expectedTime = Seconds (0.10331499);
 
   // Check receive time is expected value within a tolerance of 2 us
   NS_TEST_ASSERT_MSG_EQ_TOL (m_lastRxTime, expectedTime, MicroSeconds (2), "Did not see packet at expected time");
@@ -1257,6 +1248,7 @@ public:
 private:
   virtual void DoSetup (void);
   virtual void DoRun (void);
+  virtual void DoTeardown (void);
 };
 
 DocsisTimeToMinislotsTest::DocsisTimeToMinislotsTest (void)
@@ -1293,6 +1285,346 @@ DocsisTimeToMinislotsTest::DoRun (void)
   NS_TEST_ASSERT_MSG_EQ (m_upstream->TimeToMinislots (MicroSeconds (2467321695)), 99, "Incorrect roll-over");
 }
 
+void
+DocsisTimeToMinislotsTest::DoTeardown (void)
+{
+  Simulator::Destroy ();
+}
+
+
+class DocsisLldGgiTest : public DocsisLldTestCase
+{
+public:
+  DocsisLldGgiTest (Time mapInterval, DataRate amsr, DataRate sendRate, DataRate ggr, uint16_t ggi);
+  virtual ~DocsisLldGgiTest ();
+
+private:
+  virtual void DoSetup (void);
+  virtual void DoRun (void);
+  virtual void DoTeardown (void);
+
+  uint32_t m_txCount {0};
+  uint32_t m_udpReceived {0};
+  Ptr<UdpClient> m_client;
+  Ptr<UdpServer> m_server;
+  uint32_t m_expectedTxCount {0};
+  uint32_t m_expectedRxCount {0};
+  uint32_t m_dropCount {0};
+  Time m_mapInterval;
+  DataRate m_sendRate;
+  DataRate m_ggr;
+  uint16_t m_ggi;
+
+  void DeviceTxCallback (Ptr<const Packet> p);
+  void DeviceTxDropCallback (Ptr<const Packet> p);
+  void UdpServerCallback (Ptr<const Packet> p);
+  void MapTraceCallback (CmtsUpstreamScheduler::MapReport report);
+};
+
+DocsisLldGgiTest::DocsisLldGgiTest (Time mapInterval, DataRate amsr, DataRate sendRate, DataRate ggr, uint16_t ggi)
+  : DocsisLldTestCase ("Docsis LLD:  GGI"),
+    m_mapInterval (mapInterval),
+    m_sendRate (sendRate),
+    m_ggr (ggr),
+    m_ggi (ggi)
+{
+  m_upstreamRate = amsr;
+}
+
+DocsisLldGgiTest::~DocsisLldGgiTest ()
+{
+}
+
+void
+DocsisLldGgiTest::DeviceTxCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("Tx callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  m_txCount += p->GetSize ();
+}
+
+void
+DocsisLldGgiTest::DeviceTxDropCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("Tx drop callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  // This packet has been accounted for in the txCount (MacTx is hit before
+  // the drop) and both expected counts, so decrement all three counters
+  m_expectedTxCount -= p->GetSize ();
+  m_txCount -= p->GetSize ();
+  m_expectedRxCount -= p->GetSize () - 28;
+  m_dropCount++;
+}
+
+void
+DocsisLldGgiTest::UdpServerCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("MacRxEnd callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  m_udpReceived += p->GetSize ();
+}
+
+// B >= GGI * GGR
+// effectively:  GGI 945 = 7 frames, GGI 946*1.1 (1041)
+// measure bytes granted over interval (1.1*GGI).  Interval not aligned 
+// on a frame boundary.  1041/135 = 7
+void
+DocsisLldGgiTest::MapTraceCallback (CmtsUpstreamScheduler::MapReport report)
+{
+#ifdef NOTYET
+  std::cout << Now ().GetSeconds () << " ggr " <<  report.m_guaranteedGrantRate.GetBitRate () << " ggi " << report.m_guaranteedGrantInterval <<std::endl;
+  std::cout << "mi " <<  report.m_mapInterval.GetMicroSeconds () << " framespermap " << report.m_framesPerMap << std::endl;
+  std::cout <<  "alloc start time " <<  report.m_message.m_allocStartTime << " msperframe " << m_upstream->GetMinislotsPerFrame () << std::endl;
+  std::cout <<  "alloc start time " <<  report.m_message.m_allocStartTime << " bytesperms " << m_upstream->GetMinislotCapacity () << std::endl;
+#endif
+}
+
+void
+DocsisLldGgiTest::DoSetup (void)
+{
+  // Set m_ggr and m_ggi before scenario setup
+  SetupFourNodeTopology (2);
+  m_upstream->SetAttribute ("MapInterval", TimeValue (m_mapInterval));
+
+  UdpServerHelper myServer (9);
+  ApplicationContainer serverApp = myServer.Install (m_wanNode);
+  m_server = serverApp.Get (0)->GetObject<UdpServer> ();
+
+  UdpClientHelper myClient (Ipv4Address ("10.1.1.2"), 9);
+  myClient.SetAttribute ("OnDemand", BooleanValue (true));
+  ApplicationContainer clientApp = myClient.Install (m_lanNode);
+  m_client = clientApp.Get (0)->GetObject<UdpClient> ();
+
+  m_server->SetStartTime (Seconds (1));
+  m_client->SetStartTime (Seconds (1));
+  m_server->SetStopTime (Seconds (11) + MilliSeconds (300));
+  m_client->SetStopTime (Seconds (11));
+}
+
+void
+DocsisLldGgiTest::DoRun (void)
+{
+  NS_LOG_DEBUG ("DocsisLldGgiTest::DoRun ()");
+
+  // Capture trace of Tx events
+  bool connected = m_upstream->TraceConnectWithoutContext ("MacTx", MakeCallback (&DocsisLldGgiTest::DeviceTxCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+  connected = m_upstream->TraceConnectWithoutContext ("MacTxDrop", MakeCallback (&DocsisLldGgiTest::DeviceTxDropCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+  connected = m_server->TraceConnectWithoutContext ("Rx", MakeCallback (&DocsisLldGgiTest::UdpServerCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+  connected = m_upstream->GetCmtsUpstreamScheduler ()->TraceConnectWithoutContext ("MapTrace", MakeCallback (&DocsisLldGgiTest::MapTraceCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+
+  if (m_sendRate.GetBitRate () > 0)
+    {
+      uint32_t payload = 1000;
+      Time interval = Seconds ((payload * 8.0)/m_sendRate.GetBitRate ());
+      Time elapsed = Seconds (1);
+      while (elapsed < Seconds (11))
+        {
+          elapsed += interval;
+          m_expectedRxCount += payload;
+          // Account for padding and headers
+          m_expectedTxCount += std::max<uint32_t> (46, payload + 28);
+          NS_LOG_DEBUG ("Send time: " << elapsed.GetSeconds () << "s; size " << payload << " bytes");
+          m_client->SendPacketAt (elapsed, payload);
+        }
+      NS_LOG_DEBUG ("Expected Tx count " << m_expectedTxCount);
+      NS_LOG_DEBUG ("Expected Rx count " << m_expectedRxCount);
+    }
+
+  Simulator::Stop (Seconds (11) + MilliSeconds (300));
+  Simulator::Run ();
+
+
+  // Did we transmit what we expected?
+  NS_LOG_DEBUG ("Expected Tx count " << m_expectedTxCount << " actual " << m_txCount);
+  NS_TEST_ASSERT_MSG_EQ (m_txCount, m_expectedTxCount, "Did not see transmitted bytes");
+  NS_LOG_DEBUG ("Expected Rx count " << m_expectedRxCount << " actual " << m_udpReceived);
+  // Did we receive what we expected?
+  NS_TEST_ASSERT_MSG_EQ (m_udpReceived, m_expectedRxCount, "Did not see received bytes");
+
+}
+
+void
+DocsisLldGgiTest::DoTeardown (void)
+{
+  Simulator::Destroy ();
+}
+
+/**
+ * This test is configured to send one packet per service flow every
+ * 500ms to create a light load on the system.  The test is run for
+ * 45 minutes of simulation time, to ensure that the minislot counters
+ * overflow, and that the model's logic correctly handles this overflow.
+ */
+class DocsisCheckWraparoundTest : public DocsisLldTestCase
+{
+public:
+  DocsisCheckWraparoundTest ();
+  virtual ~DocsisCheckWraparoundTest ();
+
+private:
+  virtual void DoSetup (void);
+  virtual void DoRun (void);
+  virtual void DoTeardown (void);
+
+  uint64_t m_txCount {0};
+  uint64_t m_udpReceived {0};
+  Ptr<UdpClient> m_client;
+  Ptr<UdpServer> m_server;
+  Ptr<UdpClient> m_llClient;
+  Ptr<UdpServer> m_llServer;
+  uint64_t m_expectedTxCount {0};
+  uint64_t m_expectedRxCount {0};
+  uint64_t m_dropCount {0};
+  Time m_stopTime;
+
+  void DeviceTxCallback (Ptr<const Packet> p);
+  void DeviceTxDropCallback (Ptr<const Packet> p);
+  void UdpServerCallback (Ptr<const Packet> p);
+};
+
+DocsisCheckWraparoundTest::DocsisCheckWraparoundTest ()
+  : DocsisLldTestCase ("Docsis Wraparound Check")
+{
+  // Wraparound of the minislot counter should occur between 41 and 42
+  // minutes into the simulation with this configuration
+  // (1740735 minislots/sec, and rollover occurs when a 32-bit unsigned
+  // integer counter overflows; i.e. at 4294967295).  Check that operation
+  // continues without asserts or faults for a few minutes beyond this
+  // overflow time.
+  m_stopTime = Minutes (45);
+}
+
+DocsisCheckWraparoundTest::~DocsisCheckWraparoundTest ()
+{
+}
+
+void
+DocsisCheckWraparoundTest::DeviceTxCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("Tx callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  m_txCount += p->GetSize ();
+}
+
+void
+DocsisCheckWraparoundTest::DeviceTxDropCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("Tx drop callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  // This packet has been accounted for in the txCount (MacTx is hit before
+  // the drop) and both expected counts, so decrement all three counters
+  m_expectedTxCount -= p->GetSize ();
+  m_txCount -= p->GetSize ();
+  m_expectedRxCount -= p->GetSize () - 28;
+  m_dropCount++;
+}
+
+void
+DocsisCheckWraparoundTest::UdpServerCallback (Ptr<const Packet> p)
+{
+  NS_LOG_DEBUG ("MacRxEnd callback of size " << p->GetSize () << " at " << Simulator::Now ().GetMicroSeconds ());
+  m_udpReceived += p->GetSize ();
+}
+
+void
+DocsisCheckWraparoundTest::DoSetup (void)
+{
+  SetupFourNodeTopology (2);
+  m_upstream->SetAttribute ("MapInterval", TimeValue (MilliSeconds (1)));
+
+  // classic client/server
+  UdpServerHelper myServer (9);
+  ApplicationContainer serverApp = myServer.Install (m_wanNode);
+  m_server = serverApp.Get (0)->GetObject<UdpServer> ();
+
+  UdpClientHelper myClient (Ipv4Address ("10.1.1.2"), 9);
+  myClient.SetAttribute ("OnDemand", BooleanValue (true));
+  ApplicationContainer clientApp = myClient.Install (m_lanNode);
+  m_client = clientApp.Get (0)->GetObject<UdpClient> ();
+
+  m_server->SetStartTime (Seconds (1));
+  m_client->SetStartTime (Seconds (1));
+  m_server->SetStopTime (m_stopTime + Seconds (1));
+  m_client->SetStopTime (m_stopTime);
+
+  // low latency client/server
+  UdpServerHelper myLlServer (10);
+  ApplicationContainer llServerApp = myLlServer.Install (m_wanNode);
+  m_llServer = llServerApp.Get (0)->GetObject<UdpServer> ();
+
+  InetSocketAddress destAddressUdpEf (Ipv4Address ("10.1.1.2"), 10);
+  uint16_t tos = Ipv4Header::DSCP_EF << 2;
+  tos = tos | 0x01;  // for ECT(1)
+  destAddressUdpEf.SetTos (tos);
+
+  UdpClientHelper myLlClient (destAddressUdpEf);
+  myLlClient.SetAttribute ("OnDemand", BooleanValue (true));
+  ApplicationContainer llClientApp = myLlClient.Install (m_lanNode);
+  m_llClient = llClientApp.Get (0)->GetObject<UdpClient> ();
+
+  m_llServer->SetStartTime (Seconds (1));
+  m_llClient->SetStartTime (Seconds (1));
+  m_llServer->SetStopTime (m_stopTime + Seconds (1));
+  m_llClient->SetStopTime (m_stopTime);
+
+}
+
+void
+DocsisCheckWraparoundTest::DoRun (void)
+{
+  NS_LOG_DEBUG ("DocsisCheckWraparoundTest::DoRun ()");
+
+  // Capture trace of Tx events
+  bool connected = m_upstream->TraceConnectWithoutContext ("MacTx", MakeCallback (&DocsisCheckWraparoundTest::DeviceTxCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+  connected = m_upstream->TraceConnectWithoutContext ("MacTxDrop", MakeCallback (&DocsisCheckWraparoundTest::DeviceTxDropCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+  connected = m_server->TraceConnectWithoutContext ("Rx", MakeCallback (&DocsisCheckWraparoundTest::UdpServerCallback, this));
+  connected = m_llServer->TraceConnectWithoutContext ("Rx", MakeCallback (&DocsisCheckWraparoundTest::UdpServerCallback, this));
+  NS_TEST_ASSERT_MSG_EQ (connected, true, "Could not hook callback");
+
+  // Send one packet on each service flow every 500ms
+  uint32_t payload = 1000;
+  Time interval = MilliSeconds (500);
+  Time elapsed = Seconds (1);
+  uint64_t expectedPacketCount = 0;
+  while (elapsed < m_stopTime)
+    {
+      elapsed += interval;
+      m_expectedRxCount += payload;
+      // Account for padding and headers
+      m_expectedTxCount += std::max<uint32_t> (46, payload + 28);
+      NS_LOG_DEBUG ("Classic send time: " << elapsed.GetSeconds () << "s; size " << payload << " bytes");
+      m_client->SendPacketAt (elapsed, payload);
+      m_expectedRxCount += payload;
+      // Account for padding and headers
+      m_expectedTxCount += std::max<uint32_t> (46, payload + 28);
+      NS_LOG_DEBUG ("Low latency send time: " << elapsed.GetSeconds () << "s; size " << payload << " bytes");
+      m_llClient->SendPacketAt (elapsed, payload);
+      expectedPacketCount += 2;
+    }
+  NS_LOG_DEBUG ("Expected packet count " << expectedPacketCount);
+  NS_LOG_DEBUG ("Expected Tx byte count " << m_expectedTxCount);
+  NS_LOG_DEBUG ("Expected Rx byte count " << m_expectedRxCount);
+
+  Simulator::Stop (m_stopTime + Seconds (1) + MilliSeconds (1));
+  Simulator::Run ();
+
+
+  // Did we transmit what we expected?
+  NS_LOG_DEBUG ("Expected Tx count " << m_expectedTxCount << " actual " << m_txCount);
+  NS_TEST_ASSERT_MSG_EQ (m_txCount, m_expectedTxCount, "Did not see transmitted bytes");
+  NS_LOG_DEBUG ("Expected Rx count " << m_expectedRxCount << " actual " << m_udpReceived);
+  // Did we receive what we expected?
+  NS_TEST_ASSERT_MSG_EQ (m_udpReceived, m_expectedRxCount, "Did not see received bytes");
+
+}
+
+void
+DocsisCheckWraparoundTest::DoTeardown (void)
+{
+  Simulator::Destroy ();
+}
+
 class DocsisLldTestSuite : public TestSuite
 {
 public:
@@ -1314,6 +1646,11 @@ DocsisLldTestSuite::DocsisLldTestSuite ()
   AddTestCase (new DocsisQueueDiscItemTest, TestCase::QUICK);
   AddTestCase (new DocsisPacketBurstTest, TestCase::QUICK);
   AddTestCase (new DocsisTimeToMinislotsTest, TestCase::QUICK);
+  // Test GGI and GGR configuration
+  // MAP interval, AMSR, GGR, GGI
+  AddTestCase (new DocsisLldGgiTest (MilliSeconds (1), DataRate ("50Mb/s"), DataRate (0), DataRate ("5Mb/s"), 135), TestCase::QUICK);
+  // Test that long simulation, with wraparound of time values, works correctly
+  AddTestCase (new DocsisCheckWraparoundTest, TestCase::QUICK);
 }
 
 static DocsisLldTestSuite docsisLldTestSuite;

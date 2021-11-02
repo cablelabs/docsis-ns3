@@ -14,11 +14,11 @@ The ``patches/`` directory contains the patch to apply to ns-3-dev, with
 the patch file name indicating which version of ns-3 to use.
 Once ns-3 is reconfigured, the build system will include the new module.
 
-1. Download and unpack the most recent release of ns-3 (ns-3.34), either with a browser or from the command-line as follows. 
+1. Download and unpack the most recent release of ns-3 (ns-3.35), either with a browser or from the command-line as follows. 
 
-    `$ wget https://www.nsnam.org/releases/ns-allinone-3.34.tar.bz2`
-    `$ tar xjf ns-allinone-3.34.tar.bz2`
-    `$ cd ns-allinone-3.34/ns-3.34`
+    `$ wget https://www.nsnam.org/releases/ns-allinone-3.35.tar.bz2`
+    `$ tar xjf ns-allinone-3.35.tar.bz2`
+    `$ cd ns-allinone-3.35/ns-3.35`
   
   **Note:**  The development version ``ns-3-dev`` might also work with the current code:
 
@@ -38,11 +38,11 @@ Once ns-3 is reconfigured, the build system will include the new module.
 
     `$ cd ../`
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.34.patch --dry-run`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.35.patch --dry-run`
 
 5. If the above dry-run works, patch the code for real.
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.34.patch`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.35.patch`
 
    This patch will eventually go away once the application changes are upstreamed.
    
@@ -55,7 +55,7 @@ Once ns-3 is reconfigured, the build system will include the new module.
 
     `$ ./waf build`
 
-  Follow instructions in the [ns-3 tutorial](https://www.nsnam.org/releases/ns-3-34/documentation/) if you are unfamiliar with how to build ns-3 and run programs.
+  Follow instructions in the [ns-3 tutorial](https://www.nsnam.org/releases/ns-3-35/documentation/) if you are unfamiliar with how to build ns-3 and run programs.
 
    If the configuration complains that it `Could not find a task generator for the name 'ns3-docsis-ns3'`, this means that the directory was cloned without renaming it to `docsis`.
 
@@ -83,6 +83,6 @@ Protection.  All of the OFDM(A) channel configuration options are supported,
 and subset of the Service Flow QoS configuration parameters are supported. 
 Both single service flow (corresponding to DOCSIS 3.1) and two service flow
 (corresponding to Low Latency DOCSIS extensions to DOCSIS 3.1) are supported.
-The corresponding specification is version I19 of the
+The corresponding specification is version I21 of the
 [DOCSIS 3.1 MAC and Upper Layer Protocols Interface Specification](https://specification-search.cablelabs.com/CM-SP-MULPIv3.1).
 

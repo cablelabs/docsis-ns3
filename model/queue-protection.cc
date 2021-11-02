@@ -366,6 +366,7 @@ QueueProtection::QueueProtect (Ptr<const QueueDiscItem> item)
   // the check on this flag here, from within this method.
   if (m_qProtectOn == false)
     {
+      //m_successTrace (item, flowId, m_queue->GetLowLatencyQueueSize () + item->GetSize (), qDelay, qLscore, GetCriticalQl (), criticalQlProduct, bckt_id);
       return QueueProtectionOutcome::SUCCESS;
     }
   uint16_t bckt_id; // bucket index

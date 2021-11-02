@@ -79,18 +79,28 @@ namespace docsis {
 
 NS_OBJECT_ENSURE_REGISTERED (CmNetDevice);
 
+// Constants for improved code readability
+static bool MAC_FRAME_BYTES = true;
+static bool DATA_PDU_BYTES = false;
+
 uint32_t
-CmPipeline::GetEligible (void) const
+CmPipeline::GetEligible (Time deadline) const
 {
   uint32_t total = 0;
   for (auto item : m_pipeline)
     {
-      if (item.second <= Simulator::Now ())
+      if (item.second <= deadline)
         {
           total += item.first;
         }
     }
   return total;
+}
+
+uint32_t
+CmPipeline::GetEligible (void) const
+{
+  return GetEligible (Simulator::Now ());
 }
 
 uint32_t
@@ -104,11 +114,36 @@ CmPipeline::GetTotal (void) const
   return total;
 }
 
+uint32_t
+CmPipeline::GetSize (void) const
+{
+  return m_pipeline.size ();
+}
+
 void
 CmPipeline::Add (uint32_t value, Time eligible)
 {
   NS_LOG_FUNCTION (this << value << eligible);
   m_pipeline.push_back ( {value, eligible} );
+}
+
+std::pair<uint32_t, Time>
+CmPipeline::Peek (void) const
+{
+  NS_LOG_FUNCTION (this);
+  NS_ASSERT_MSG (!m_pipeline.empty (), "Trying to peek from an empty pipeline");
+  auto it = m_pipeline.front ();
+  return m_pipeline.front ();
+}
+
+std::pair<uint32_t, Time>
+CmPipeline::Pop (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_ASSERT_MSG (!m_pipeline.empty (), "Trying to pop from an empty pipeline");
+  auto it = m_pipeline.front ();
+  m_pipeline.pop_front ();
+  return it;
 }
 
 void
@@ -216,6 +251,12 @@ CmNetDevice::~CmNetDevice ()
     {
       m_lQueue->Dequeue ();
     }
+  m_cTransmitPipeline.Clear ();
+  m_lTransmitPipeline.Clear ();
+  m_cGrantPipeline.Clear ();
+  m_lGrantPipeline.Clear ();
+  m_cRequestPipeline.Clear ();
+  m_lRequestPipeline.Clear ();
 }
 
 void
@@ -225,6 +266,15 @@ CmNetDevice::DoDispose ()
   if (GetQueue ())
     {
       GetQueue ()->Dispose ();
+    }
+  if (GetCmtsUpstreamScheduler ())
+    {
+      GetCmtsUpstreamScheduler ()->Dispose ();
+    }
+  if (m_asf)
+    {
+      m_asf->SetLowLatencyServiceFlow (0);
+      m_asf->SetClassicServiceFlow (0);
     }
   m_asf = 0;
   m_sf = 0;
@@ -241,7 +291,6 @@ CmNetDevice::DoInitialize ()
 
   m_grantBytes = 0;
   m_grantBytesNext = 0;
-  m_cGrantBytesInPipeline = 0;
 
   NS_ABORT_MSG_UNLESS (m_asf || m_sf, "Service flows are not configured");
   Ptr<CmtsUpstreamScheduler> scheduler = GetCmtsUpstreamScheduler ();
@@ -269,7 +318,7 @@ CmNetDevice::DoInitialize ()
   // A scheduler may allocate all of the minislots in a MAP interval and
   // provide a single grant.  Size the device queue to accommodate 
   // this possibility.
-  uint32_t deviceQueueSize = GetFramesPerMap () * GetMinislotCapacity () * GetMinislotsPerFrame ();
+  uint32_t deviceQueueSize = 2 * GetFramesPerMap () * GetMinislotCapacity () * GetMinislotsPerFrame ();
   m_cQueue->SetAttribute ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, deviceQueueSize)));
   m_lQueue->SetAttribute ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, deviceQueueSize)));
 
@@ -287,13 +336,16 @@ CmNetDevice::DoInitialize ()
           Time requestOffset = i * GetActualMapInterval () + GetInitialRequestOffset ();
           if (m_classicSf)
             {
-              NS_LOG_DEBUG ("Scheduling MakeRequest for SFID " << m_classicSf->m_sfid << " in " << requestOffset.GetMicroSeconds () << " us");
+              NS_LOG_DEBUG ("Scheduling MakeRequest " << i << " for SFID " << m_classicSf->m_sfid << " in " << requestOffset.GetMicroSeconds () << " us");
               Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, CLASSIC_SFID);
             }
+          // This statement is executed regardless of whether there is a low
+          // latency service flow, so that the requestOffsets used (random
+          // variates) do not differ depending on the value of m_llSf 
+          requestOffset = i * GetActualMapInterval () + GetInitialRequestOffset ();
           if (m_llSf)
             {
-              requestOffset = i * GetActualMapInterval () + GetInitialRequestOffset ();
-              NS_LOG_DEBUG ("Scheduling MakeRequest for SFID " << m_llSf << " in " << requestOffset.GetMicroSeconds () << " us");
+              NS_LOG_DEBUG ("Scheduling MakeRequest " << i << " for SFID " << m_llSf->m_sfid << " in " << requestOffset.GetMicroSeconds () << " us");
               Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, LOW_LATENCY_SFID);
             }
           allocStartTime += TimeToMinislots (GetActualMapInterval ());
@@ -303,11 +355,11 @@ CmNetDevice::DoInitialize ()
   NS_ABORT_MSG_UNLESS (GetQueue (), "Queue pointer not set");
   if (m_asf)
     {
-      GetQueue ()->SetAttribute ("Amsr", DataRateValue (m_asf->m_maxSustainedRate));
+      GetQueue ()->SetAsf (m_asf);
     }
   else
     {
-      GetQueue ()->SetAttribute ("Amsr", DataRateValue (m_sf->m_maxSustainedRate));
+      GetQueue ()->SetSf (m_sf);
     }
   // The service flow may contain overrides to default queue parameters
   // Set the queue's revised parameters before calling Initialize() on it
@@ -414,7 +466,6 @@ CmNetDevice::DoInitialize ()
           GetQueue ()->GetQueueProtection ()->SetAttribute ("QpDrainRateExponent", UintegerValue (m_asf->m_qpDrainRateExponent));
         }
     }
-  GetQueue ()->Initialize ();
 
   // warn if user configured GGR to be greater than weight * AMSR
   if (m_llSf && m_llSf->m_guaranteedGrantRate.GetBitRate ())
@@ -425,6 +476,8 @@ CmNetDevice::DoInitialize ()
             std::cerr << "Warning:  configured GGR (" << m_llSf->m_guaranteedGrantRate.GetBitRate () << "bps) greater than (weight * AMSR)" << std::endl;
          }
     }
+
+  GetQueue ()->Initialize ();
 
   // Queue accounting
   // Track all internal queue enqueue, dequeue, and drop events.
@@ -463,6 +516,7 @@ CmNetDevice::InternalClassicEnqueueCallback (Ptr<const QueueDiscItem> item)
   NS_LOG_DEBUG ("Internal classic enqueue raw bytes: " << item->GetPacket ()->GetSize ()
    << " framed bytes: " << item->GetSize ());
   m_cAqmFramedBytes += item->GetSize ();
+  m_cAqmPduBytes += GetDataPduSize (item->GetPacket ()->GetSize ());
 }
 
 void 
@@ -473,6 +527,7 @@ CmNetDevice::InternalClassicDequeueCallback (Ptr<const QueueDiscItem> item)
    << " framed bytes: " << item->GetSize ());
   NS_ABORT_MSG_IF (m_cAqmFramedBytes < item->GetSize (), "Accounting error");
   m_cAqmFramedBytes -= item->GetSize ();
+  m_cAqmPduBytes -= GetDataPduSize (item->GetPacket ()->GetSize ());
 }
 
 void 
@@ -491,6 +546,7 @@ CmNetDevice::InternalLlEnqueueCallback (Ptr<const QueueDiscItem> item)
   NS_LOG_DEBUG ("Internal LL enqueue raw bytes: " << item->GetPacket ()->GetSize ()
    << " framed bytes: " << item->GetSize ());
   m_lAqmFramedBytes += item->GetSize ();
+  m_lAqmPduBytes += GetDataPduSize (item->GetPacket ()->GetSize ());
 }
 
 void 
@@ -501,6 +557,7 @@ CmNetDevice::InternalLlDequeueCallback (Ptr<const QueueDiscItem> item)
    << " framed bytes: " << item->GetSize ());
   NS_ABORT_MSG_IF (m_lAqmFramedBytes < item->GetSize (), "Accounting error");
   m_lAqmFramedBytes -= item->GetSize ();
+  m_lAqmPduBytes -= GetDataPduSize (item->GetPacket ()->GetSize ());
 }
 
 void 
@@ -525,20 +582,21 @@ void
 CmNetDevice::HandleMapMsg (MapMessage msg)
 {
   NS_LOG_FUNCTION (this);
+  Time requestOffset;
   if (msg.m_mapIeList.size () == 0) // No grant on which to piggyback request
     {
       // Schedule request to occur sometime in the MAP interval, notionally
       // within some kind of contention-based slot
+      requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
       if (m_classicSf)
         {
-          Time requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
           NS_LOG_DEBUG ("Scheduling MakeRequest for SFID 1 in " << requestOffset.GetMicroSeconds () << " us");
           Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, 1);
         }
       // If two SFIDs active, make a second independent request
+      requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
       if (m_llSf)
         {
-          Time requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
           NS_LOG_DEBUG ("Scheduling MakeRequest for SFID 2 in " << requestOffset.GetMicroSeconds () << " us");
           Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, 2);
         }
@@ -590,88 +648,52 @@ CmNetDevice::HandleMapMsg (MapMessage msg)
       m_traceLGrantReceived (grantInBytes2);
     }
 
-  if (m_cRequestPipeline >= grantInBytes1)
+  if (m_cRequestPipeline.GetTotal () > grantInBytes1)
     {
-      m_cRequestPipeline -= grantInBytes1;
+      m_cRequestPipeline.Remove (grantInBytes1);
     }
   else
     {
-      m_cRequestPipeline = 0;
+      m_cRequestPipeline.Clear ();
     }
-  if (m_lRequestPipeline >= grantInBytes2)
+  if (m_lRequestPipeline.GetTotal () > grantInBytes2)
     {
-      m_lRequestPipeline -= grantInBytes2;
+      m_lRequestPipeline.Remove (grantInBytes2);
     }
   else
     {
-      m_lRequestPipeline = 0;
+      m_lRequestPipeline.Clear ();
     }
 
   // For each grant, schedule PrepareBurst() and MakeRequest() one frame
   // earlier, then SendOut for each frame of the grant.  If no grant, then
   // schedule a contention-based request
+  requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
   if (!grantList1.empty ())
     {
       ScheduleGrantEvents (CLASSIC_SFID, grantList1);
     }
   else
     {
-      Time requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
       NS_LOG_DEBUG ("Scheduling MakeRequest for SFID 1 in " << requestOffset.GetMicroSeconds () << " us");
       Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, 1);
     }
+  requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
   if (!grantList2.empty ())
     {
       ScheduleGrantEvents (LOW_LATENCY_SFID, grantList2);
     }
   else if (m_llSf)
     {
-      Time requestOffset = GetCmMapProcTime () + GetInitialRequestOffset ();
       NS_LOG_DEBUG ("Scheduling MakeRequest for SFID 2 in " << requestOffset.GetMicroSeconds () << " us");
       Simulator::Schedule (requestOffset, &CmNetDevice::MakeRequest, this, 2);
-    }
-
-  // Provide update to AQM regarding pending grants
-  //
-  // If the CMTS has pending grants, it will set the Data Grant Pending
-  // flag, but we cannot rely on it to determine if there is a backlog
-  // in the case of PGS, so process the request list regardless.
-  uint32_t pending = 0;
-  uint32_t granted = grantInBytes2; // number of bytes in SF2 grant
-  // Request queue will be in temporal order
-  for (auto item : m_lRequestQueue)
-    {
-      if (item.m_requestTime > msg.m_ackTime)
-        {
-          NS_LOG_DEBUG ("Skipping request for " << item.m_bytes << " at " << MinislotsToTime (item.m_requestTime).GetSeconds () << " until future cycle");
-          continue;
-        }
-      if (item.m_bytes <= granted)
-        {
-          NS_LOG_DEBUG ("Clearing a granted request for " << item.m_bytes << ", time = " << MinislotsToTime (item.m_requestTime).GetSeconds ());
-          m_lRequestQueue.pop_front ();
-          granted -= item.m_bytes;
-        }
-      else if (granted && item.m_bytes > granted)
-        {
-          NS_LOG_DEBUG ("Trimming a granted request for " << item.m_bytes << " by " << granted << "bytes, time = " << MinislotsToTime (item.m_requestTime).GetSeconds ());
-          m_lRequestQueue[0].m_bytes -= granted;
-          pending += m_lRequestQueue[0].m_bytes;
-          granted = 0;
-        }
-      else
-        {
-          // Remaining requests in the list are pending bytes
-          NS_LOG_DEBUG ("Adding a pending request for " << item.m_bytes << ", time = " << MinislotsToTime (item.m_requestTime).GetSeconds () << " to pending " << pending);
-          pending += item.m_bytes;
-        }
     }
 }
 
 void
 CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
 {
-  NS_LOG_FUNCTION (this);
+  NS_LOG_FUNCTION (this << sfid << grantList.size ());
   MapState nextMapState;
   // grantAllocationPerFrame creates a vector of number of minislots per frame
   // allocated for this SFID.  If the grant spans frames, then the offset
@@ -681,12 +703,15 @@ CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
     {
       grantAllocationPerFrame.push_back (0);
     }
+  NS_LOG_DEBUG ("Frames per MAP: " << GetFramesPerMap ());
   for (auto it = grantList.begin (); it != grantList.end (); it++)
     {
       struct Grant grant = (*it);
       uint32_t startingFrame = GetFrameForMinislot (grant.m_offset);
-      Time grantTime = GetCmMapProcTime () + startingFrame * GetFrameDuration ();
-      NS_LOG_DEBUG ("Scheduling a grant for SFID " << sfid << " of length " << grant.m_length << " slots at time " << (grantTime + Simulator::Now ()).GetSeconds ());
+      NS_ABORT_MSG_IF (startingFrame >= GetFramesPerMap (), "Grant offset overshoots MAP interval");
+      NS_LOG_DEBUG ("Starting frame: " << startingFrame);
+      Time grantTime = Now () + GetCmMapProcTime () + startingFrame * GetFrameDuration ();
+      NS_LOG_DEBUG ("Scheduling a grant for SFID " << sfid << " of length " << grant.m_length << " slots at time " << grantTime.GetSeconds ());
       // We need to schedule an event to 'prepare the burst for transmission'
       // This occurs BurstPreparationTime in advance, and two things should
       // occur:
@@ -699,19 +724,21 @@ CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
       Time burstPreparationTime = GetCmMapProcTime () + startingFrame * GetFrameDuration () - m_burstPreparationTime;
       NS_ABORT_MSG_IF (burstPreparationTime < Seconds (0), "Burst preparation time too large for this model");
       nextMapState.m_grantBytesInMap += grant.m_length * GetMinislotCapacity ();
-      if (sfid == CLASSIC_SFID)
+      if (sfid == CLASSIC_SFID && grant.m_length)
         {
-          m_cGrantBytesInPipeline += grant.m_length * GetMinislotCapacity ();
+          m_cGrantPipeline.Add (grant.m_length * GetMinislotCapacity (), grantTime);
+          NS_LOG_DEBUG ("Adding " << grant.m_length * GetMinislotCapacity () << " to cGrantPipeline at time " << grantTime.As (Time::S));
         }
-      else if (sfid == LOW_LATENCY_SFID)
+      else if (sfid == LOW_LATENCY_SFID && grant.m_length)
         {
-          m_lGrantBytesInPipeline += grant.m_length * GetMinislotCapacity ();
+          m_lGrantPipeline.Add (grant.m_length * GetMinislotCapacity (), grantTime);
+          NS_LOG_DEBUG ("Adding " << grant.m_length * GetMinislotCapacity () << " to lGrantPipeline at time " << grantTime.As (Time::S));
         }
 
       //
       // Next, schedule the MakeRequest at the burst preparation time 
       //
-      NS_LOG_DEBUG ("Scheduling request deadline for " <<
+      NS_LOG_DEBUG ("Scheduling request deadline in " << burstPreparationTime.GetMicroSeconds () <<  "us, at " << 
                     (Simulator::Now () + burstPreparationTime).GetMicroSeconds ());
       Simulator::Schedule (burstPreparationTime, &CmNetDevice::MakeRequest, this, sfid);
       //
@@ -722,7 +749,7 @@ CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
       //
       if (MinislotsRemainingInFrame (grant.m_offset) >= grant.m_length)
         {
-          // The grant fits entirely in one frame
+          NS_LOG_DEBUG ("Grant fits entirely in one frame");
           Simulator::Schedule (burstPreparationTime, &CmNetDevice::PrepareBurst, this, sfid, grant.m_length);
           grantAllocationPerFrame [startingFrame] += grant.m_length;
         }
@@ -733,28 +760,34 @@ CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
           uint32_t minislotsRemainingToSchedule = grant.m_length;
           NS_LOG_DEBUG ("Preparing burst at time " << (Simulator::Now () + 
                         burstPreparationTime).GetMicroSeconds ());
+          NS_LOG_DEBUG ("Minislots remaining to schedule: " << grant.m_length);
           Simulator::Schedule (burstPreparationTime, &CmNetDevice::PrepareBurst,
                                this, sfid, minislotsRemainingToSchedule);
           uint32_t minislotsGrantedForFrame = MinislotsRemainingInFrame (grant.m_offset);
+          NS_LOG_DEBUG ("Minislots granted for frame: " << minislotsGrantedForFrame);
           uint32_t nextFrameSlots = 0;
           uint32_t frameNumber = startingFrame;
           minislotsRemainingToSchedule -= minislotsGrantedForFrame;
+          NS_LOG_DEBUG ("Minislots remaining to schedule: " << grant.m_length);
           // Plan to schedule the send events (grantAllocationPerFrame array)
           Time nextTime = grantTime;
           while (minislotsGrantedForFrame > 0 && minislotsRemainingToSchedule > 0)
             {
               nextFrameSlots = std::min<uint32_t> (minislotsRemainingToSchedule, GetMinislotsPerFrame ());
               grantAllocationPerFrame [frameNumber] += minislotsGrantedForFrame;
-              frameNumber++;
               NS_LOG_DEBUG ("Scheduling " << minislotsGrantedForFrame <<
-                            " of grant for time " << 
-                            (Simulator::Now () + nextTime).GetMicroSeconds ());
+                            " of grant for time " << nextTime.GetMicroSeconds () <<
+                            " frame number " << frameNumber);
               minislotsGrantedForFrame = nextFrameSlots;
               minislotsRemainingToSchedule -= nextFrameSlots;
+              frameNumber++;
               nextTime += GetFrameDuration ();
             }
           // Last frame is just a Send() event
           grantAllocationPerFrame [frameNumber] += minislotsGrantedForFrame;
+          NS_LOG_DEBUG ("Last allocation " << minislotsGrantedForFrame <<
+                        " of grant for time " << nextTime.GetMicroSeconds () <<
+                        " frame number " << frameNumber);
         }
     }
   // Load the map state at the start of the next MAP interval
@@ -779,53 +812,93 @@ CmNetDevice::ScheduleGrantEvents (uint16_t sfid, std::vector<Grant> grantList)
 }
 
 uint32_t
-CmNetDevice::GetUnsentBytes (void) const
+CmNetDevice::GetCUnsentBytes (bool includeMacHeaders) const
 {
-  return GetCUnsentBytes () + GetLUnsentBytes ();
+  return GetCAqmBytes (includeMacHeaders) + GetCDeviceBytes (includeMacHeaders);
 }
 
 uint32_t
-CmNetDevice::GetCUnsentBytes (void) const
+CmNetDevice::GetCAqmBytes (bool includeMacHeaders) const
 {
-  return GetCAqmBytes () + GetCDeviceBytes ();
-}
-
-uint32_t
-CmNetDevice::GetCAqmBytes (void) const
-{
-  return m_cAqmFramedBytes;
-}
-
-uint32_t
-CmNetDevice::GetCDeviceBytes () const
-{
-  uint32_t returnValue = m_cQueueFramedBytes;
-  if (m_cFragment.m_fragPkt)
+  if (includeMacHeaders)
     {
-      returnValue += (m_cFragment.m_fragPkt->GetSize () + GetUsMacHdrSize () - m_cFragment.m_fragSentBytes);
+      // This assert is for consistency checking; in the future, we may
+      // eliminate the internal tracking variable m_cAqmFramedBytes
+      NS_ASSERT (m_cAqmFramedBytes == GetQueue ()->GetClassicQueueSize (includeMacHeaders));
+      return m_cAqmFramedBytes;
+    }
+  else
+    {
+      NS_ASSERT (m_cAqmPduBytes == GetQueue ()->GetClassicQueueSize (includeMacHeaders));
+      return m_cAqmPduBytes;
+    }
+}
+
+uint32_t
+CmNetDevice::GetCDeviceBytes (bool includeMacHeaders) const
+{
+  uint32_t returnValue;
+  if (includeMacHeaders)
+    { 
+      returnValue = m_cQueueFramedBytes;
+      if (m_cFragment.m_fragPkt)
+        {
+          returnValue += (m_cFragment.m_fragPkt->GetSize () + GetUsMacHdrSize () - m_cFragment.m_fragSentBytes);
+        }
+    }
+  else
+    { 
+      returnValue = m_cQueuePduBytes;
+      if (m_cFragment.m_fragPkt)
+        {
+          returnValue += (m_cFragment.m_fragPkt->GetSize () - m_cFragment.m_fragSentBytes);
+        }
     }
   return returnValue;
 }
 
 uint32_t
-CmNetDevice::GetLUnsentBytes (void) const
+CmNetDevice::GetLUnsentBytes (bool includeMacHeaders) const
 {
-  return GetLAqmBytes () + GetLDeviceBytes ();
+  return GetLAqmBytes (includeMacHeaders) + GetLDeviceBytes (includeMacHeaders);
 }
 
 uint32_t
-CmNetDevice::GetLAqmBytes (void) const
+CmNetDevice::GetLAqmBytes (bool includeMacHeaders) const
 {
-  return m_lAqmFramedBytes;
-}
-
-uint32_t
-CmNetDevice::GetLDeviceBytes () const
-{
-  uint32_t returnValue = m_lQueueFramedBytes;
-  if (m_lFragment.m_fragPkt)
+  if (includeMacHeaders)
     {
-      returnValue += (m_lFragment.m_fragPkt->GetSize () + GetUsMacHdrSize () - m_lFragment.m_fragSentBytes);
+      // This assert is for consistency checking; in the future, we may
+      // eliminate the internal tracking variable m_lAqmFramedBytes
+      NS_ASSERT (m_lAqmFramedBytes == GetQueue ()->GetLowLatencyQueueSize (includeMacHeaders));
+      return m_lAqmFramedBytes;
+    }
+  else
+    {
+      NS_ASSERT (m_lAqmPduBytes == GetQueue ()->GetLowLatencyQueueSize (includeMacHeaders));
+      return m_lAqmPduBytes;
+    }
+}
+
+uint32_t
+CmNetDevice::GetLDeviceBytes (bool includeMacHeaders) const
+{
+  uint32_t returnValue;
+  if (includeMacHeaders)
+    {
+      returnValue = m_lQueueFramedBytes;
+      if (m_lFragment.m_fragPkt)
+        {
+          returnValue += (m_lFragment.m_fragPkt->GetSize () + GetUsMacHdrSize () - m_lFragment.m_fragSentBytes);
+        }
+    }
+  else
+    {
+      returnValue = m_lQueuePduBytes;
+      if (m_lFragment.m_fragPkt)
+        {
+          returnValue += (m_lFragment.m_fragPkt->GetSize ()- m_lFragment.m_fragSentBytes);
+        }
     }
   return returnValue;
 }
@@ -855,11 +928,11 @@ CmNetDevice::SendFrom (Ptr<Packet> packet,
   bool retval = GetQueue ()->Enqueue (item);
   if (retval)
     {
-      NS_LOG_DEBUG ("AQM enqueue succeeded; queue depth " << GetCAqmBytes () << " bytes");
+      NS_LOG_DEBUG ("AQM enqueue succeeded; total queue depth " << GetCAqmBytes (DATA_PDU_BYTES) + GetLAqmBytes (DATA_PDU_BYTES) << " bytes");
     }
   else
     {
-      NS_LOG_DEBUG ("AQM enqueue failed; queue depth " << GetCAqmBytes () << " bytes");
+      NS_LOG_DEBUG ("AQM enqueue failed; total queue depth " << GetCAqmBytes (DATA_PDU_BYTES) + GetLAqmBytes (DATA_PDU_BYTES) << " bytes");
       m_macTxDropTrace (packet);
     }
   if (m_pointToPointMode && m_pointToPointBusy == false)
@@ -982,8 +1055,8 @@ void
 CmNetDevice::SendImmediatelyIfAvailable (void)
 {
   NS_LOG_FUNCTION (this);
-  uint32_t cBytesOrig = GetCAqmBytes ();
-  uint32_t lBytesOrig = GetLAqmBytes ();
+  uint32_t cBytesOrig = GetCAqmBytes (MAC_FRAME_BYTES);
+  uint32_t lBytesOrig = GetLAqmBytes (MAC_FRAME_BYTES);
   if (cBytesOrig + lBytesOrig == 0)
     {
       NS_LOG_DEBUG ("Returning due to empty AQM");
@@ -993,13 +1066,13 @@ CmNetDevice::SendImmediatelyIfAvailable (void)
   Ptr<QueueDiscItem> queueDiscItem = GetQueue ()->Dequeue ();
   NS_ASSERT_MSG (queueDiscItem, "Should be an item in queue");
   Ptr<DocsisQueueDiscItem> item = DynamicCast<DocsisQueueDiscItem> (queueDiscItem);
-  if (GetLAqmBytes () < lBytesOrig)
+  if (GetLAqmBytes (MAC_FRAME_BYTES) < lBytesOrig)
     {
       NS_LOG_DEBUG ("Dequeued from L queue");
       m_traceLlSojourn (Simulator::Now () - item->GetTimeStamp ());
       SendOutFromLQueue (item->GetPacket (), item->GetSource (), item->GetAddress (), item->GetProtocol (), item->GetSize ());
     }
-  else if (GetCDeviceBytes () < cBytesOrig)
+  else if (GetCDeviceBytes (MAC_FRAME_BYTES) < cBytesOrig)
     {
       NS_LOG_DEBUG ("Dequeued from C queue");
       m_traceClassicSojourn (Simulator::Now () - item->GetTimeStamp ());
@@ -1209,15 +1282,22 @@ CmNetDevice::PrepareBurstFromCQueue (uint32_t minislotsToPrepare)
   // Two cases:  1) unscheduledBytes >= availableBytes (use all available)
   //             2) unscheduledBytes < available (use unscheduled)
   //
-  uint32_t internalBytes = GetCDeviceBytes () + GetCAqmBytes ();
+  uint32_t internalBytes = GetCDeviceBytes (MAC_FRAME_BYTES) + GetCAqmBytes (MAC_FRAME_BYTES);
   uint32_t scheduledBytes = m_cTransmitPipeline.GetTotal ();
   uint32_t unscheduledBytes = internalBytes - scheduledBytes;
   NS_ASSERT_MSG (internalBytes >= scheduledBytes, "Accounting error");
   NS_ASSERT_MSG (scheduledBytes + unscheduledBytes == internalBytes, "Accounting error");
   NS_LOG_DEBUG ("Available to send: " << availableBytes << " internal: " << internalBytes << " scheduled: " << scheduledBytes);
 
+  // Pop the front of the grant pipeline, and check for alignment
+  NS_ASSERT_MSG (m_cGrantPipeline.GetEligible (sendTime) > 0, "Unexpectedly empty pipeline");
+  std::pair<uint32_t, Time> pipelineElement = m_cGrantPipeline.Pop ();
+  NS_LOG_DEBUG ("Popped cGrantPipeline, size: " << pipelineElement.first << " time: " << pipelineElement.second.As (Time::S));
+  NS_ASSERT_MSG (pipelineElement.first ==  minislotsToPrepare * GetMinislotCapacity (), "Error in pipeline bytes");
+  NS_ASSERT_MSG (pipelineElement.second == sendTime, "Error in pipeline time");
+
   // Try to dequeue enough data to cover availableBytes
-  while (availableBytes > (GetCDeviceBytes () - scheduledBytes) && GetCAqmBytes () > 0)
+  while (availableBytes > (GetCDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes) && GetCAqmBytes (MAC_FRAME_BYTES) > 0)
   // Dequeue to staging queue
     {
       Ptr<QueueDiscItem> item;
@@ -1236,6 +1316,7 @@ CmNetDevice::PrepareBurstFromCQueue (uint32_t minislotsToPrepare)
         {
           NS_LOG_DEBUG ("Packet enqueued at time " << Simulator::Now ().GetMicroSeconds () << "us");
           m_cQueueFramedBytes += GetUsMacFrameSize (packet->GetSize ());
+          m_cQueuePduBytes += GetDataPduSize (packet->GetSize ());
         }
       else
         {
@@ -1245,15 +1326,15 @@ CmNetDevice::PrepareBurstFromCQueue (uint32_t minislotsToPrepare)
   // If availableBytes is now <= (GetCDeviceBytes () - scheduledBytes)
   // we will be able to use all capacity when the grant arrives.
   // Otherwise (if C AQM empty), all bytes in pipeline must be in the device
-  if (availableBytes <= (GetCDeviceBytes () - scheduledBytes))
+  if (availableBytes <= (GetCDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes))
     {
       NS_LOG_DEBUG ("Able to use the full grant; adding " << availableBytes << " to C transmit pipeline");
       m_cTransmitPipeline.Add (availableBytes, Simulator::Now () + m_burstPreparationTime);
     }
-  else if (GetCDeviceBytes () - scheduledBytes > 0)
+  else if (GetCDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes > 0)
     {
-      NS_LOG_DEBUG ("Not able to use " << availableBytes << "; adding " << (GetCDeviceBytes () - scheduledBytes) << " to C transmit pipeline");
-      m_cTransmitPipeline.Add (GetCDeviceBytes () - scheduledBytes, Simulator::Now () + m_burstPreparationTime);
+      NS_LOG_DEBUG ("Not able to use " << availableBytes << "; adding " << (GetCDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes) << " to C transmit pipeline");
+      m_cTransmitPipeline.Add (GetCDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes, Simulator::Now () + m_burstPreparationTime);
     }
   else
     {
@@ -1276,15 +1357,22 @@ CmNetDevice::PrepareBurstFromLQueue (uint32_t minislotsToPrepare)
   // Two cases:  1) unscheduledBytes >= availableBytes (use all available)
   //             2) unscheduledBytes < available (use unscheduled)
   //
-  uint32_t internalBytes = GetLDeviceBytes () + GetLAqmBytes ();
+  uint32_t internalBytes = GetLDeviceBytes (MAC_FRAME_BYTES) + GetLAqmBytes (MAC_FRAME_BYTES);
   uint32_t scheduledBytes = m_lTransmitPipeline.GetTotal ();
   uint32_t unscheduledBytes = internalBytes - scheduledBytes;
   NS_ASSERT_MSG (internalBytes >= scheduledBytes, "Accounting error");
   NS_ASSERT_MSG (scheduledBytes + unscheduledBytes == internalBytes, "Accounting error");
   NS_LOG_DEBUG ("Available to send: " << availableBytes << " internal: " << internalBytes << " scheduled: " << scheduledBytes);
 
+  // Pop the front of the grant pipeline, and check for alignment
+  NS_ASSERT_MSG (m_lGrantPipeline.GetEligible (sendTime) > 0, "Unexpectedly empty pipeline");
+  std::pair<uint32_t, Time> pipelineElement = m_lGrantPipeline.Pop ();
+  NS_LOG_DEBUG ("Popped lGrantPipeline, size: " << pipelineElement.first << " time: " << pipelineElement.second.As (Time::S));
+  NS_ASSERT_MSG (pipelineElement.first ==  minislotsToPrepare * GetMinislotCapacity (), "Error in pipeline bytes");
+  NS_ASSERT_MSG (pipelineElement.second == sendTime, "Error in pipeline time");
+
   // Try to dequeue enough data to cover availableBytes
-  while (availableBytes > (GetLDeviceBytes () - scheduledBytes) && GetLAqmBytes () > 0)
+  while (availableBytes > (GetLDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes) && GetLAqmBytes (MAC_FRAME_BYTES) > 0)
   // Dequeue to staging queue
     {
       Ptr<QueueDiscItem> item = GetQueue ()->LowLatencyDequeue ();
@@ -1295,6 +1383,7 @@ CmNetDevice::PrepareBurstFromLQueue (uint32_t minislotsToPrepare)
         {
           NS_LOG_DEBUG ("Packet internally enqueued at time " << Simulator::Now ().GetMicroSeconds () << "us");
           m_lQueueFramedBytes += GetUsMacFrameSize (packet->GetSize ());
+          m_lQueuePduBytes += GetDataPduSize (packet->GetSize ());
         }
       else
         {
@@ -1304,15 +1393,15 @@ CmNetDevice::PrepareBurstFromLQueue (uint32_t minislotsToPrepare)
   // If availableBytes is now <= (GetLDeviceBytes () - scheduledBytes),
   // we will be able to use all availableBytes when the grant arrives.
   // Otherwise (if L AQM is now empty), all bytes must now be in the device
-  if (availableBytes <= (GetLDeviceBytes () - scheduledBytes))
+  if (availableBytes <= (GetLDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes))
     {
       NS_LOG_DEBUG ("Able to use the full grant; adding " << availableBytes << " to L transmit pipeline");
       m_lTransmitPipeline.Add (availableBytes, Simulator::Now () + m_burstPreparationTime);
     }
-  else if (GetLDeviceBytes () - scheduledBytes > 0)
+  else if (GetLDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes > 0)
     {
-      NS_LOG_DEBUG ("Not able to use " << availableBytes << "; adding " << (GetLDeviceBytes () - scheduledBytes) << " to L transmit pipeline");
-      m_lTransmitPipeline.Add (GetLDeviceBytes () - scheduledBytes, Simulator::Now () + m_burstPreparationTime);
+      NS_LOG_DEBUG ("Not able to use " << availableBytes << "; adding " << (GetLDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes) << " to L transmit pipeline");
+      m_lTransmitPipeline.Add (GetLDeviceBytes (MAC_FRAME_BYTES) - scheduledBytes, Simulator::Now () + m_burstPreparationTime);
     }
   else
     {
@@ -1430,7 +1519,7 @@ CmNetDevice::SendFrameFromCQueue (uint32_t frameNumber, uint32_t minislotsToSend
   uint32_t bytesToSend = minislotsToSend * GetMinislotCapacity ();
   uint32_t bytesAllocated = bytesToSend;
   uint32_t bytesUsed = 0;
-  NS_LOG_DEBUG ("Grant bytes in frame " << bytesToSend << " pipeline eligible " << m_cTransmitPipeline.GetEligible ());
+  NS_LOG_DEBUG ("C grant bytes in frame: " << bytesToSend << " transmit pipeline eligible: " << m_cTransmitPipeline.GetEligible ());
   bytesToSend = std::min<uint32_t> (bytesToSend, m_cTransmitPipeline.GetEligible ());
   while (m_cFragment.m_fragPkt)
     {
@@ -1476,6 +1565,7 @@ CmNetDevice::SendFrameFromCQueue (uint32_t frameNumber, uint32_t minislotsToSend
       // the encapsulated packet by adding Ethernet framing
       uint32_t framedSize = item->GetSize ();
       m_cQueueFramedBytes -= framedSize;
+      m_cQueuePduBytes -= GetDataPduSize (item->GetPacket ()->GetSize ());
       uint32_t sent = SendOutFromCQueue (item->GetPacket (), item->GetSource (), item->GetAddress (), item->GetProtocol (), bytesToSend);
       NS_LOG_DEBUG ("Sent bytes (including Ethernet and MAC headers) " << sent);
       NS_ASSERT_MSG (sent <= framedSize, "Error in transmission");
@@ -1503,7 +1593,7 @@ CmNetDevice::SendFrameFromLQueue (uint32_t frameNumber, uint32_t minislotsToSend
   uint32_t bytesToSend = minislotsToSend * GetMinislotCapacity ();
   uint32_t bytesAllocated = bytesToSend;
   uint32_t bytesUsed = 0;
-  NS_LOG_DEBUG ("Grant bytes in frame " << bytesToSend << " pipeline eligible " << m_lTransmitPipeline.GetEligible ());
+  NS_LOG_DEBUG ("L grant bytes in frame: " << bytesToSend << " transmit pipeline eligible: " << m_lTransmitPipeline.GetEligible ());
   bytesToSend = std::min<uint32_t> (bytesToSend, m_lTransmitPipeline.GetEligible ());
   while (m_lFragment.m_fragPkt)
     {
@@ -1549,6 +1639,7 @@ CmNetDevice::SendFrameFromLQueue (uint32_t frameNumber, uint32_t minislotsToSend
       // the encapsulated packet by adding Ethernet framing
       uint32_t framedSize = item->GetSize ();
       m_lQueueFramedBytes -= framedSize;
+      m_lQueuePduBytes -= GetDataPduSize (item->GetPacket ()->GetSize ());
       uint32_t sent = SendOutFromLQueue (item->GetPacket (), item->GetSource (), item->GetAddress (), item->GetProtocol (), bytesToSend);
       NS_LOG_DEBUG ("Sent bytes (including Ethernet and MAC headers) " << sent);
       NS_ASSERT_MSG (sent <= framedSize, "Error in transmission");
@@ -1582,16 +1673,12 @@ CmNetDevice::LoadMapState (uint16_t sfid, struct MapState mapState)
   if (sfid == CLASSIC_SFID)
     {
       m_cMapState = mapState;
-      NS_LOG_DEBUG ("Loading m_cMapState.m_grant " << m_cMapState.m_grantBytesInMap << " bytes with grant pipeline " << m_cGrantBytesInPipeline);
-      NS_ABORT_MSG_UNLESS (m_cGrantBytesInPipeline >= mapState.m_grantBytesInMap, "Error in grant accounting");
-      m_cGrantBytesInPipeline -= m_cMapState.m_grantBytesInMap; 
+      NS_LOG_DEBUG ("Loading m_cMapState.m_grant " << m_cMapState.m_grantBytesInMap << " bytes");
     }
   else if (sfid == LOW_LATENCY_SFID)
     {
       m_lMapState = mapState;
-      NS_LOG_DEBUG ("Loading m_lMapState.m_grant " << m_lMapState.m_grantBytesInMap << " bytes with grant pipeline " << m_lGrantBytesInPipeline);
-      NS_ABORT_MSG_UNLESS (m_lGrantBytesInPipeline >= mapState.m_grantBytesInMap, "Error in grant accounting");
-      m_lGrantBytesInPipeline -= m_lMapState.m_grantBytesInMap; 
+      NS_LOG_DEBUG ("Loading m_lMapState.m_grant " << m_lMapState.m_grantBytesInMap << " bytes");
     }
 }
 
@@ -1606,7 +1693,7 @@ CmNetDevice::DumpGrant (uint16_t sfid)
       state.granted = m_cMapState.m_grantBytesInMap;
       state.used = m_cMapState.m_grantBytesInMap - m_cMapState.m_unused;
       state.unused = m_cMapState.m_unused;
-      state.queued = GetCUnsentBytes ();
+      state.queued = GetCUnsentBytes (MAC_FRAME_BYTES);
       NS_LOG_DEBUG ("Used classic bytes " << state.used << " unused " << state.unused);
       state.delay = GetQueue ()->GetClassicQueuingDelay ();
       state.dropProb = GetQueue ()->GetClassicDropProbability ();
@@ -1621,7 +1708,7 @@ CmNetDevice::DumpGrant (uint16_t sfid)
       state.granted = m_lMapState.m_grantBytesInMap;
       state.used = m_lMapState.m_grantBytesInMap - m_lMapState.m_unused;
       state.unused = m_lMapState.m_unused;
-      state.queued = GetLUnsentBytes ();
+      state.queued = GetLUnsentBytes (MAC_FRAME_BYTES);
       NS_LOG_DEBUG ("Used LL bytes " << state.used << " unused " << state.unused);
       state.delay = GetQueue ()->GetLowLatencyQueuingDelay ();
       state.markProb = GetQueue ()->CalcProbNative ();
@@ -1656,7 +1743,12 @@ CmNetDevice::UpdateTokenBucket (void)
   if (m_classicSf)
     {
       maxTrafficBurst = m_classicSf->m_maxTrafficBurst;
+      if (maxTrafficBurst == 0)
+        {
+          maxTrafficBurst = 3044;
+        }
       tokenIncrement = static_cast<uint32_t> ((elapsed * m_classicSf->m_maxSustainedRate) / 8);
+      NS_LOG_DEBUG ("Token increment: " << tokenIncrement << "B; elapsed: " << elapsed.GetMilliSeconds () << "ms");
     }
   if (m_msrTokens + tokenIncrement > m_msrTokens)
     {
@@ -1678,7 +1770,11 @@ CmNetDevice::ShapeRequest (uint32_t request)
 {
   NS_LOG_FUNCTION (this << request);
   UpdateTokenBucket ();
-  uint32_t shaped = std::min (std::min (request, m_msrTokens), m_peakTokens);
+  uint32_t shaped = std::min (request, m_msrTokens);
+  if (m_classicSf->m_peakRate.GetBitRate () != 0)
+    {
+      shaped = std::min (shaped, m_peakTokens);
+    }
   if (shaped < m_msrTokens)
     {
       m_msrTokens -= shaped;
@@ -1687,63 +1783,87 @@ CmNetDevice::ShapeRequest (uint32_t request)
     {
       m_msrTokens = 0;
     }
+  NS_LOG_DEBUG ("Returning shaped bytes: " << shaped);
   return shaped;
 }
 
 /*
  * Generates request based on current queue length minus already requested
- * bytes, capped by rate shaper tokens.
+ * bytes and the next pending grant, capped by rate shaper tokens.
  */
 void CmNetDevice::MakeRequest (uint16_t sfid)
 {
   NS_LOG_FUNCTION (this << sfid);
 
-  // Request any bytes in curq not already either in the request pipeline
-  // or in the grant pipeline
-  uint32_t queuedData = GetCDeviceBytes () + GetCAqmBytes ();
-  uint32_t grantPipeline = m_cGrantBytesInPipeline + m_cMapState.m_grantBytesInMap;
-
-  if (sfid == CLASSIC_SFID && queuedData > (m_cRequestPipeline + grantPipeline))
+  if (sfid == CLASSIC_SFID)
     {
-      uint32_t newRequest = queuedData - (m_cRequestPipeline + grantPipeline);
-      NS_LOG_DEBUG ("new request size sfid 1: " << newRequest);
-      // Request stream is filtered by token bucket state
-      uint32_t shapedRequest = ShapeRequest (newRequest);
-      Time requestDelay = GetRtt ()/2 + GetFrameDuration () * (GetCmUsPipelineFactor () + GetCmtsUsPipelineFactor () + 1);
-      GrantRequest grantRequest;
-      grantRequest.m_sfid = CLASSIC_SFID;
-      grantRequest.m_bytes = shapedRequest;
-      grantRequest.m_requestTime = TimeToMinislots (Simulator::Now ());
-      Simulator::Schedule (requestDelay,
-                           &CmtsUpstreamScheduler::ReceiveRequest,
-                           GetCmtsUpstreamScheduler (), grantRequest);
-      m_cRequestPipeline += shapedRequest;
-      m_traceCRequest (shapedRequest);
+      uint32_t queuedData = GetCDeviceBytes (MAC_FRAME_BYTES) + GetCAqmBytes (MAC_FRAME_BYTES);
+      uint32_t grantPipeline = 0;
+      if (m_cGrantPipeline.GetSize ())
+        {
+          grantPipeline = m_cGrantPipeline.Peek ().first;
+          NS_ABORT_MSG_UNLESS (m_cGrantPipeline.Peek ().second >= Now (), "Error in classic grant pipeline");
+        }
+      NS_LOG_DEBUG ("cGrantPipeline next grant: " << grantPipeline);
+      if (queuedData > (m_cRequestPipeline.GetTotal () + grantPipeline))
+        {
+          uint32_t newRequest = queuedData - (m_cRequestPipeline.GetTotal () + grantPipeline);
+          NS_LOG_DEBUG ("new request size sfid 1: " << newRequest);
+          // Request stream is filtered by token bucket state
+          uint32_t shapedRequest = newRequest;
+          if (m_classicSf->m_maxSustainedRate.GetBitRate () != 0)
+            {
+              shapedRequest = ShapeRequest (newRequest);
+            }
+          Time requestDelay = GetRtt ()/2 + GetFrameDuration () * (GetCmUsPipelineFactor () + GetCmtsUsPipelineFactor () + 1);
+          GrantRequest grantRequest;
+          grantRequest.m_sfid = CLASSIC_SFID;
+          grantRequest.m_bytes = shapedRequest;
+          grantRequest.m_requestTime = TimeToMinislots (Simulator::Now ());
+          Simulator::Schedule (requestDelay,
+                               &CmtsUpstreamScheduler::ReceiveRequest,
+                               GetCmtsUpstreamScheduler (), grantRequest);
+          NS_LOG_DEBUG ("Adding " << shapedRequest << " request bytes to C req. pipeline");
+          m_cRequestPipeline.Add (shapedRequest, Now ());
+          m_traceCRequest (shapedRequest);
+        }
     }
-  if (sfid == LOW_LATENCY_SFID && GetQueue ()->GetNInternalQueues () == 2)
+  else if (sfid == LOW_LATENCY_SFID && GetQueue ()->GetNInternalQueues () == 2)
     {
       // Request any bytes in curq not already either in the request pipeline
       // or in the grant pipeline
-      uint32_t queuedData = GetLDeviceBytes () + GetLAqmBytes ();
+      uint32_t queuedData = GetLDeviceBytes (MAC_FRAME_BYTES) + GetLAqmBytes (MAC_FRAME_BYTES);
       NS_LOG_DEBUG ("queued L Data " << queuedData);
-      uint32_t grantPipeline = m_lGrantBytesInPipeline + m_lMapState.m_grantBytesInMap;
-      NS_LOG_DEBUG ("L grant pipeline " << grantPipeline);
-      if (queuedData > (m_lRequestPipeline + grantPipeline))
+      uint32_t grantPipeline = 0;
+      if (m_lGrantPipeline.GetSize ())
         {
-          uint32_t newRequest = queuedData - (m_lRequestPipeline + grantPipeline);
+          grantPipeline = m_lGrantPipeline.Peek ().first;
+          NS_ABORT_MSG_UNLESS (m_lGrantPipeline.Peek ().second >= Now (), "Error in LL grant pipeline");
+        }
+      NS_LOG_DEBUG ("lGrantPipeline next grant: " << grantPipeline);
+      if (queuedData > (m_lRequestPipeline.GetTotal () + grantPipeline))
+        {
+          uint32_t newRequest = queuedData - (m_lRequestPipeline.GetTotal () + grantPipeline);
           NS_LOG_DEBUG ("new request size sfid 2: " << newRequest);
           Time requestDelay = GetRtt ()/2 + GetFrameDuration () * (GetCmUsPipelineFactor () + GetCmtsUsPipelineFactor () + 1);
           GrantRequest grantRequest;
           grantRequest.m_sfid = LOW_LATENCY_SFID;
           grantRequest.m_bytes = newRequest;
           grantRequest.m_requestTime = TimeToMinislots (Simulator::Now ());
-          m_lRequestQueue.push_back (grantRequest);
           Simulator::Schedule (requestDelay,
                                &CmtsUpstreamScheduler::ReceiveRequest,
                                GetCmtsUpstreamScheduler (), grantRequest);
-          m_lRequestPipeline += newRequest;
+          m_lRequestPipeline.Add (newRequest, Now ());
           m_traceLRequest (newRequest);
         }
+      else
+        {
+          NS_LOG_DEBUG ("Not enough queued data " << queuedData << " compared with pipeline " << (m_lRequestPipeline.GetTotal () + grantPipeline) << " for new request sfid 2");
+        }
+    }
+  else
+    {
+      NS_FATAL_ERROR ("Unexpected sfid or configuration");
     }
   return;
 }
@@ -1757,16 +1877,34 @@ CmNetDevice::ExpectedDelay (void) const
     {
       return Seconds (0);
     }
-  uint32_t byteLength = GetCAqmBytes () + GetCDeviceBytes ();
+  if (m_classicSf->m_maxSustainedRate.GetBitRate () == 0)
+    {
+      return Seconds (0);
+    }
+  uint32_t byteLength = GetCAqmBytes (DATA_PDU_BYTES) + GetCDeviceBytes (DATA_PDU_BYTES);
   double latency = 0;
   if (byteLength  <= m_msrTokens)
     {
-      latency = 8 * static_cast<double> (byteLength) / m_classicSf->m_peakRate.GetBitRate ();
+      if (m_classicSf->m_peakRate.GetBitRate () == 0)
+        {
+          latency = 0;
+        }
+      else
+        {
+          latency = 8 * static_cast<double> (byteLength) / m_classicSf->m_peakRate.GetBitRate ();
+        }
     }
   else
     {
-      latency = 8 * static_cast<double> (byteLength - m_msrTokens) / m_classicSf->m_maxSustainedRate.GetBitRate ();
-      latency += 8 * static_cast<double> (m_msrTokens) / m_classicSf->m_peakRate.GetBitRate ();
+      if (m_classicSf->m_peakRate.GetBitRate () == 0)
+        {
+          latency = 8 * static_cast<double> (byteLength - m_msrTokens) / m_classicSf->m_maxSustainedRate.GetBitRate ();
+        }
+      else
+        {
+          latency = 8 * static_cast<double> (byteLength - m_msrTokens) / m_classicSf->m_maxSustainedRate.GetBitRate ();
+          latency += 8 * static_cast<double> (m_msrTokens) / m_classicSf->m_peakRate.GetBitRate ();
+        }
     }
   NS_LOG_DEBUG ("queue size " << byteLength << " tokens " << m_msrTokens << " expected delay " << latency);
   return Seconds (latency);
@@ -1801,7 +1939,7 @@ CmNetDevice::AddDocsisHeader (Ptr<Packet> packet)
 uint32_t
 CmNetDevice::GetMacFrameSize (uint32_t sduSize) const
 {
-  return (GetEthernetFrameSize (sduSize) + GetUsMacHdrSize ()); 
+  return (GetDataPduSize (sduSize) + GetUsMacHdrSize ()); 
 }
 
 void
@@ -1832,6 +1970,13 @@ CmNetDevice::SetUpstreamAsf (Ptr<AggregateServiceFlow> asf)
   m_asf = asf;
   m_classicSf = asf->GetClassicServiceFlow ();
   m_llSf = asf->GetLowLatencyServiceFlow ();
+  // QoS parameters on the Low Latency Service Flow are not supported
+  if (m_llSf)
+    {
+      NS_ABORT_MSG_UNLESS (m_llSf->m_maxSustainedRate.GetBitRate () == 0, "LL MSR unsupported");
+      NS_ABORT_MSG_UNLESS (m_llSf->m_peakRate.GetBitRate () == 0, "LL PeakRate unsupported");
+      NS_ABORT_MSG_UNLESS (m_llSf->m_maxTrafficBurst == 3044, "LL MaxTrafficBurst unsupported");
+    }
 }
 
 void
@@ -1854,6 +1999,10 @@ CmNetDevice::SetUpstreamSf (Ptr<ServiceFlow> sf)
     {
       m_llSf = sf;
       m_classicSf = 0;
+      // QoS parameters on the Low Latency Service Flow are not supported
+      NS_ABORT_MSG_UNLESS (sf->m_maxSustainedRate.GetBitRate () == 0, "LL MSR unsupported");
+      NS_ABORT_MSG_UNLESS (sf->m_peakRate.GetBitRate () == 0, "LL PeakRate unsupported");
+      NS_ABORT_MSG_UNLESS (sf->m_maxTrafficBurst == 3044, "LL MaxTrafficBurst unsupported");
     }
 }
 

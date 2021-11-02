@@ -46,6 +46,28 @@ Configuration of SFs or ASFs is essential for conducting a DOCSIS
 simulation and should be performed after the DOCSIS topology has
 been constructed.
 
+This ns-3 model currently supports the following service flow configuration
+options:
+
+1) a single Service Flow configured for a DOCSIS PIE AQM.  This service flow
+   may include rate shaping parameters (Maximum Sustained Traffic Rate,
+   Peak Traffic Rate, and Maximum Traffic Burst) which, if explicitly
+   configured, will cause the CM upstream requests to be rate shaped,
+   and will cause the CMTS scheduler to rate shape the granted bytes.
+   If rate shaping parameters are not configured, the default values will
+   disable rate shaping.
+
+2) a Low Latency Aggregate Service Flow with a Classic Service Flow and
+   a Low Latency Service Flow.  The Aggregate Service flow may include
+   rate shaping QoS parameters that are enforced at the CMTS scheduler.
+   Additionally, the Classic Service Flow may configure rate shaping
+   parameters, in which case the CM upstream requests will be rate
+   shaped based on Service Flow-level paramters.  Although, in practice,
+   it is possible to also configure QoS parameters on the Low Latency
+   Service Flow, causing rate shaping of upstream grant requests, the
+   ns-3 model does not support this; only the Classic Service Flow
+   of a Low Latency Aggregate Service Flow may express QoS parameters.
+
 Implementation
 **************
 
@@ -118,9 +140,8 @@ of value 1 (CLASSIC_SFID), and a low latency SF is assigned with a SFID
 value of 2 (LOW_LATENCY_SFID).  The ns-3 code uses these special values
 to distinguish between the two types.
 
-Next, the rate shaping parameters are assigned.  This step is always required
-in a simulation (to set the Maximum Sustained Rate, Peak Rate,
-and Maximum Traffic Burst).  In this program, the Maximum Traffic Burst
+Next, the rate shaping parameters are assigned.  In this program, 
+the Maximum Traffic Burst
 was configured above in units of time (``maximumBurstTime``) at the MSR,
 so the program converts this into units of bytes.
 
@@ -170,15 +191,17 @@ ASF ID is not required in the constructor.  This value defaults to zero
 and is not presently used in the ns-3 model.  Next, the QoS parameters
 around rate shaping are configured at an ASF level, similar to the
 code for the single SF.  When an ASF is present in the model, the
-rate shaping will be driven from the ASF-level parameters, and not
-from the SF-level parameters.  
+CMTS upstream scheduler object will enforce rate shaping based on
+ASF-level rate shaping parameters as part of the grant allocation process.
 
 Following the rate shaping configuration, two individual SF objects
 are created and added to the ASF object.  In the Low Latency SF case,
 an optional parameter is configured:  a Guaranteed Grant Rate to
 enable PGS operation.  Similar configuration is performed in the
 downstream direction (without the GGR configuration because it does
-not apply for downstream).
+not apply for downstream).  In the above example, no rate shaping parameters
+are configured on the Classic Service Flow, and as a result, the upstream
+requests will not be shaped for this service flow.
 
 Options
 =======

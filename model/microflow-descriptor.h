@@ -57,6 +57,12 @@ struct Uflw
   uint32_t h32 {0};               //!< Resulting 32-bit hash value
 };
 
+/**
+ * \brief Output operator.
+ * \param os The output stream.
+ * \param h The microflow to print.
+ * \returns The output stream.
+ */
 inline std::ostream & operator << (std::ostream & os, const Uflw & h)
 {
   os << "src: " << h.source << " srcPort: " << h.sourcePort << " dst: "
@@ -65,6 +71,12 @@ inline std::ostream & operator << (std::ostream & os, const Uflw & h)
   return os;
 }
 
+/**
+ * Comparison operator
+ * \param lhs left operand
+ * \param rhs right operand
+ * \return true if the operands are equal
+ */
 inline bool operator == (const Uflw &rhs, const Uflw &lhs)
 {
   return (rhs.source == lhs.source &&

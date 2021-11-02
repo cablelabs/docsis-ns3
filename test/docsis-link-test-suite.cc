@@ -90,7 +90,6 @@ DocsisLinkSingleUpstreamPacketTest::DoSetup (void)
 {
   NS_LOG_FUNCTION (this);
   SetupFourNodeTopology ();
-  AddDualQueue ();
   // one service flow
   Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
   sf->m_maxSustainedRate = m_upstreamRate;
@@ -229,7 +228,6 @@ DocsisLinkMultipleUpstreamPacketTest::DoSetup (void)
 {
   NS_LOG_FUNCTION (this);
   SetupFourNodeTopology ();
-  AddDualQueue ();
   m_upstream->SetUpstreamAsf (GetUpstreamAsf ());
   m_downstream->SetDownstreamAsf (GetDownstreamAsf ());
 
@@ -305,7 +303,7 @@ DocsisLinkMultipleUpstreamPacketTest::DoTeardown (void)
 class DocsisLinkCbrTwoServiceFlowTest : public DocsisLinkTestCase
 {
 public:
-  DocsisLinkCbrTwoServiceFlowTest (uint32_t numPackets, uint32_t ggr);
+  DocsisLinkCbrTwoServiceFlowTest (uint32_t numPackets, uint32_t ggr, uint16_t ggi = 0);
   virtual ~DocsisLinkCbrTwoServiceFlowTest ();
 
 private:
@@ -332,6 +330,7 @@ private:
   Ptr<UdpServer> m_lServer;
   uint32_t m_numPackets;
   uint32_t m_ggr;
+  uint16_t m_ggi;
 
   void DeviceTxCallback (Ptr<const Packet> p);
   void MacRxCallback (Ptr<const Packet> p);
@@ -341,10 +340,11 @@ private:
   void LRequestCallback (uint32_t bytes);
 };
 
-DocsisLinkCbrTwoServiceFlowTest::DocsisLinkCbrTwoServiceFlowTest (uint32_t numPackets, uint32_t ggr)
+DocsisLinkCbrTwoServiceFlowTest::DocsisLinkCbrTwoServiceFlowTest (uint32_t numPackets, uint32_t ggr, uint16_t ggi)
   : DocsisLinkTestCase ("Docsis LLD:  two service flow test"),
     m_numPackets (numPackets),
-    m_ggr (ggr)
+    m_ggr (ggr),
+    m_ggi (ggi)
 {
 }
 
@@ -413,7 +413,13 @@ DocsisLinkCbrTwoServiceFlowTest::DoSetup (void)
   Ptr<ServiceFlow> sf = CreateObject<ServiceFlow> (CLASSIC_SFID);
   asf->SetClassicServiceFlow (sf);
   Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
-  sf2->m_guaranteedGrantRate = m_ggr;
+  sf2->m_guaranteedGrantRate = DataRate (m_ggr);
+  if (m_ggr > (230 * m_upstreamRate.GetBitRate () / 256))
+    {
+      // Bump up scheduling weight to the maximum value for high GGR
+      asf->m_schedulingWeight = 255;
+    }
+  sf2->m_guaranteedGrantInterval = m_ggi;
   asf->SetLowLatencyServiceFlow (sf2);
 
   Ptr<AggregateServiceFlow> downstreamAsf = CreateObject<AggregateServiceFlow> ();
@@ -427,7 +433,6 @@ DocsisLinkCbrTwoServiceFlowTest::DoSetup (void)
   downstreamAsf->SetLowLatencyServiceFlow (sf4);
 
   SetupFourNodeTopology ();
-  AddDualQueue ();
   m_upstream->SetUpstreamAsf (asf);
   m_downstream->SetDownstreamAsf (downstreamAsf);
 
@@ -512,6 +517,7 @@ DocsisLinkCbrTwoServiceFlowTest::DoRun (void)
   NS_TEST_ASSERT_MSG_EQ (m_rxPacketCount, 2 * m_numPackets, "Did not see received packets");
   NS_TEST_ASSERT_MSG_EQ (m_rxByteCount, 2 * m_numPackets*(1000), "Did not see received bytes");
   // 0.010 is ten milliseconds; upper bound on latency if no backlog
+  NS_LOG_DEBUG ("Latency of last packet: " << (m_lastRxTime - m_lastTxTime).GetSeconds ());
   NS_TEST_ASSERT_MSG_LT ((m_lastRxTime - m_lastTxTime).GetSeconds (), 0.010, "Excessive latency observed");
 
   NS_LOG_DEBUG ("TX count " << m_txPacketCount << " RX count " << m_rxPacketCount);
@@ -551,11 +557,16 @@ DocsisLinkTestSuite::DocsisLinkTestSuite ()
   AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 0), TestCase::QUICK);
   // 30000 yields about 10 seconds
   AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (30000, 0), TestCase::QUICK);
-  // Check for typical values of GGR (two slots per frame)
-  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 5690000), TestCase::QUICK);
-  // Check that classic queue is not starved when GGR is at the MSR
+  // Check for typical values of GGR (5.68 Mbps yields two slots per frame)
+  // 135 microseconds = 1 PGS grant per frame
+  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 5680000, 135), TestCase::QUICK);
+  // Every other frame
+  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 5680000, 270), TestCase::QUICK);
+  // Every 1ms
+  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 5680000, 1000), TestCase::QUICK);
+  // Check that classic queue is not starved when GGR is at the weighted MSR
   // and peak rate > MSR is available. This tests the unused grant accounting
-  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 50000000), TestCase::QUICK);
+  AddTestCase (new DocsisLinkCbrTwoServiceFlowTest (10000, 49800000, 135), TestCase::QUICK);
 }
 
 static DocsisLinkTestSuite docsisLinkTestSuite;

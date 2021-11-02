@@ -78,6 +78,11 @@ DocsisNetDevice::GetTypeId (void)
                    BooleanValue (true),
                    MakeBooleanAccessor (&DocsisNetDevice::m_useDocsisChannel),
                    MakeBooleanChecker ())
+    .AddAttribute ("ReceiveErrorModel",
+                   "Receive error model used to simulate packet loss",
+                   PointerValue (),
+                   MakePointerAccessor (&DocsisNetDevice::m_receiveErrorModel),
+                   MakePointerChecker<ErrorModel> ())
     .AddAttribute ("RemarkTcpEct0ToEct1",
                    "Enable to remark any received TCP ECT(0) packets to ECT(1)",
                    BooleanValue (false),
@@ -518,25 +523,31 @@ DocsisNetDevice::StartScheduler (void)
   // MAP intervals will start on time boundaries corresponding to the MAP
   // interval duration.  For example, the first notional MAP interval starts
   // at time 0, the second at time GetActualMapInterval (), and so on.
-  // The MAP interval starting at time 0 cannot process a received MAP
-  // message, which would have had to have been generated before time 0.
+  // The Ack Time will precede the first valid Alloc Start Time by
+  // MinReqGntDelay (in minislots).  
+
+  // This method advances the first Alloc Start Time to the point at which
+  // the first Ack Time (i.e. Alloc Start Time - MinReqGntDelay) is
+  // non-negative.
+
   // The following code determines what will be the first MAP interval to
   // possibly be scheduled by a MAP message arrival, and the corresponding
-  // AllocStartTime for the MAP interval.
+  // AllocStartTime and AckTime for the first MAP interval.
   uint32_t allocStartTime = TimeToMinislots (GetActualMapInterval ());
+  uint32_t minReqGntDelaySlots = GetMinReqGntDelay () * GetMinislotsPerFrame ();
   Time firstGenerateMapTime = GetActualMapInterval () - GetCmMapProcTime () - GetDsIntlvDelay () - 3 * GetDsSymbolTime () - GetRtt ()/2 - GetCmtsMapProcTime ();
-  while (firstGenerateMapTime <= Seconds (0))
+  while (allocStartTime < minReqGntDelaySlots)
     {
       firstGenerateMapTime += GetActualMapInterval ();
       allocStartTime += TimeToMinislots (GetActualMapInterval ());
     }
   NS_LOG_DEBUG ("First GenerateMap time: " << firstGenerateMapTime.As (Time::S) << ", AllocStartTime: " << allocStartTime);
-  Simulator::Schedule (firstGenerateMapTime, &CmtsUpstreamScheduler::Start, GetCmtsUpstreamScheduler (), allocStartTime);
+  Simulator::Schedule (firstGenerateMapTime, &CmtsUpstreamScheduler::Start, GetCmtsUpstreamScheduler (), allocStartTime, minReqGntDelaySlots);
   return allocStartTime;
 }
 
 uint32_t
-DocsisNetDevice::GetEthernetFrameSize (uint32_t sduSize) const
+DocsisNetDevice::GetDataPduSize (uint32_t sduSize) const
 {
   return std::max<uint32_t> (sduSize, 46) + 14 + 4;
 }
@@ -544,13 +555,13 @@ DocsisNetDevice::GetEthernetFrameSize (uint32_t sduSize) const
 uint32_t
 DocsisNetDevice::GetUsMacFrameSize (uint32_t sduSize) const
 {
-  return GetEthernetFrameSize (sduSize) + GetUsMacHdrSize ();
+  return GetDataPduSize (sduSize) + GetUsMacHdrSize ();
 }
 
 uint32_t
 DocsisNetDevice::GetDsMacFrameSize (uint32_t sduSize) const
 {
-  return GetEthernetFrameSize (sduSize) + GetDsMacHdrSize ();
+  return GetDataPduSize (sduSize) + GetDsMacHdrSize ();
 }
 
 uint32_t
@@ -612,6 +623,7 @@ DocsisNetDevice::DoDispose ()
   m_channel = 0;
   m_queue = 0;
   m_cmtsUpstreamScheduler = 0;
+  m_receiveErrorModel = 0;
   NetDevice::DoDispose ();
 }
 
@@ -701,6 +713,13 @@ DocsisNetDevice::RemarkTcpEcnValue (Ptr<Packet> packet)
         }
     }
   return result;
+}
+
+void
+DocsisNetDevice::SetReceiveErrorModel (Ptr<ErrorModel> em)
+{
+  NS_LOG_FUNCTION (this << em);
+  m_receiveErrorModel = em;
 }
 
 bool
@@ -796,6 +815,13 @@ DocsisNetDevice::ForwardUp (Ptr<Packet> packet)
   if (!crcGood)
     {
       NS_LOG_INFO ("CRC error on Packet " << packet);
+      m_phyRxDropTrace (packet);
+      return;
+    }
+
+  if (m_receiveErrorModel && m_receiveErrorModel->IsCorrupt (packet) )
+    {
+      NS_LOG_INFO ("Receiver error model is dropping packet " << packet);
       m_phyRxDropTrace (packet);
       return;
     }

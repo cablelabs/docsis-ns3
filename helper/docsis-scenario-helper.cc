@@ -65,14 +65,7 @@ DocsisScenarioHelper::DocsisScenarioHelper ()
 }
 
 void
-DocsisScenarioHelper::CreateBasicNetwork (DataRate upstreamMsr, DataRate downstreamMsr)
-{
-  NS_LOG_FUNCTION (this);
-  CreateBasicNetwork (upstreamMsr, downstreamMsr, MilliSeconds (250));
-}
-
-void
-DocsisScenarioHelper::CreateBasicNetwork (DataRate upstreamMsr, DataRate downstreamMsr, Time queueDepthTime)
+DocsisScenarioHelper::CreateBasicNetwork (void)
 {
   // Create the nodes required by the topology
   m_cm = CreateObject<Node> ();
@@ -132,6 +125,7 @@ DocsisScenarioHelper::CreateBasicNetwork (DataRate upstreamMsr, DataRate downstr
   BridgeHelper bridgeHelper;
   bridgeHelper.Install (m_bridge, bridgeDevices);
 
+  // The CMTS device will be indexed at 0, the CM at index 1
   m_docsisDevices = m_docsisHelper.Install (m_cmts, m_cm);
 
   NetDeviceContainer cmtsRouterDevices = csma.Install (cmtsRouterNodes);
@@ -174,13 +168,28 @@ DocsisScenarioHelper::CreateBasicNetwork (DataRate upstreamMsr, DataRate downstr
       internet.Install (m_servers[i]);
     }
 
-  // Use helper to install upstream and downstream queues
-  uint32_t upstreamQueueDepth = uint32_t (queueDepthTime.GetSeconds () * upstreamMsr.GetBitRate () / 8);
-  QueueSize upstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, upstreamQueueDepth);
-  m_upstreamDualQueue = m_docsisHelper.InstallLldCoupledQueue (m_docsisHelper.GetUpstream (m_docsisDevices), upstreamMaxSize, upstreamMsr);
-  uint32_t downstreamQueueDepth = uint32_t (queueDepthTime.GetSeconds () * downstreamMsr.GetBitRate () / 8);
-  QueueSize downstreamMaxSize = QueueSize (QueueSizeUnit::BYTES, downstreamQueueDepth);
-  m_downstreamDualQueue = m_docsisHelper.InstallLldCoupledQueue (m_docsisHelper.GetDownstream (m_docsisDevices), downstreamMaxSize, downstreamMsr);
+  // Install dual queues, without service flow configuration yet
+  Ptr<DualQueueCoupledAqm> dual = CreateObject<DualQueueCoupledAqm> ();
+  dual->AddPacketFilter (CreateObject<DocsisLowLatencyPacketFilter> ());
+  Ptr<DocsisNetDevice> device = m_docsisDevices.Get (1)->GetObject<DocsisNetDevice> ();
+  device->SetQueue (dual);
+  dual->SetQDelaySingleCallback (MakeCallback (&DocsisNetDevice::ExpectedDelay, device));
+  Ptr<QueueProtection> queueProtection = CreateObject<QueueProtection> ();
+  queueProtection->SetHashCallback (MakeCallback(&DocsisLowLatencyPacketFilter::GenerateHash32));
+  queueProtection->SetQueue (dual);
+  dual->SetQueueProtection (queueProtection);
+  m_upstreamDualQueue = dual;
+
+  dual = CreateObject<DualQueueCoupledAqm> ();
+  dual->AddPacketFilter (CreateObject<DocsisLowLatencyPacketFilter> ());
+  device = m_docsisDevices.Get (0)->GetObject<DocsisNetDevice> ();
+  device->SetQueue (dual);
+  dual->SetQDelaySingleCallback (MakeCallback (&DocsisNetDevice::ExpectedDelay, device));
+  queueProtection = CreateObject<QueueProtection> ();
+  queueProtection->SetHashCallback (MakeCallback(&DocsisLowLatencyPacketFilter::GenerateHash32));
+  queueProtection->SetQueue (dual);
+  dual->SetQueueProtection (queueProtection);
+  m_downstreamDualQueue = dual;
 
   //
   // Assign IPv4 addresses
@@ -227,6 +236,62 @@ DocsisScenarioHelper::CreateBasicNetwork (DataRate upstreamMsr, DataRate downstr
   // Add global routing tables after the topology is fully constructed
   //
   Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
+}
+
+void
+DocsisScenarioHelper::CreateBasicNetwork (Ptr<AggregateServiceFlow> upstreamAsf, Ptr<AggregateServiceFlow> downstreamAsf)
+{
+  CreateBasicNetwork ();
+  SetUpstreamAsf (upstreamAsf);
+  SetDownstreamAsf (downstreamAsf);
+}
+
+void
+DocsisScenarioHelper::CreateBasicNetwork (Ptr<AggregateServiceFlow> upstreamAsf, Ptr<ServiceFlow> downstreamSf)
+{
+  CreateBasicNetwork ();
+  SetUpstreamAsf (upstreamAsf);
+  SetDownstreamSf (downstreamSf);
+}
+
+void
+DocsisScenarioHelper::CreateBasicNetwork (Ptr<ServiceFlow> upstreamSf, Ptr<AggregateServiceFlow> downstreamAsf)
+{
+  CreateBasicNetwork ();
+  SetUpstreamSf (upstreamSf);
+  SetDownstreamAsf (downstreamAsf);
+}
+
+void
+DocsisScenarioHelper::CreateBasicNetwork (Ptr<ServiceFlow> upstreamSf, Ptr<ServiceFlow> downstreamSf)
+{
+  CreateBasicNetwork ();
+  SetUpstreamSf (upstreamSf);
+  SetDownstreamSf (downstreamSf);
+}
+
+void
+DocsisScenarioHelper::SetUpstreamAsf (Ptr<AggregateServiceFlow> asf)
+{
+  m_docsisDevices.Get (1)->GetObject<CmNetDevice> ()->SetUpstreamAsf (asf);
+}
+
+void
+DocsisScenarioHelper::SetDownstreamAsf (Ptr<AggregateServiceFlow> asf)
+{
+  m_docsisDevices.Get (0)->GetObject<CmtsNetDevice> ()->SetDownstreamAsf (asf);
+}
+
+void
+DocsisScenarioHelper::SetUpstreamSf (Ptr<ServiceFlow> sf)
+{
+  m_docsisDevices.Get (1)->GetObject<CmNetDevice> ()->SetUpstreamSf (sf);
+}
+
+void
+DocsisScenarioHelper::SetDownstreamSf (Ptr<ServiceFlow> sf)
+{
+  m_docsisDevices.Get (0)->GetObject<CmtsNetDevice> ()->SetDownstreamSf (sf);
 }
 
 Ptr<CmNetDevice>
@@ -287,6 +352,14 @@ DocsisScenarioHelper::EnablePcap (std::string prefix)
   NS_ABORT_MSG_UNLESS (m_cmtsCsmaDevice && m_cmCsmaDevice, "Devices not found");
   csma.EnablePcap (prefix, m_cmtsCsmaDevice, true);
   csma.EnablePcap (prefix, m_cmCsmaDevice, true);
+}
+
+int64_t
+DocsisScenarioHelper::AssignStreams (int64_t stream)
+{
+  NS_LOG_FUNCTION (this << stream);
+  NS_ABORT_MSG_UNLESS (m_cm && m_cmts, "Error: Called before CreateBasicNetwork ()");
+  return m_docsisHelper.AssignStreams (m_docsisDevices, stream);
 }
 
 void

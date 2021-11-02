@@ -43,11 +43,15 @@ namespace docsis {
 // Constants in use for the DOCSIS mode
 static const uint32_t MIN_PKTSIZE = 64;
 static const Time LATENCY_LOW = MilliSeconds (5);
+// The below constant represents Default Upstream Target Buffer ('D')
+// from section C.1.2.17, and applies herein to both upstream and downstream
 static const Time CLASSIC_TARGET_BUFFER = MilliSeconds (100);
+// The below constant represents the 10ms in equation (3) of C.2.2.9.11.4
+static const Time LOW_LATENCY_TARGET_BUFFER = MilliSeconds (10);
 
-// Spec says impl dependent between min and max...
-// must be at least 50ms
-Time classicQueueTarget = MilliSeconds (100);
+// Constants for improved code readability
+static bool INCLUDE_MAC_HEADERS = true;
+static bool EXCLUDE_MAC_HEADERS = false;
 
 NS_LOG_COMPONENT_DEFINE ("DualQueueCoupledAqm");
 
@@ -127,7 +131,8 @@ TypeId DualQueueCoupledAqm::GetTypeId (void)
                    MakeDoubleAccessor (&DualQueueCoupledAqm::m_couplingFactor),
                    MakeDoubleChecker<double> (0, 25.5))
     .AddAttribute ("SchedulingWeight",
-                   "Weight (maximum of 255) used for DRR LL queue scheduling",
+                   "Default value of scheduling weight if not present in ASF configuration; "
+                   "if value is changed here, align with CmtsUpstreamScheduler",
                    UintegerValue (230),
                    MakeUintegerAccessor (&DualQueueCoupledAqm::m_schedulingWeight),
                    MakeUintegerChecker<uint32_t> (1,255))
@@ -136,10 +141,6 @@ TypeId DualQueueCoupledAqm::GetTypeId (void)
                    UintegerValue (1500),
                    MakeUintegerAccessor (&DualQueueCoupledAqm::m_drrQuantum),
                    MakeUintegerChecker<uint32_t> ())
-    .AddAttribute ("Amsr", "Maximum sustained rate of the aggregate SF",
-                   DataRateValue (DataRate ("50Mbps")),
-                   MakeDataRateAccessor (&DualQueueCoupledAqm::m_amsr),
-                   MakeDataRateChecker ())
     .AddAttribute ("MaxFrameSize",
                    "MAX_FRAME_SIZE constant used to set FLOOR (bytes)",
                    UintegerValue (2000),
@@ -172,12 +173,17 @@ TypeId DualQueueCoupledAqm::GetTypeId (void)
                    MakeDoubleAccessor (&DualQueueCoupledAqm::m_probHigh),
                    MakeDoubleChecker<double> ())
     .AddTraceSource ("ClassicBytes",
-                     "Bytes in Classic queue",
+                     "Bytes in Classic queue, including DOCSIS MAC Header bytes",
                      MakeTraceSourceAccessor (&DualQueueCoupledAqm::m_traceClassicBytes),
                      "ns3::TracedValueCallback::Uint32")
     .AddTraceSource ("LowLatencyBytes",
-                     "Bytes in Low Latency queue",
+                     "Bytes in Low Latency queue, including DOCSIS MAC Header bytes",
                      MakeTraceSourceAccessor (&DualQueueCoupledAqm::m_traceLlBytes),
+                     "ns3::TracedValueCallback::Uint32")
+    .AddTraceSource ("PieQueueBytes",
+                     "Current PIE queue_.byte_length() including all MAC "
+                     "PDU bytes without DOCSIS MAC overhead",
+                     MakeTraceSourceAccessor (&DualQueueCoupledAqm::m_tracePieQueueBytes),
                      "ns3::TracedValueCallback::Uint32")
     .AddTraceSource ("ClassicSojournTime",
                      "Sojourn time of the last packet dequeued from the Classic queue",
@@ -212,7 +218,7 @@ TypeId DualQueueCoupledAqm::GetTypeId (void)
                      MakeTraceSourceAccessor (&DualQueueCoupledAqm::m_calculatePStateTrace),
                      "ns3::TracedValueCallback::CalculatePStateTracedCallback")
     .AddTraceSource ("LowLatencyQueueDelay",
-                     "State of LL queue delay estimate when queried",
+                     "State of LL queue delay estimate upon entering Iaqm ()",
                      MakeTraceSourceAccessor (&DualQueueCoupledAqm::m_llQueueDelayTrace),
                      "ns3::TracedValueCallback::DualQLlQueueDelayTracedCallback")
     .AddTraceSource ("LowLatencyArrival",
@@ -232,8 +238,9 @@ DualQueueCoupledAqm::DualQueueCoupledAqm ()
   : QueueDisc (QueueDiscSizePolicy::MULTIPLE_QUEUES),
     m_classicDeficit (0),
     m_llDeficit (0),
-    m_bytesArrivingAtL (0),
-    m_cqEstimateAtUpdate (Seconds (0))
+    m_intervalBitsL (0),
+    m_cqEstimateAtUpdate (Seconds (0)),
+    m_llDataPduBytes (0)
 {
   NS_LOG_FUNCTION (this);
   m_uv = CreateObject<UniformRandomVariable> ();
@@ -257,6 +264,13 @@ DualQueueCoupledAqm::DoDispose (void)
     }
   Simulator::Remove (m_updateEvent);
   m_qDelaySingleCallback = MakeNullCallback<Time> ();
+  if (m_asf)
+    {
+      m_asf->SetLowLatencyServiceFlow (0);
+      m_asf->SetClassicServiceFlow (0);
+    }
+  m_asf = 0;
+  m_sf = 0;
   QueueDisc::DoDispose ();
 }
 
@@ -280,18 +294,60 @@ DualQueueCoupledAqm::SetQDelaySingleCallback (Callback<Time> qDelaySingleCallbac
   m_qDelaySingleCallback = qDelaySingleCallback;
 }
 
-uint32_t
-DualQueueCoupledAqm::GetLowLatencyQueueSize (void) const
+void
+DualQueueCoupledAqm::SetAsf (Ptr<AggregateServiceFlow> asf)
 {
-  NS_LOG_FUNCTION (this);
-  return GetInternalQueue (LL)->GetCurrentSize ().GetValue ();
+  NS_LOG_FUNCTION (this << asf);
+  NS_ABORT_MSG_IF (IsInitialized (), "Must call before device is initialized");
+  // Note:  If this model is changed in the future to allow asf/sf to be 
+  // changed after initialization, then the code to set MAX_RATE and FLOOR
+  // will need to be called also to update those dependent parameters
+  NS_ABORT_MSG_IF (m_sf, "Cannot set an ASF if a single SF was already set");
+  if (m_asf)
+    {
+      NS_LOG_WARN ("Overwriting previously set ASF: " << m_asf);
+    }
+  m_asf = asf;
+}
+
+void
+DualQueueCoupledAqm::SetSf (Ptr<ServiceFlow> sf)
+{
+  NS_LOG_FUNCTION (this << sf);
+  NS_ABORT_MSG_IF (IsInitialized (), "Must call before device is initialized");
+  NS_ABORT_MSG_IF (m_asf, "Cannot set a single SF if an ASF was already set");
+  NS_ABORT_MSG_IF (sf->m_sfid == LOW_LATENCY_SFID, "Single service flows should be classic SF");
+  if (m_sf)
+    {
+      NS_LOG_WARN ("Overwriting previously set SF: " << m_sf);
+    }
+  m_sf = sf;
 }
 
 uint32_t
-DualQueueCoupledAqm::GetClassicQueueSize (void) const
+DualQueueCoupledAqm::GetLowLatencyQueueSize (bool includeMacHeaders) const
 {
-  NS_LOG_FUNCTION (this);
-  return GetInternalQueue (CLASSIC)->GetCurrentSize ().GetValue ();
+  if (includeMacHeaders)
+    {
+      return GetInternalQueue (LL)->GetCurrentSize ().GetValue ();
+    }
+  else
+    {
+      return m_llDataPduBytes;
+    }
+}
+
+uint32_t
+DualQueueCoupledAqm::GetClassicQueueSize (bool includeMacHeaders) const
+{
+  if (includeMacHeaders)
+    {
+      return GetInternalQueue (CLASSIC)->GetCurrentSize ().GetValue ();
+    }
+  else
+    {
+      return m_tracePieQueueBytes.Get ();
+    }
 }
 
 Time
@@ -304,20 +360,27 @@ DualQueueCoupledAqm::GetClassicQueuingDelay (uint32_t size) const
 Time
 DualQueueCoupledAqm::GetLowLatencyQueuingDelay (void) const
 {
-  return QDelayCoupledL (GetLowLatencyQueueSize ());
+  return QDelayCoupledL (GetLowLatencyQueueSize (EXCLUDE_MAC_HEADERS));
 }
 
 Time
 DualQueueCoupledAqm::QDelayCoupledL (uint32_t byteLength) const
 {
   NS_LOG_FUNCTION (this << byteLength);
-  return Seconds (static_cast<double> (byteLength * 8) / m_amsr.GetBitRate ());
+  if (m_maxRate.GetBitRate () == 0)
+    {
+      return Seconds (0);
+    }
+  else
+    {
+      // LL queue delay uses ns units in the spec, but ns-3 uses a Time object
+      return Seconds (8.0 * byteLength / m_maxRate.GetBitRate ());
+    }
 }
 
 double
 DualQueueCoupledAqm::GetClassicDropProbability (void) const
 {
-  NS_LOG_FUNCTION (this);
   return m_classicDropProb;
 }
 
@@ -325,7 +388,7 @@ double
 DualQueueCoupledAqm::CalcProbNative (void) const
 {
   NS_LOG_FUNCTION (this);
-  Time qDelay = QDelayCoupledL (GetLowLatencyQueueSize ());
+  Time qDelay = QDelayCoupledL (GetLowLatencyQueueSize (EXCLUDE_MAC_HEADERS));
   return CalcProbNative (qDelay);
 }
 
@@ -333,9 +396,6 @@ double
 DualQueueCoupledAqm::CalcProbNative (Time qDelay) const
 {
   NS_LOG_FUNCTION (this << qDelay);
-  // Set LL mark probability to the max of the internal AQM probability
-  // (defined as a ramp from MinTh to MinTh + Range)
-  // and the product of the coupling factor and the base probability
   double probNative = 0;
   if (qDelay >= GetMaxTh ())
     {
@@ -343,18 +403,18 @@ DualQueueCoupledAqm::CalcProbNative (Time qDelay) const
     }
   else if (qDelay > GetMinTh ())
     {
+      // ramp function from MINTH to (MINTH + RANGE)
       probNative = (qDelay - GetMinTh ()).GetSeconds () /
                  (GetMaxTh () - GetMinTh ()).GetSeconds ();
     }
   NS_LOG_DEBUG ("LL mark probability due to internal AQM: " << probNative);
-  NS_ABORT_MSG_IF (probNative > 1, "Check for an invalid value");
+  NS_ABORT_MSG_IF (probNative > 1 || probNative < 0, "Check for an invalid value");
   return probNative;
 }
 
 double
 DualQueueCoupledAqm::GetProbCL (void) const
 {
-  NS_LOG_FUNCTION (this);
   return m_probCL;
 }
 
@@ -385,7 +445,7 @@ DualQueueCoupledAqm::Iaqm (Ptr<QueueDiscItem> item, uint32_t byteLength)
   bool retval = false;
   Ptr<DocsisQueueDiscItem> docsisItem = DynamicCast<DocsisQueueDiscItem> (item);
   NS_ASSERT_MSG (docsisItem, "DocsisQueueDiscItem not found");
-  Time delay = QDelayCoupledL (GetLowLatencyQueueSize () + item->GetSize ());
+  Time delay = QDelayCoupledL (GetLowLatencyQueueSize (INCLUDE_MAC_HEADERS) + item->GetSize ());
   m_llQueueDelayTrace (delay, item->GetSize ());
   if (item->GetProtocol () == 0x0800)
     {
@@ -403,7 +463,7 @@ DualQueueCoupledAqm::Iaqm (Ptr<QueueDiscItem> item, uint32_t byteLength)
             }
           // Combine Native and Coupled probabilities into ECN marking probL
           double probL = std::max<double> (probNative, std::min<double> (m_probCL, 1));
-          NS_LOG_DEBUG ("Delay " << delay << " probNative " << probNative);
+          NS_LOG_DEBUG ("Delay " << delay.As (Time::US) << " probNative " << probNative);
           if (Recur (probL))
             {
               bool markRetval = Mark (item, UNFORCED_LL_MARK);
@@ -434,7 +494,8 @@ DualQueueCoupledAqm::Iaqm (Ptr<QueueDiscItem> item, uint32_t byteLength)
   if (retval)
     {
       NS_LOG_DEBUG ("LL queue enqueue successful, size " << item->GetSize () << " IAQM_L_Delay " << delay );
-      m_bytesArrivingAtL += item->GetSize ();
+      m_intervalBitsL += 8 * (item->GetSize () - docsisItem->GetMacHeaderLength ()); 
+      m_llDataPduBytes += (item->GetSize () - docsisItem->GetMacHeaderLength ());
       m_traceLlBytes += item->GetSize ();
     }
   else
@@ -528,6 +589,8 @@ DualQueueCoupledAqm::DoEnqueue (Ptr<QueueDiscItem> item)
         {
           NS_LOG_DEBUG ("Classic queue enqueue successful; C_Delay "<< qDelay);
           m_traceClassicBytes += item->GetSize ();
+          // To access GetMacHeaderLength (), we must use docsisItem
+          m_tracePieQueueBytes += (item->GetSize () - docsisItem->GetMacHeaderLength ());
         }
       else
         {
@@ -540,9 +603,7 @@ DualQueueCoupledAqm::DoEnqueue (Ptr<QueueDiscItem> item)
     }
   else
     {
-
-      retval = Iaqm (item, GetLowLatencyQueueSize ());
-
+      retval = Iaqm (item, GetLowLatencyQueueSize (INCLUDE_MAC_HEADERS));
     }
   NS_LOG_DEBUG ("Current size in queue-number " << queueNumber << ": " << GetInternalQueue (queueNumber)->GetCurrentSize ().GetValue ());
   NS_LOG_DEBUG ("Current size in both queues: " << GetCurrentSize ().GetValue ());
@@ -569,7 +630,8 @@ DualQueueCoupledAqm::Recur (double likelihood)
 void
 DualQueueCoupledAqm::InitializeParams (void)
 {
-  NS_ABORT_MSG_UNLESS (m_amsr.GetBitRate () > 0, "Invalid AMSR configuration");
+  NS_ABORT_MSG_UNLESS (m_asf || m_sf, "Service flow not configured");
+  NS_ABORT_MSG_IF (m_asf && m_sf, "Conflicting service flow configuration");
   NS_ABORT_MSG_IF (m_qDelaySingleCallback.IsNull (), "Must set qDelaySingleCallback");
   m_baseProb = 0.0;
   m_classicDropProb = 0.0;
@@ -582,11 +644,50 @@ DualQueueCoupledAqm::InitializeParams (void)
   m_burstState = NO_BURST;
   NS_ABORT_MSG_UNLESS (GetMaxSize ().GetUnit () == QueueSizeUnit::BYTES, "DualQ only supports byte mode");
 
+  // Set MAX_RATE
+  DataRate AMSR;  // Defaults to zero
+  if (m_asf)
+    {
+      AMSR = m_asf->m_maxSustainedRate;
+    }
+  DataRate MSR_L;  // Defaults to zero
+  if (m_asf && m_asf->GetLowLatencyServiceFlow ())
+    {
+      MSR_L = m_asf->GetLowLatencyServiceFlow ()->m_maxSustainedRate;
+    }
+  if ((AMSR.GetBitRate () == 0) && (MSR_L.GetBitRate () == 0))
+    {
+      m_maxRate = DataRate (0);
+    }
+  else if ((AMSR.GetBitRate () == 0) && (MSR_L.GetBitRate () != 0))
+    {
+      m_maxRate = MSR_L;
+    }
+  else if ((AMSR.GetBitRate () != 0) && (MSR_L.GetBitRate () == 0))
+    {
+      m_maxRate = AMSR;
+    }
+  else if ((AMSR.GetBitRate () != 0) && (MSR_L.GetBitRate () != 0))
+    {
+      m_maxRate = (AMSR < MSR_L ? AMSR : MSR_L); // min (AMSR, MSR_L)
+    }
+  
   // Adjust IAQM thresholds based on "FLOOR"
-  uint32_t floorNs = static_cast<uint32_t> (m_maxFrameSize * 2 * 8 * 1e9 / m_amsr.GetBitRate ());
-  m_minTh = std::max<Time> (m_maxTh - NanoSeconds (1 << m_lgRange), NanoSeconds (floorNs));
-  m_maxTh = m_minTh + NanoSeconds (1 << m_lgRange);
-
+  uint32_t floorNs = 0;
+  if (m_maxRate != 0)
+    {
+      floorNs = static_cast<uint32_t> (m_maxFrameSize * 2 * 8 * 1e9 / m_maxRate.GetBitRate ());
+      // Minimum marking threshold of 2 MTU for slow links
+      floorNs = std::min<uint32_t> (65535000, floorNs);
+    }
+  NS_LOG_DEBUG ("Initialize floorNs to " << floorNs << "ns");
+  Time range = NanoSeconds (1 << m_lgRange);
+  m_minTh = std::max<Time> ((m_maxTh - range), NanoSeconds (floorNs));
+  m_maxTh = m_minTh + range;
+  if (m_maxTh.GetNanoSeconds () > 65535000)
+    {
+      m_maxTh = NanoSeconds (65535000);
+    }
 }
 
 double
@@ -600,27 +701,63 @@ Time
 DualQueueCoupledAqm::QDelayCoupledC (uint32_t byteLength)
 {
   NS_LOG_FUNCTION (this << byteLength);
-  double r_L = byteLength * 8 / m_interval.GetSeconds ();
-  r_L = std::min<double> (r_L, GetWeight () * m_amsr.GetBitRate ());
-  NS_ASSERT_MSG (m_amsr.GetBitRate () > r_L, "Error in delay estimate: " << m_amsr << r_L);
-  return Seconds (GetClassicQueueSize () * 8 / (m_amsr.GetBitRate () - r_L));
+  // The calculation in Annex O, qdelayCoupledC produces units of s
+  // In ns-3, a Time object is returned
+  uint64_t AMSR = m_asf->m_maxSustainedRate.GetBitRate ();
+  uint64_t MSR_C = 0;
+  uint64_t MSR_L = 0;
+  NS_LOG_DEBUG ("ASF MSR = " << m_asf->m_maxSustainedRate.GetBitRate ());
+  if (m_asf->GetClassicServiceFlow ())
+    {
+      MSR_C = m_asf->GetClassicServiceFlow ()->m_maxSustainedRate.GetBitRate ();
+    }
+  if (m_asf->GetLowLatencyServiceFlow ())
+    {
+      MSR_L = m_asf->GetLowLatencyServiceFlow ()->m_maxSustainedRate.GetBitRate ();
+    }
+  if (AMSR == 0)
+    {
+      return Seconds (0);
+    }
+  else
+    {
+      double r_L = GetWeight () * AMSR;
+      if (MSR_L != 0)
+        {
+          r_L = std::min<double> (r_L, MSR_L);
+        }
+      r_L = std::min<double> ((1000.0 * m_intervalBitsL) / m_interval.GetMilliSeconds (), r_L); //b/s
+      double r_C = AMSR - r_L;
+      if (MSR_C != 0)
+        {
+          r_C = std::min <double> (r_C, MSR_C);
+        }
+      NS_LOG_DEBUG ("r_L=" << r_L << "b/s; r_C=" << r_C << "b/s; delay=" << byteLength * 8/r_C << "s");
+      NS_ASSERT_MSG (r_C != 0, "Error: divide by zero");
+      return Seconds (byteLength * 8 / r_C);
+    }
 }
 
-// The DOCSIS PIE update algorithm (called once every interval)
-// The PI2 base probability is obtained by the square root of DOCSIS prob
+// Background update, occurs every INTERVAL
 void
 DualQueueCoupledAqm::CalculateDropProb (void)
 {
   NS_LOG_FUNCTION (this);
+  // Derive queue delay using qdelay functions defined in Annex O.1.
   if (m_coupled)
     {
-      m_cqEstimateAtUpdate = QDelayCoupledC (m_bytesArrivingAtL); // perform before assigning qDelay below
+      // interval_BitsL is adjusted upon each enqueue and dequeue; no need
+      // to perform the arr_byte_counter operations in the spec in this model.
+      // qC.byte_length corresponds to GetClassicQueueSize (false) (i.e.
+      // without taking DOCSIS MAC header bytes into consideration).
+      // m_cqEstimateAtUpdate corresponds to 'qdelay' in the spec
+      m_cqEstimateAtUpdate = QDelayCoupledC (GetClassicQueueSize (EXCLUDE_MAC_HEADERS));
+      m_intervalBitsL = 0;  // Zero counter for next interval
     }
   else
     {
       m_cqEstimateAtUpdate = m_qDelaySingleCallback ();
     }
-  m_bytesArrivingAtL = 0;  // Zero counter for next interval
 
   double dropProb = m_classicDropProb;  // Perform calculations on non-traced variable
   double baseProb = m_baseProb;  // Perform calculations on non-traced variable
@@ -837,6 +974,7 @@ DualQueueCoupledAqm::LowLatencyDequeue (void)
 {
   NS_LOG_FUNCTION (this);
   Ptr<QueueDiscItem> item = GetInternalQueue (LL)->Dequeue ();
+  Ptr<DocsisQueueDiscItem> docsisItem = DynamicCast<DocsisQueueDiscItem> (item);
   if (!item)
     {
       NS_LOG_DEBUG ("Failed to dequeue from LL queue");
@@ -846,10 +984,21 @@ DualQueueCoupledAqm::LowLatencyDequeue (void)
   if (m_traceLlBytes >= item->GetSize ())
     {
       m_traceLlBytes -= item->GetSize ();
+      m_intervalBitsL -= 8 * (item->GetSize () - docsisItem->GetMacHeaderLength ()); 
     }
   else 
     {
       m_traceLlBytes = 0;
+      NS_ASSERT_MSG (GetInternalQueue (LL)->GetNPackets () == 0, "Queue accounting error");
+    }
+  if (m_llDataPduBytes >= (item->GetSize () - docsisItem->GetMacHeaderLength ()))
+    {
+      m_llDataPduBytes -= (item->GetSize () - docsisItem->GetMacHeaderLength ());
+    }
+  else
+    {
+      m_llDataPduBytes = 0;
+      NS_ASSERT_MSG (GetInternalQueue (LL)->GetNPackets () == 0, "Queue accounting error");
     }
   m_traceLlSojourn (Simulator::Now () - item->GetTimeStamp ());
   return item;
@@ -864,6 +1013,7 @@ DualQueueCoupledAqm::ClassicDequeue (void)
     {
       NS_LOG_DEBUG ("Dequeue from Classic queue, classic drop prob: " << m_classicDropProb);
       Ptr<QueueDiscItem> item = GetInternalQueue (CLASSIC)->Dequeue ();
+      Ptr<DocsisQueueDiscItem> docsisItem = DynamicCast<DocsisQueueDiscItem> (item);
       if (!item)
         {
           NS_LOG_DEBUG ("Failed to dequeue from classic queue");
@@ -872,10 +1022,13 @@ DualQueueCoupledAqm::ClassicDequeue (void)
       if (m_traceClassicBytes >= item->GetSize ())
         {
           m_traceClassicBytes -= item->GetSize ();
+          // To access GetMacHeaderLength (), we must use docsisItem
+          m_tracePieQueueBytes -= (item->GetSize () - docsisItem->GetMacHeaderLength ());
         }
       else 
         {
           m_traceClassicBytes = 0;
+          m_tracePieQueueBytes = 0;
         }
       m_traceClassicSojourn (Simulator::Now () - item->GetTimeStamp ());
       return item;
@@ -918,7 +1071,7 @@ DualQueueCoupledAqm::CheckConfig (void)
   NS_LOG_FUNCTION (this);
   if (GetNQueueDiscClasses () > 0)
     {
-      NS_LOG_ERROR ("DualQueueCoupledAqm cannot have classes");
+      NS_FATAL_ERROR ("DualQueueCoupledAqm cannot have classes");
       return false;
     }
 
@@ -928,44 +1081,80 @@ DualQueueCoupledAqm::CheckConfig (void)
       return false;
     }
 
-  if (GetNInternalQueues () == 0)
+  // It is possible to configure the internal queues prior to this
+  // initialization method, but we disallow it so that we can ensure that
+  // the queues are properly sized based on the service flow configuration.
+  if (GetNInternalQueues () > 0)
     {
-      NS_LOG_DEBUG ("Create default internal queues");
-      // Create 2 DropTail queues
-      if (m_classicBufferSize == QueueSize ("0B"))
-        {
-          // See C.2.2.7.11.4 Target Buffer.  Default chosen to be 100ms
-          uint32_t classicSfBytes = std::max<uint32_t> ((0.1 * m_amsr.GetBitRate ()), (20 * m_maxFrameSize));
-          NS_LOG_DEBUG ("Setting classic queue size to default value of " << classicSfBytes << " bytes");
-          AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
-                              ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, classicSfBytes))));
-        }
-      else
-        {
-          NS_LOG_DEBUG ("Setting classic queue size to configured value of " << m_classicBufferSize << " bytes");
-          AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
-                              ("MaxSize", QueueSizeValue (m_classicBufferSize)));
-        }
-      if (m_lowLatencyBufferSize == QueueSize ("0B"))
-        {
-          // See C.2.2.7.11.4 Target Buffer equation (3).
-          uint32_t llSfBytes = std::max<uint32_t> ((CLASSIC_TARGET_BUFFER.GetSeconds () * m_amsr.GetBitRate ()), (20 * m_maxFrameSize));
-          NS_LOG_DEBUG ("Setting low latency queue size to default value of " << llSfBytes << " bytes");
-          AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
-                              ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, llSfBytes))));
-        }
-      else
-        {
-          NS_LOG_DEBUG ("Setting low latency queue size to configured value of " << m_lowLatencyBufferSize << " bytes");
-          AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >             
-                              ("MaxSize", QueueSizeValue (m_lowLatencyBufferSize)));
-        }
+      NS_FATAL_ERROR ("Internal queue configuration should be deferred until CheckConfig() is called");
+      return false;
     }
 
-  if (GetNInternalQueues () != 2)
+  NS_LOG_DEBUG ("Creating internal queues");
+  // The following is used to determine the rate 'D' in C.1.2.17 equation 4
+  // for the creation of the classic service flow queue
+  uint64_t dBps = 0; // D in Bytes per sec
+  if (m_asf)
     {
-      NS_LOG_ERROR ("DualQueueCoupledAqm needs 2 internal queues");
-      return false;
+      Ptr<const ServiceFlow> sf = m_asf->GetClassicServiceFlow ();
+      if (!sf || (sf->m_maxSustainedRate.GetBitRate () == 0 && sf->m_peakRate.GetBitRate () == 0))
+        {
+          dBps = m_asf->m_maxSustainedRate.GetBitRate () / 8;
+        }
+      else if (sf->m_peakRate > sf->m_maxSustainedRate)
+        {
+          dBps = sf->m_peakRate.GetBitRate () / 8;
+        }
+      else
+        {
+          dBps = sf->m_maxSustainedRate.GetBitRate () / 8;
+        }
+    }
+  else if (m_sf)
+    {
+      if (m_sf->m_peakRate > m_sf->m_maxSustainedRate)
+        {
+          dBps = m_sf->m_peakRate.GetBitRate () / 8;
+        }
+      else
+        {
+          dBps = m_sf->m_maxSustainedRate.GetBitRate () / 8;
+        }
+    }
+  // For simplicity, two service flow queues are always created, regardless
+  // of the number of active service flows (one or two).
+  if (m_classicBufferSize == QueueSize ("0B"))
+    {
+      // See C.1.2.17 Default Upstream Target Buffer, equation (4)
+      uint32_t classicSfBytes = CLASSIC_TARGET_BUFFER.GetSeconds () * dBps;
+      NS_LOG_DEBUG ("Setting classic queue size to default value of " << classicSfBytes << " bytes");
+      AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
+                       ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, classicSfBytes))));
+    }
+  else
+    {
+      NS_LOG_DEBUG ("Setting classic queue size to configured value of " << m_classicBufferSize << " bytes");
+      AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
+                       ("MaxSize", QueueSizeValue (m_classicBufferSize)));
+    }
+  if (m_lowLatencyBufferSize == QueueSize ("0B"))
+    {
+      uint64_t amsrBps =  0;
+      if (m_asf)
+        {
+          // See C.2.2.7.11.4 Target Buffer equation (3).
+          amsrBps = m_asf->m_maxSustainedRate.GetBitRate () / 8; // bytes/s
+        }
+      uint32_t llSfBytes = std::max<uint32_t> ((LOW_LATENCY_TARGET_BUFFER.GetSeconds () * amsrBps), (20 * m_maxFrameSize));
+      NS_LOG_DEBUG ("Setting low latency queue size to default value of " << llSfBytes << " bytes");
+      AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >   
+                       ("MaxSize", QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, llSfBytes))));
+    }
+  else
+    {
+      NS_LOG_DEBUG ("Setting low latency queue size to configured value of " << m_lowLatencyBufferSize << " bytes");
+      AddInternalQueue (CreateObjectWithAttributes<DropTailQueue<QueueDiscItem> >             
+                          ("MaxSize", QueueSizeValue (m_lowLatencyBufferSize)));
     }
 
   return true;
@@ -990,7 +1179,7 @@ DualQueueCoupledAqm::DropEarly (Ptr<QueueDiscItem> item)
 
   if (m_burstState == NO_BURST)
     {
-      if (GetClassicQueueSize () < GetInternalQueue (CLASSIC)->GetMaxSize ().GetValue ()/ 3)
+      if (GetClassicQueueSize (EXCLUDE_MAC_HEADERS) < GetInternalQueue (CLASSIC)->GetMaxSize ().GetValue ()/ 3)
         {
           return false;
         }
@@ -1015,7 +1204,7 @@ DualQueueCoupledAqm::DropEarly (Ptr<QueueDiscItem> item)
     {
       return false;
     }
-  else if (GetClassicQueueSize () <= 2 * m_meanPktSize)
+  else if (GetClassicQueueSize (EXCLUDE_MAC_HEADERS) <= 2 * m_meanPktSize)
     {
       return false;
     }

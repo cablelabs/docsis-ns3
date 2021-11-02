@@ -253,11 +253,10 @@ Several parameters are defined at the top of the residential.sh file (for
 all scenarios) as follows:
 
 ~~~
-export heading="Latency"
+export heading="Residential"
 export downstreamMsr=200Mbps
 export upstreamMsr=50Mbps
-export usePgs=false
-export guaranteedGrantRate=0
+export guaranteedGrantRate=5Mbps
 export linkDelayWebServer=4ms
 export ftpStartTime=100ms
 export numUdpEfUp=1
@@ -277,9 +276,7 @@ The most likely parameters in this section that an experimenter would change are
 
 **upstreamMsr:** Upstream Maximum Sustained Traffic Rate
 
-**usePgs:** if false, PGS granting is disabled
-
-**guaranteedGrantRate:** if usePgs is true, specifies the GGR
+**guaranteedGrantRate:** if non-zero, enables and specifies the GGR
 
 **enableTrace:** whether to enable ASCII traces
 

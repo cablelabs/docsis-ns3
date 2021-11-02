@@ -37,6 +37,9 @@
  * It accepts as input different values, and outputs several derived
  * values based on the inputs and default values.
  *
+ * The helper method DocsisHelper::PrintConfiguration() can be used in
+ * programs to output this information onto a standard output stream.
+ *
  */
 #include <iomanip>
 #include "ns3/core-module.h"
@@ -72,8 +75,8 @@ main (int argc, char *argv[])
 
   std::cout << "Input parameters upstream" << std::endl;
   std::cout << "-----------------------" << std::endl;
-  scheduler->GetAttribute ("FreeCapacityMean", dVal);
-  std::cout << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << dVal.Get () << std::endl;
+  scheduler->GetAttribute ("FreeCapacityMean", rVal);
+  std::cout << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << rVal.Get ().GetBitRate () << std::endl;
   scheduler->GetAttribute ("FreeCapacityVariation", dVal);
   std::cout << "FreeCapacityVariation: Bound (percent) on the variation of upstream free capacity = " << dVal.Get () << std::endl;
   upstream->GetAttribute ("BurstPreparation", tVal);
@@ -105,8 +108,8 @@ main (int argc, char *argv[])
   std::cout << "Input parameters downstream" << std::endl;
   std::cout << "-------------------------" << std::endl;
   // Downstream
-  downstream->GetAttribute ("FreeCapacityMean", uVal);
-  std::cout << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("FreeCapacityMean", rVal);
+  std::cout << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << rVal.Get ().GetBitRate () << std::endl;
   downstream->GetAttribute ("FreeCapacityVariation", uVal);
   std::cout << "FreeCapacityVariation: Bound (percent) on the variation of upstream free capacity = " << uVal.Get () << std::endl;
   downstream->GetAttribute ("MaxPdu", uVal);
@@ -203,5 +206,12 @@ main (int argc, char *argv[])
   std::cout << "DsSymbolCapacity: Downstream symbol capacity (bytes) = " << dVal.Get () << std::endl;
   downstream->GetAttribute ("DsCapacity", dVal);
   std::cout << "DsCapacity: Downstream capacity (bits/sec) = " << dVal.Get () << std::endl;
+
+  // Dispose of allocated memory
+  upstream->Dispose ();
+  downstream->Dispose ();
+  scheduler->Dispose ();
+  channel->Dispose ();
+  Simulator::Destroy ();
   return 0;
 }

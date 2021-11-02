@@ -30,6 +30,9 @@
 #include "ns3/net-device-container.h"
 #include "ns3/node-container.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/flow-monitor-helper.h"
+#include "ns3/flow-monitor.h"
+
 
 #include "ns3/trace-helper.h"
 
@@ -56,6 +59,8 @@ class DocsisNetDevice;
 class DocsisChannel;
 class DualQueueCoupledAqm;
 class QueueProtection;
+class AggregateServiceFlow;
+class ServiceFlow;
 /**
  * \ingroup docsis
  * \brief Helper code for constructing DOCSIS simulations 
@@ -128,15 +133,69 @@ public:
    * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
    * on the CM node.  
    *
-   * To complete the configuration, a DualQueue configuration must be
-   * installed on both devices (see InstallLldCoupledQueue)
+   * To complete the configuration, service flow configurations must be
+   * added (see GetUpstream() and GetDownstream() methods, and their
+   * respective methods to add service flow configurations))
    *
    * \param cmts The CMTS node
    * \param cm A single CM node
    * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
-   * \sa InstallLldCoupledQueue()
+   * \sa GetUpstream()
+   * \sa GetDownstream()
    */
   NetDeviceContainer Install (Ptr<Node> cmts, Ptr<Node> cm);
+
+  /**
+   * Helper method to install a DocsisChannel between the two nodes,
+   * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
+   * on the CM node, and service flow configurations.  
+   *
+   * \param cmts The CMTS node
+   * \param cm A single CM node
+   * \param upstreamAsf Upstream ASF 
+   * \param downstreamAsf Downstream ASF 
+   * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+   */
+  NetDeviceContainer Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<AggregateServiceFlow> upstreamAsf, Ptr<AggregateServiceFlow> downstreamAsf);
+
+  /**
+   * Helper method to install a DocsisChannel between the two nodes,
+   * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
+   * on the CM node, and service flow configurations.  
+   *
+   * \param cmts The CMTS node
+   * \param cm A single CM node
+   * \param upstreamAsf Upstream ASF 
+   * \param downstreamSf Downstream SF 
+   * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+   */
+  NetDeviceContainer Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<AggregateServiceFlow> upstreamAsf, Ptr<ServiceFlow> downstreamSf);
+
+  /**
+   * Helper method to install a DocsisChannel between the two nodes,
+   * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
+   * on the CM node, and service flow configurations.  
+   *
+   * \param cmts The CMTS node
+   * \param cm A single CM node
+   * \param upstreamSf Upstream SF 
+   * \param downstreamAsf Downstream ASF 
+   * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+   */
+  NetDeviceContainer Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<ServiceFlow> upstreamSf, Ptr<AggregateServiceFlow> downstreamAsf);
+
+  /**
+   * Helper method to install a DocsisChannel between the two nodes,
+   * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
+   * on the CM node, and service flow configurations.  
+   *
+   * \param cmts The CMTS node
+   * \param cm A single CM node
+   * \param upstreamSf Upstream SF 
+   * \param downstreamSf Downstream SF 
+   * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+   */
+  NetDeviceContainer Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<ServiceFlow> upstreamSf, Ptr<ServiceFlow> downstreamSf);
 
   /**
    * \brief Utility function to return properly casted device pointer
@@ -160,14 +219,21 @@ public:
   Ptr<DocsisChannel> GetChannel (const NetDeviceContainer& device) const;
 
   /**
-   * Install and configure the depth of a DualQ Coupled PI2 queue on a
-   * DOCSIS device (either CmNetDevice or CmtsNetDevice).
-   * \param device the device to install
-   * \param maxSize queue size to configure
-   * \param amsr AMSR configured for this queue
-   * \return a pointer to the DualQueueCoupledAqm installed
-   */
-  Ptr<DualQueueCoupledAqm> InstallLldCoupledQueue (Ptr<DocsisNetDevice> device, QueueSize maxSize, DataRate amsr);
+  * Assign a fixed random variable stream number to the random variables
+  * used by the DOCSIS objects that have been instantiated on the
+  * devices passed into this method.  This prevents random variable stream
+  * assignments from being perturbed by other, unrelated configuration
+  * changes in the program.
+  *
+  * The stream argument passed in should be a non-negative integer < 2^63. 
+  * The value returned is the number of stream indices that have been used;
+  * in general, stream assignments should not be reused in a simulation.
+  *
+  * \param docsisDevices container with a CmtsNetDevice and CmNetDevice
+  * \param stream first stream index to use
+  * \return the number of stream indices assigned by this helper
+  */
+  int64_t AssignStreams (const NetDeviceContainer& docsisDevices, int64_t stream);
 
   /**
    * Add a notional game flow (UDP packet stream from client to server) with
@@ -189,7 +255,7 @@ public:
    */
   Ptr<GameClient> AddUpstreamGameSession (Ptr<Node> client, Ptr<Node> server,
     uint16_t serverPort, Time startTime, Time stopTime,
-    Ipv4Header::DscpType dscpVal = Ipv4Header::DSCP_EF) const;
+    Ipv4Header::DscpType dscpValue = Ipv4Header::DSCP_EF) const;
 
   /**
    * Add a notional game flow (UDP packet stream from client to server) with
@@ -211,7 +277,7 @@ public:
    */
   Ptr<GameClient> AddDownstreamGameSession (Ptr<Node> client, Ptr<Node> server,
     uint16_t serverPort, Time startTime, Time stopTime,
-    Ipv4Header::DscpType dscpVal = Ipv4Header::DSCP_EF) const;
+    Ipv4Header::DscpType dscpValue = Ipv4Header::DSCP_EF) const;
 
   /**
    * Add a notional MPEG DASH session.
@@ -337,15 +403,16 @@ public:
    * \param offTime Off time
    * \param startTime Start time
    * \param stopTime Stop time
-   * \param dscpValue (optional) DSCP value for the socket
+   * \param dscpValue (optional) DSCP value for the UDP packets
+   * \param ecnValue (optional) ECN value for the UDP packets
    * \return pointer to the sending-side OnOffApplication
    */
   Ptr<OnOffApplication>
   AddDutyCycleUdpStream (Ptr<Node> client, Ptr<Node> server,
     uint16_t serverPort, uint16_t clientPort, DataRate rate,
     uint16_t packetSize, Time onTime, Time offTime, Time startTime, 
-    Time stopTime, Ipv4Header::DscpType dscpVal = Ipv4Header::DscpDefault,
-    Ipv4Header::EcnType ecnVal = Ipv4Header::ECN_ECT1) const;
+    Time stopTime, Ipv4Header::DscpType dscpValue = Ipv4Header::DscpDefault,
+    Ipv4Header::EcnType ecnValue = Ipv4Header::ECN_ECT1) const;
 
   /**
    * Add a TCP file transfer consisting of an ns3::FileTransferApplication
@@ -364,8 +431,25 @@ public:
   Ptr<FileTransferApplication> AddFileTransfer (Ptr<Node> client, 
     Ptr<Node> server, uint16_t serverPort, 
     Time startTime, Time stopTime, uint32_t fileSize, 
-    bool useReadingTime, Ipv4Header::DscpType dscpVal = Ipv4Header::DscpDefault) const;
+    bool useReadingTime, Ipv4Header::DscpType dscpValue = Ipv4Header::DscpDefault) const;
 
+  /**
+   * \brief Utility function to print out summaries of observed IPv4
+   *        TCP and UDP flows.
+   *
+   * \param ostr output stream
+   * \param flowHelper FlowMonitorHelper to use
+   * \param flowMonitor FlowMonitor to use
+   */
+  void PrintFlowSummaries (std::ostream& ostr, FlowMonitorHelper& flowHelper, Ptr<FlowMonitor> flowMonitor);
+
+  /**
+   * Print out DOCSIS-related configuration
+   *
+   * \param ostr output stream
+   * \param c container of CmNetDevice and CmtsNetDevice
+   */
+  void PrintConfiguration (std::ostream& ostr, const NetDeviceContainer& c) const;
 private:
   /**
    * Find and return the IPv4 address on the endpoint node.  The node must
@@ -400,7 +484,7 @@ private:
     uint16_t serverPort, Time iaTime,
     Time iaStdDev, uint32_t pktSize, uint32_t pktStdDev,
     Time startTime, Time stopTime, 
-    Ipv4Header::DscpType dscpVal = Ipv4Header::DSCP_EF) const;
+    Ipv4Header::DscpType dscpValue = Ipv4Header::DSCP_EF) const;
 
   /**
    * \brief Enable pcap output the indicated net device.

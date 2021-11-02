@@ -250,9 +250,26 @@ DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm)
   Ptr<CmtsNetDevice> devA = m_downstreamDeviceFactory.Create<CmtsNetDevice> ();
   devA->SetAddress (Mac48Address::Allocate ());
   cmts->AddDevice (devA);
+  Ptr<DualQueueCoupledAqm> dual = CreateObject<DualQueueCoupledAqm> ();
+  dual->AddPacketFilter (CreateObject<DocsisLowLatencyPacketFilter> ());
+  devA->SetQueue (dual);
+  dual->SetQDelaySingleCallback (MakeCallback (&DocsisNetDevice::ExpectedDelay, devA));
+  Ptr<QueueProtection> queueProtection = CreateObject<QueueProtection> ();
+  queueProtection->SetHashCallback (MakeCallback(&DocsisLowLatencyPacketFilter::GenerateHash32));
+  queueProtection->SetQueue (dual);
+  dual->SetQueueProtection (queueProtection);
+
   Ptr<CmNetDevice> devB = m_upstreamDeviceFactory.Create<CmNetDevice> ();
   devB->SetAddress (Mac48Address::Allocate ());
   cm->AddDevice (devB);
+  dual = CreateObject<DualQueueCoupledAqm> ();
+  dual->AddPacketFilter (CreateObject<DocsisLowLatencyPacketFilter> ());
+  devB->SetQueue (dual);
+  dual->SetQDelaySingleCallback (MakeCallback (&DocsisNetDevice::ExpectedDelay, devB));
+  queueProtection = CreateObject<QueueProtection> ();
+  queueProtection->SetHashCallback (MakeCallback(&DocsisLowLatencyPacketFilter::GenerateHash32));
+  queueProtection->SetQueue (dual);
+  dual->SetQueueProtection (queueProtection);
 
   Ptr<CmtsUpstreamScheduler> scheduler = CreateObject<CmtsUpstreamScheduler> ();
   scheduler->SetUpstream (DynamicCast<CmNetDevice> (devB));
@@ -270,6 +287,54 @@ DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm)
   container.Add (devA);
   container.Add (devB);
 
+  return container;
+}
+
+NetDeviceContainer 
+DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<AggregateServiceFlow> upstreamAsf, Ptr<AggregateServiceFlow> downstreamAsf) 
+{
+  NS_LOG_FUNCTION (this << cmts << cm << upstreamAsf << downstreamAsf);
+  NetDeviceContainer container = Install (cmts, cm);
+  Ptr<CmtsNetDevice> cmtsDevice = container.Get (0)->GetObject<CmtsNetDevice> ();
+  cmtsDevice->SetDownstreamAsf (downstreamAsf);
+  Ptr<CmNetDevice> cmDevice = container.Get (1)->GetObject<CmNetDevice> ();
+  cmDevice->SetUpstreamAsf (upstreamAsf);
+  return container;
+}
+
+NetDeviceContainer 
+DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<AggregateServiceFlow> upstreamAsf, Ptr<ServiceFlow> downstreamSf) 
+{
+  NS_LOG_FUNCTION (this << cmts << cm << upstreamAsf << downstreamSf);
+  NetDeviceContainer container = Install (cmts, cm);
+  Ptr<CmtsNetDevice> cmtsDevice = container.Get (0)->GetObject<CmtsNetDevice> ();
+  cmtsDevice->SetDownstreamSf (downstreamSf);
+  Ptr<CmNetDevice> cmDevice = container.Get (1)->GetObject<CmNetDevice> ();
+  cmDevice->SetUpstreamAsf (upstreamAsf);
+  return container;
+}
+
+NetDeviceContainer 
+DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<ServiceFlow> upstreamSf, Ptr<AggregateServiceFlow> downstreamAsf) 
+{
+  NS_LOG_FUNCTION (this << cmts << cm << upstreamSf << downstreamAsf);
+  NetDeviceContainer container = Install (cmts, cm);
+  Ptr<CmtsNetDevice> cmtsDevice = container.Get (0)->GetObject<CmtsNetDevice> ();
+  cmtsDevice->SetDownstreamAsf (downstreamAsf);
+  Ptr<CmNetDevice> cmDevice = container.Get (1)->GetObject<CmNetDevice> ();
+  cmDevice->SetUpstreamSf (upstreamSf);
+  return container;
+}
+
+NetDeviceContainer 
+DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm, Ptr<ServiceFlow> upstreamSf, Ptr<ServiceFlow> downstreamSf) 
+{
+  NS_LOG_FUNCTION (this << cmts << cm << upstreamSf << downstreamSf);
+  NetDeviceContainer container = Install (cmts, cm);
+  Ptr<CmtsNetDevice> cmtsDevice = container.Get (0)->GetObject<CmtsNetDevice> ();
+  cmtsDevice->SetDownstreamSf (downstreamSf);
+  Ptr<CmNetDevice> cmDevice = container.Get (1)->GetObject<CmNetDevice> ();
+  cmDevice->SetUpstreamSf (upstreamSf);
   return container;
 }
 
@@ -298,27 +363,25 @@ DocsisHelper::GetChannel (const NetDeviceContainer& device) const
   return p;
 }
 
-Ptr<DualQueueCoupledAqm>
-DocsisHelper::InstallLldCoupledQueue (Ptr<DocsisNetDevice> device, QueueSize maxSize, DataRate amsr)
+int64_t
+DocsisHelper::AssignStreams (const NetDeviceContainer& docsisDevices, int64_t stream)
 {
-  NS_LOG_FUNCTION (this << device << maxSize << amsr);
-  Ptr<DualQueueCoupledAqm> dual = CreateObject<DualQueueCoupledAqm> ();
-  dual->AddPacketFilter (CreateObject<DocsisLowLatencyPacketFilter> ());
-  device->SetQueue (dual);
-  dual->SetQDelaySingleCallback (MakeCallback (&DocsisNetDevice::ExpectedDelay, device));
-  dual->SetAttribute ("Amsr", DataRateValue (amsr));
-
-  Ptr<QueueProtection> queueProtection = CreateObject<QueueProtection> ();
-  queueProtection->SetHashCallback (MakeCallback(&DocsisLowLatencyPacketFilter::GenerateHash32));
-  queueProtection->SetQueue (dual);
-  dual->SetQueueProtection (queueProtection);
-  // Configure the internal queue sizes (LL and CLASSIC).  Classic is provided
-  // by argument 'maxSize'.  Low latency is 10ms at the AMSR
-  QueueSize l4sInternalSize = QueueSize (QueueSizeUnit::BYTES, amsr.GetBitRate () * 0.010 / 8);
-  dual->SetAttribute ("ClassicBufferSize", QueueSizeValue (maxSize));
-  dual->SetAttribute ("LowLatencyBufferSize", QueueSizeValue (l4sInternalSize));
-  return dual;
+  NS_LOG_FUNCTION (this << stream);
+  Ptr<CmtsNetDevice> cmts = GetDownstream (docsisDevices);
+  Ptr<CmNetDevice> cm = GetUpstream (docsisDevices);
+  Ptr<DualQueueCoupledAqm> cmDualQueue = cm->GetQueue ();
+  Ptr<DualQueueCoupledAqm> cmtsDualQueue = cmts->GetQueue ();
+  Ptr<CmtsUpstreamScheduler> cmtsScheduler = cm->GetCmtsUpstreamScheduler ();
+  NS_ABORT_MSG_UNLESS (cmDualQueue && cmtsDualQueue && cmtsScheduler, "Error: Devices not fully instantiated");
+  int64_t currentStream = stream;
+  currentStream += cmts->AssignStreams (currentStream);
+  currentStream += cm->AssignStreams (currentStream);
+  currentStream += cmDualQueue->AssignStreams (currentStream);
+  currentStream += cmtsDualQueue->AssignStreams (currentStream);
+  currentStream += cmtsScheduler->AssignStreams (currentStream);
+  return (currentStream - stream);
 }
+
 
 Ptr<GameClient>
 DocsisHelper::AddUpstreamGameSession (Ptr<Node> client, Ptr<Node> server,
@@ -610,6 +673,202 @@ DocsisHelper::AddFileTransfer (Ptr<Node> client, Ptr<Node> server,
   sinkApps.Stop (stopTime);
 
   return ftApplication;
+}
+
+void
+DocsisHelper::PrintFlowSummaries (std::ostream& ostr, FlowMonitorHelper& flowHelper, Ptr<FlowMonitor> flowMonitor)
+{
+  NS_LOG_FUNCTION (this << &flowHelper << flowMonitor);
+  flowMonitor->CheckForLostPackets ();
+  Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowHelper.GetClassifier ());
+  FlowMonitor::FlowStatsContainer stats = flowMonitor->GetFlowStats ();
+  for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i)
+    {
+      Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+      std::stringstream protoStream;
+      protoStream << (uint16_t) t.protocol;
+      if (t.protocol == 6)
+        {
+          protoStream.str ("TCP");
+        }
+      if (t.protocol == 17)
+        {
+          protoStream.str ("UDP");
+        }
+      if (t.sourcePort == 50000)
+        {
+          continue; // This is just the TCP ack stream
+        }
+      ostr << "Flow " << protoStream.str () << " (" << t.sourceAddress << ":" << t.sourcePort << " -> " << t.destinationAddress << ":" << t.destinationPort << ")\n";
+      ostr << "  Tx Packets: " << i->second.txPackets << "\n";
+      ostr << "  Tx Bytes:   " << i->second.txBytes << "\n";
+      ostr << "  Rx Packets: " << i->second.rxPackets << "\n";
+      ostr << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+      if (i->second.rxPackets > 0)
+        {
+          // Measure the duration of the flow from receiver's perspective
+          double rxDuration = i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ();
+          ostr << "  Rx throughput: " << i->second.rxBytes * 8.0 / rxDuration / 1000 / 1000  << " Mbps\n";
+          ostr << "  Mean delay:  " << 1000 * i->second.delaySum.GetSeconds () / i->second.rxPackets << " ms\n";
+          ostr << "  Mean jitter:  " << 1000 * i->second.jitterSum.GetSeconds () / i->second.rxPackets  << " ms\n";
+        }
+      else
+        {
+          ostr << "  Throughput:  0 Mbps\n";
+          ostr << "  Mean delay:  0 ms\n";
+          ostr << "  Mean jitter: 0 ms\n";
+        }
+    }
+}
+
+void
+DocsisHelper::PrintConfiguration (std::ostream& ostr, const NetDeviceContainer& c) const
+{
+  Ptr<CmNetDevice> upstream = GetUpstream (c);
+  Ptr<CmtsNetDevice> downstream = GetDownstream (c);
+  Ptr<CmtsUpstreamScheduler> scheduler = upstream->GetCmtsUpstreamScheduler ();
+  Ptr<DocsisChannel> channel = upstream->GetChannel ()->GetObject<DocsisChannel> ();
+
+  DoubleValue dVal;
+  UintegerValue uVal;
+  TimeValue tVal;
+  DataRateValue rVal;
+
+  std::streamsize oldPrecision = ostr.precision ();
+
+  ostr << "Input parameters upstream" << std::endl;
+  ostr << "-----------------------" << std::endl;
+  scheduler->GetAttribute ("FreeCapacityMean", rVal);
+  ostr << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << rVal.Get ().GetBitRate () << std::endl;
+  scheduler->GetAttribute ("FreeCapacityVariation", dVal);
+  ostr << "FreeCapacityVariation: Bound (percent) on the variation of upstream free capacity = " << dVal.Get () << std::endl;
+  upstream->GetAttribute ("BurstPreparation", tVal);
+  ostr << "The burst preparation time = " << tVal.Get ().As (Time::MS) << std::endl;
+  upstream->GetAttribute ("UsScSpacing", dVal);
+  ostr << "UsScSpacing: Upstream subcarrier spacing = " << dVal.Get () << std::endl;
+  upstream->GetAttribute ("NumUsSc", uVal);
+  ostr << "NumUsSc: Number of upstream subcarriers = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("SymbolsPerFrame", uVal);
+  ostr << "SymbolsPerFrame: Number of symbols per frame = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("UsSpectralEfficiency", dVal);
+  ostr << "UsSpectralEfficiency: Upstream spectral efficiency (bps/Hz) = " << dVal.Get () << std::endl;
+  upstream->GetAttribute ("UsCpLen", uVal);
+  ostr << "UsCpLen: Upstream cyclic prefix length = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("UsMacHdrSize", uVal);
+  ostr << "UsMacHdrSize: Upstream Mac header size = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("UsSegHdrSize", uVal);
+  ostr << "UsSegHdrSize: Upstream segment header size = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("MapInterval", tVal);
+  ostr << "MapInterval: MAP interval = " << tVal.Get ().As (Time::MS) << std::endl;
+  upstream->GetAttribute ("CmtsMapProcTime", tVal);
+  ostr << "CmtsMapProcTime: CMTS MAP processing time = " << tVal.Get ().As (Time::US) << std::endl;
+  upstream->GetAttribute ("CmUsPipelineFactor", uVal);
+  ostr << "CmUsPipelineFactor: upstream pipeline factor at CM = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("CmtsUsPipelineFactor", uVal);
+  ostr << "CmtsUsPipelineFactor: upstream pipeline factor at CMTS = " << uVal.Get () << std::endl;
+  ostr << std::endl;
+
+  ostr << "Input parameters downstream" << std::endl;
+  ostr << "-------------------------" << std::endl;
+  // Downstream
+  downstream->GetAttribute ("FreeCapacityMean", rVal);
+  ostr << "FreeCapacityMean: Average upstream free capacity (bits/sec) = " << rVal.Get ().GetBitRate () << std::endl;
+  downstream->GetAttribute ("FreeCapacityVariation", uVal);
+  ostr << "FreeCapacityVariation: Bound (percent) on the variation of upstream free capacity = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("MaxPdu", uVal);
+  ostr << "MaxPdu: Peak rate token bucket maximum size (bytes) = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("DsScSpacing", dVal);
+  ostr << "DsScSpacing: Downstream subcarrier spacing = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("NumDsSc", uVal);
+  ostr << "NumDsSc: Number of downstream subcarriers = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("DsSpectralEfficiency", dVal);
+  ostr << "DsSpectralEfficiency: Downstream spectral efficiency (bps/Hz) = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("DsCpLen", uVal);
+  ostr << "DsCpLen: Downstream cyclic prefix length = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("DsIntlvM", uVal);
+  ostr << "DsIntlvM: Downstream interleaver M = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("CmtsDsPipelineFactor", uVal);
+  ostr << "CmtsDsPipelineFactor: downstream pipeline factor at CMTS = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("CmDsPipelineFactor", uVal);
+  ostr << "CmDsPipelineFactor: downstream pipeline factor at CM = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("DsMacHdrSize", uVal);
+  ostr << "DsMacHdrSize: Downstream Mac header size = " << uVal.Get () << std::endl;
+  downstream->GetAttribute ("AverageCodewordFill", dVal);
+  ostr << "AverageCodewordFill: Average codeword fill = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("NcpModulation", uVal);
+  ostr << "NcpModulation: Downstream NCP modulation = " << uVal.Get () << std::endl;
+  ostr << std::endl;
+  ostr << "System configuration and other assumptions" << std::endl;
+  ostr << "------------------------------------------" << std::endl;
+  upstream->GetAttribute ("NumUsChannels", uVal);
+  ostr << "NumUsChannels: Number upstream channels = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("AverageUsBurst", uVal);
+  ostr << "AverageUsBurst: Average size of upstream burst = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("AverageUsUtilization", dVal);
+  ostr << "AverageUsUtilization: Average upstream utilization = " << dVal.Get () << std::endl;
+  ostr << std::endl;
+  ostr << "HFC plant" << std::endl;
+  ostr << "---------" << std::endl;
+  downstream->GetAttribute ("MaximumDistance", dVal);
+  ostr << "MaximumDistance: (in km) = " << dVal.Get () << std::endl;
+  ostr << std::endl;
+
+  ostr << "Calculated parameters:  DOCSIS MAC" << std::endl;
+  ostr << "----------------------------------" << std::endl;
+  upstream->GetAttribute ("ScPerMinislot", uVal);
+  ostr << "ScPerMinislot: Subcarriers per minislot = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("FrameDuration", tVal);
+  ostr << "FrameDuration: Frame duration = " << std::fixed << std::setprecision (3) << tVal.Get ().As (Time::MS) << std::endl;
+  ostr << std::setprecision (oldPrecision);
+  ostr.unsetf (std::ios_base::fixed);
+  upstream->GetAttribute ("MinislotsPerFrame", uVal);
+  ostr << "MinislotsPerFrame: Minislots per frame = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("MinislotCapacity", uVal);
+  ostr << "MinislotCapacity: Minislot capacity (bytes) = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("UsCapacity", dVal);
+  ostr << "UsCapacity: Upstream capacity (bps) = " << dVal.Get () << std::endl;
+  upstream->GetAttribute ("CmMapProcTime", tVal);
+  ostr << "CmMapProcTime: CM MAP processing time = " << std::fixed << std::setprecision (3) << tVal.Get ().As (Time::MS) << std::endl;
+  upstream->GetAttribute ("DsSymbolTime", tVal);
+  ostr << "DsSymbolTime: Downstream symbol time = " << tVal.Get ().As (Time::MS) << std::endl;
+  upstream->GetAttribute ("DsIntlvDelay", tVal);
+  ostr << "DsIntlvDelay: Downstream interleaver delay = " << tVal.Get ().As (Time::MS) << std::endl;
+  upstream->GetAttribute ("Rtt", tVal);
+  ostr << "Rtt: Round trip time = " << tVal.Get ().As (Time::MS) << std::endl;
+  ostr << std::setprecision (oldPrecision);
+  ostr.unsetf (std::ios_base::fixed);
+  upstream->GetAttribute ("MinReqGntDelay", uVal);
+  ostr << "MinReqGntDelay: (frames) = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("FramesPerMap", uVal);
+  ostr << "FramesPerMap: (frames) = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("MinislotsPerMap", uVal);
+  ostr << "MinislotsPerMap: minislots per MAP = " << uVal.Get () << std::endl;
+  upstream->GetAttribute ("ActualMapInterval", tVal);
+  ostr << "ActualMapInterval: actual MAP interval = " << std::fixed << std::setprecision (3) << tVal.Get ().As (Time::MS) << std::endl;
+  ostr << std::endl;
+
+  ostr << "Calculated parameters:  MAP message downstream overhead" << std::endl;
+  ostr << "-------------------------------------------------------" << std::endl;
+  downstream->GetAttribute ("UsGrantsPerSecond", dVal);
+  ostr << "UsGrantsPerSecond: average # of grants scheduled on each US channel = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("AvgIesPerMap", dVal);
+  ostr << "AvgIesPerMap: average # of grants scheduled in each MAP = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("AvgMapSize", dVal);
+  ostr << "AvgMapSize: average size (bytes) of a MAP message = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("AvgMapDatarate", dVal);
+  ostr << "AvgMapDatarate: average MAP datarate (bits/sec) = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("AvgMapOhPerSymbol", dVal);
+  ostr << "AvgMapOhPerSymbol: average MAP overhead per symbol (bytes) = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("ScPerNcp", dVal);
+  ostr << "ScPerNcp: subcarriers per NCP message block = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("ScPerCw", dVal);
+  ostr << "ScPerCw: subcarriers per codeword = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("DsCodewordsPerSymbol", dVal);
+  ostr << "DsCodewordsPerSymbol: Downstream codewords per symbol = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("DsSymbolCapacity", dVal);
+  ostr << "DsSymbolCapacity: Downstream symbol capacity (bytes) = " << dVal.Get () << std::endl;
+  downstream->GetAttribute ("DsCapacity", dVal);
+  ostr << "DsCapacity: Downstream capacity (bits/sec) = " << dVal.Get () << std::endl;
 }
 
 } // namespace docsis

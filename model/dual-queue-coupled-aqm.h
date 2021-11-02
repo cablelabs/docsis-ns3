@@ -87,16 +87,34 @@ public:
   /**
    * \brief Get the current size of the Low Latency queue in bytes
    *
+   * This method will return either the total Data PDU bytes in the
+   * low latency queue (if the argument passed to the includeMacHeaders
+   * parameter is false), or the total MAC Frame bytes in the low
+   * latency queue (if the argument passed to the includeMacHeaders
+   * is true).  By default, if no argument is passed, the MAC frame
+   * bytes will be counted.  Data PDU and MAC Frame terminology corresponds
+   * to Figure 18 of the MULPIv3.1 specification.
+   *
+   * \param includeMacHeaders whether to include per-PDU MAC header bytes
    * \returns The Low Latency queue size in bytes
    */
-  uint32_t GetLowLatencyQueueSize (void) const;
+  uint32_t GetLowLatencyQueueSize (bool includeMacHeaders = true) const;
 
   /**
    * \brief Get the current size of the classic queue in bytes
    *
+   * This method will return either the total Data PDU bytes in the
+   * classic queue (if the argument passed to the includeMacHeaders
+   * parameter is false), or the total MAC Frame bytes in the
+   * classic queue (if the argument passed to the includeMacHeaders
+   * is true).  By default, if no argument is passed, the MAC frame
+   * bytes will be counted.  Data PDU and MAC Frame terminology corresponds
+   * to Figure 18 of the MULPIv3.1 specification.
+   *
+   * \param includeMacHeaders whether to include per-PDU MAC header bytes
    * \returns The classic queue size in bytes
    */
-  uint32_t GetClassicQueueSize (void) const;
+  uint32_t GetClassicQueueSize (bool includeMacHeaders = true) const;
 
   /**
    * \brief Set a Queue Protection pointer.  Overwrites existing pointer
@@ -122,6 +140,30 @@ public:
   void SetQDelaySingleCallback (Callback<Time> qDelaySingleCallback);
 
   /**
+   * Add aggregate service flow definition.  This operation must be done before
+   * the simulation is started.
+   * 
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.
+   *
+   * \param asf pointer to the AggregateServiceFlow object
+   */
+  void SetAsf (Ptr<AggregateServiceFlow> asf);
+
+  /**
+   * Add single service flow definition.  This operation must be done before
+   * the simulation is started.
+   *
+   * Either an AggregateServiceFlow or a single ServiceFlow object should
+   * be present, but not both.  It is a simulation error (misconfiguration)
+   * to try to set both.
+   * 
+   * \param sf pointer to the ServiceFlow object
+   */
+  void SetSf (Ptr<ServiceFlow> sf);
+
+  /**
    *  Get most recent estimate of the classic queuing delay (updated every interval)
    * \param size size (bytes) of additional packet to consider in delay
    * \return queuing delay
@@ -135,6 +177,11 @@ public:
 
   /**
    *  \brief Return the Low Latency queue delay estimate
+   * 
+   * This corresponds to qdelayCoupledL(byte_length) in Annex O of the
+   * specification.  In the specification, the units are ns, but in ns-3,
+   * a Time object is returned, which can be converted to integer ns
+   * via GetNanoSeconds ().
    *
    * \param byteLength byte length to consider in delay
    * \return first-in Low Latency queuing delay
@@ -331,7 +378,12 @@ private:
   /**
    * \brief Return the classic queue delay estimate 
    *
-   * \param classic queue length in bytes
+   * This corresponds to qdelayCoupledC(byte_length) in Annex O of the
+   * specification.  In the specification, the units are s, but in ns-3,
+   * a Time object is returned, which can be converted to floating point
+   * seconds via GetSeconds(), and integer seconds via C++ round() or floor()
+   *
+   * \param byteLength queue length in bytes
    * \return classic queue delay estimate
    */
   Time QDelayCoupledC (uint32_t byteLength);
@@ -343,7 +395,7 @@ private:
 
   /**
    * \brief M.3 PIE AQM Data Path
-   * \item item QueueDiscItem to consider
+   * \param item QueueDiscItem to consider
    * \return true if item should be dropped
    */
   bool DropEarly (Ptr<QueueDiscItem> item);
@@ -375,18 +427,23 @@ private:
   Ptr<QueueProtection> m_queueProtection;       //!< Queue protection pointer
 
   Callback<Time> m_qDelaySingleCallback;        //!< Callback for qDelaySingle
+  Ptr<AggregateServiceFlow> m_asf {nullptr};    //!< Pointer to ASF
+  Ptr<ServiceFlow> m_sf {nullptr};              //!< Pointer to single SF
+
   std::bitset<2> m_drrQueues;                   //!< bitset for weighted DRR
   uint32_t m_drrQuantum;                        //!< quantum for weighted DRR
-  DataRate m_amsr;                              //!< Max sus. rate for ASF
   uint32_t m_maxFrameSize;                      //!< MAX_FRAME_SIZE (bytes)
   uint32_t m_classicDeficit;                    //!< deficit counter for DRR
-  uint32_t m_llDeficit;                        //!< deficit counter for DRR
-  uint32_t m_bytesArrivingAtL;                  //!< count of bytes for rate estimation
+  uint32_t m_llDeficit;                         //!< deficit counter for DRR
+  uint32_t m_intervalBitsL;                     //!< count of _bits_ for rate estimation
   Time m_cqEstimateAtUpdate;                    //!< latency estimate
+  uint32_t m_llDataPduBytes;                    //!< LL queue size w/o MAC hdrs
+  DataRate m_maxRate;                           //!< MAX_RATE from Annex O
 
   // Traces
   TracedValue<uint32_t> m_traceClassicBytes;    //!< Bytes in Classic queue
   TracedValue<uint32_t> m_traceLlBytes;         //!< Bytes in Low Latency queue
+  TracedValue<uint32_t> m_tracePieQueueBytes;   //!< queue_.byte_length()
   TracedCallback<Time> m_traceClassicSojourn;   //!< Classic sojourn time
   TracedCallback<Time> m_traceLlSojourn;        //!< LL sojourn time
   TracedCallback<Time, uint32_t> m_llQueueDelayTrace; //!< LL queue delay

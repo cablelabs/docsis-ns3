@@ -35,7 +35,7 @@
 """Produce summary PDF report after simulations have been run by latency.sh.
 
 Program inputs:
-  $ python3 summary-report.py <title> 
+  $ python3 summary-report.py <title>
 
 Program operation:
    The program relies on summary data files and latency data files indexed
@@ -44,7 +44,7 @@ Program operation:
 
    The program works as follows:
    1. The list of summary files is built by searching for all filenames in the
-      temp/ directory pattern-matching 'summary*.dat' 
+      temp/ directory pattern-matching 'summary*.dat'
    2. A python.reportlab Canvas object is started, and the program starts
       to build the table based on the summary files.
    3. Each summary file is processed, and almost the entire data table is
@@ -58,7 +58,7 @@ Program operation:
       during each scenario run. The structure of the latency.cc topology
       is leveraged to map packet IP address to flow type; one of 'UDP-EF',
       'UDP-Default', or 'TCP'.  The method builds two aggregate lists of
-      latency samples, with (flowType, delaySample) tuples, sorted in 
+      latency samples, with (flowType, delaySample) tuples, sorted in
       ascending order of delaySample across all flows.  These lists are
       returned by the method, and also copied into two new temp files,
       'cm-total.dat' and 'cmts-total.dat', which can be inspected for
@@ -69,7 +69,7 @@ Program operation:
       is added, so as to match with the color convention of the other
       per-scenario plots.  It may be possible for UDP-EF to be absent, in
       which case only the two flow types 'UDP-Default' and 'TCP' are processed.
-      Note: If there is no EF data present, the summary*.dat files will 
+      Note: If there is no EF data present, the summary*.dat files will
       already contain per-scenario 99th percentile estimates for UDP-Default.
    6. The last row of the summary table is built based on averaging subtotals
       saved from an earlier step, except the last cell (aggregate 99th
@@ -81,7 +81,7 @@ Program operation:
       function.  This function returns the value of the 99th percentile
       RTT for the first flow type, but in the course of doing so, also
       generates an aggregate RTT CDF for all selected flow types, and a
-      complementary CDF for the RTT of the first subflow type.  The same 
+      complementary CDF for the RTT of the first subflow type.  The same
       technique used in plot-latency.py is followed; namely, to build discrete
       pmfs, on a per-flowtype basis, of the upstream and downstream one-way
       delays, and then to convolve the two pmfs to obtain an estimate of the
@@ -92,12 +92,12 @@ Program operation:
    8. With all table data now available, the table is written out to the
       Canvas, after the title (passed in as a command-line argument) is
       prepended.
-   9. The 'rtt-cdf.jpg' and 'rtt-ccdf.jpg' images are appended.  Note that 
-      the xlim axis maximum for the CDF is configured by default to 200ms 
+   9. The 'rtt-cdf.jpg' and 'rtt-ccdf.jpg' images are appended.  Note that
+      the xlim axis maximum for the CDF is configured by default to 200ms
       but can be changed in the below program (the RTT_CDF_XLIM constant).
-      Also, the ylim minimum for the CCDF is configured by default to 
+      Also, the ylim minimum for the CCDF is configured by default to
       the value 0.001, and can be changed below (RTT_CCDF_YLIM constant).
-     
+
 Program outputs:
    A file 'summary.pdf' in the same directory as the program is invoked.
    File 'temp/cm-total.dat' and 'temp/cmts-total.dat' in the temp/ directory.
@@ -137,7 +137,7 @@ def prepare_latency_data_for_rtt_cdf(scenario_ids):
     2-D tuples (flow_type, delay_sample); one for CM and one for
     CMTS.  The lists are sorted by delay across all flow types.
 
-    For debugging support, this function also writes two files, 
+    For debugging support, this function also writes two files,
     temp/cm-total.dat and temp/cmts-total.dat, as line-delimited files
     of all of the values returned.
 
@@ -160,18 +160,18 @@ def prepare_latency_data_for_rtt_cdf(scenario_ids):
                 delay_sample,ip_addr =line.split()[1:3]
                 ipa,ipb,ipc,ipd=ip_addr.split('.')
                 if (int(ipc) == 1 and int(ipd) >= 3):
-                        flow_type = "TCP"
-                elif (ip_addr == "10.5.1.2"): 
-                        flow_type = "TCP"
+                    flow_type = "TCP"
+                elif (ip_addr == "10.5.1.2"):
+                    flow_type = "TCP"
                 elif (int(ipc) >= 5):
-                        flow_type = "TCP"
-                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
-                        flow_type = "UDP-EF"
-                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
-                        flow_type = "UDP-Default"
+                    flow_type = "TCP"
+                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"):
+                    flow_type = "UDP-EF"
+                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"):
+                    flow_type = "UDP-Default"
                 else:
-                        print("ip_addr %s not mapped to flow" % ip_addr)
-                        sys.exit(1)
+                    print("ip_addr %s not mapped to flow" % ip_addr)
+                    sys.exit(1)
                 cm_delay_samples += [(flow_type, float(delay_sample))]
             f.close()
         filename = 'latency-CMTS' + id + '.dat'
@@ -180,18 +180,18 @@ def prepare_latency_data_for_rtt_cdf(scenario_ids):
                 delay_sample,ip_addr =line.split()[1:3]
                 ipa,ipb,ipc,ipd=ip_addr.split('.')
                 if (int(ipc) == 1 and int(ipd) >= 3):
-                        flow_type = "TCP"
-                elif (ip_addr == "10.5.1.2"): 
-                        flow_type = "TCP"
+                    flow_type = "TCP"
+                elif (ip_addr == "10.5.1.2"):
+                    flow_type = "TCP"
                 elif (int(ipc) >= 5):
-                        flow_type = "TCP"
-                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"): 
-                        flow_type = "UDP-EF"
-                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"): 
-                        flow_type = "UDP-Default"
+                    flow_type = "TCP"
+                elif (ip_addr == "10.1.1.1" or ip_addr == "10.1.2.2"):
+                    flow_type = "UDP-EF"
+                elif (ip_addr == "10.1.1.2" or ip_addr == "10.1.3.2"):
+                    flow_type = "UDP-Default"
                 else:
-                        print("ip_addr %s not mapped to flow" % ip_addr)
-                        sys.exit(1)
+                    print("ip_addr %s not mapped to flow" % ip_addr)
+                    sys.exit(1)
                 cmts_delay_samples += [(flow_type, float(delay_sample))]
             f.close()
     cm_delay_samples.sort(key=itemgetter(1))
@@ -253,12 +253,12 @@ def process_files_for_rtt_cdf(cm_delay_samples, cmts_delay_samples, selected_flo
         maxUpstreamLatency = max(maxUpstreamLatency, max(selected_cm_samples))
         maxDownstreamLatency = max(maxDownstreamLatency, max(selected_cmts_samples))
     # Histogram bin width (input data in units of ms: 0.001 corresponds to 1 us)
-    # Calculate the range of each pmf vector, corresponding to the bin width 
+    # Calculate the range of each pmf vector, corresponding to the bin width
     BIN_WIDTH = max(BIN_WIDTH, round(max(maxUpstreamLatency,maxDownstreamLatency)/10000,3))
     us_pmf_size = int(round (maxUpstreamLatency/BIN_WIDTH + 1))
     ds_pmf_size = int(round (maxDownstreamLatency/BIN_WIDTH + 1))
     pmf_max_size = max(us_pmf_size, ds_pmf_size)
-    
+
     plt.figure(0)
     for index, elem in enumerate(cm_delay_sample_lists):
         cm_delay_sample_list = cm_delay_sample_lists[index]
@@ -345,11 +345,11 @@ if len(summary_files) == 0:
     sys.exit(1)
 # alphanumeric sort from 'summary1.dat' ... 'summaryN.dat'
 summary_files.sort(key=lambda x: int(os.path.splitext(x)[0][7:]))
- 
+
 c = canvas.Canvas("summary.pdf", pagesize=letter)
 c.setTitle(sys.argv[1])
 # canvas locations are a pair of numbers, starting at lower left corner
-# and moving rightwards and upwards.  For instance, (4*inch,1*inch) is the 
+# and moving rightwards and upwards.  For instance, (4*inch,1*inch) is the
 # point 4 inches rightward of the left margin, and 1 inch above bottom margin
 stringVpos=10*inch
 c.drawString(0.5*inch, stringVpos, sys.argv[1])
