@@ -466,9 +466,8 @@ DualQueueCoupledAqm::Iaqm (Ptr<QueueDiscItem> item, uint32_t byteLength)
           NS_LOG_DEBUG ("Delay " << delay.As (Time::US) << " probNative " << probNative);
           if (Recur (probL))
             {
-              bool markRetval = Mark (item, UNFORCED_LL_MARK);
+              [[maybe_unused]] bool markRetval = Mark (item, UNFORCED_LL_MARK);
               NS_LOG_DEBUG ("Marking outcome in LL queue " << markRetval);
-              NS_UNUSED (markRetval);  // Avoid warning of unused variable
             }
         }
       else

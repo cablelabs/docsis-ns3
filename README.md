@@ -14,11 +14,11 @@ The ``patches/`` directory contains the patch to apply to ns-3-dev, with
 the patch file name indicating which version of ns-3 to use.
 Once ns-3 is reconfigured, the build system will include the new module.
 
-1. Download and unpack the most recent release of ns-3 (ns-3.35), either with a browser or from the command-line as follows. 
+1. Download and unpack the most recent release of ns-3 (ns-3.36), either with a browser or from the command-line as follows. 
 
-    `$ wget https://www.nsnam.org/releases/ns-allinone-3.35.tar.bz2`
-    `$ tar xjf ns-allinone-3.35.tar.bz2`
-    `$ cd ns-allinone-3.35/ns-3.35`
+    `$ wget https://www.nsnam.org/releases/ns-allinone-3.36.tar.bz2`
+    `$ tar xjf ns-allinone-3.36.tar.bz2`
+    `$ cd ns-allinone-3.36/ns-3.36`
   
   **Note:**  The development version ``ns-3-dev`` might also work with the current code:
 
@@ -38,11 +38,11 @@ Once ns-3 is reconfigured, the build system will include the new module.
 
     `$ cd ../`
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.35.patch --dry-run`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.36.patch --dry-run`
 
 5. If the above dry-run works, patch the code for real.
 
-    `$ patch -p1 -i contrib/docsis/patches/ns-3.35.patch`
+    `$ patch -p1 -i contrib/docsis/patches/ns-3.36.patch`
 
    This patch will eventually go away once the application changes are upstreamed.
    
@@ -57,11 +57,9 @@ Once ns-3 is reconfigured, the build system will include the new module.
 
   Follow instructions in the [ns-3 tutorial](https://www.nsnam.org/releases/ns-3-35/documentation/) if you are unfamiliar with how to build ns-3 and run programs.
 
-   If the configuration complains that it `Could not find a task generator for the name 'ns3-docsis-ns3'`, this means that the directory was cloned without renaming it to `docsis`.
-
 7.  Try to run an example program:
 
-    `$ ./waf --run residential-example`
+    `$ ./ns3 run residential-example`
 
 Look at `contrib/docsis/experiments/residential/residential-documentation.md` for more documentation about this example.
 

@@ -55,7 +55,9 @@
 
 namespace ns3 {
 
+#ifdef HAVE_PACKET_H
 class FdNetDevice;
+#endif
 class ErrorModel;
 
 namespace docsis {
@@ -201,9 +203,11 @@ public:
    */
   void ForwardUp (Ptr<Packet> p);
 
+#ifdef HAVE_PACKET_H
   void SetFdNetDevice (Ptr<FdNetDevice> device);
 
   Ptr<FdNetDevice> GetFdNetDevice (void) const;
+#endif
 
   // The remaining methods are documented in ns3::NetDevice*
 
@@ -627,7 +631,9 @@ private:
   bool m_useDocsisChannel; //!< Use DOCSIS or emulation channel
   bool m_remarkTcpEct0ToEct1; //!< Remark TCP ECT(0) to ECT(1)
   bool m_useConfigurationCache; //!< whether to cache configuration values
+#ifdef HAVE_PACKET_H
   Ptr<FdNetDevice> m_fdNetDevice; //!< Emulation device
+#endif
   Ptr<CmtsUpstreamScheduler> m_cmtsUpstreamScheduler; //!< CMTS upstream scheduler
   Ptr<ErrorModel> m_receiveErrorModel; //!< Optional receive error model.
 

@@ -332,7 +332,7 @@ Sample output:
 
     0.139185 5.62803 10.1.1.1 10.1.2.2 154 17 b9
 
-with the columns representing 1) simulation timettamp, 2) , 3) IP
+with the columns representing 1) simulation timestamp (s), 2) latency (ms), 3) IP
 source, 4) IP destination 5) packet size, 6) protocol (17 for UDP, 6 for
 TCP) and 7) TOS field.
 
@@ -345,9 +345,9 @@ side.
 
 Sample output:
 
-    0.181125 0.038275 10.1.2.2 10.1.1.1 322 17 b9
+    0.181125 0.172275 10.1.2.2 10.1.1.1 322 17 b9
 
-with the columns representing 1) simulation timettamp, 2) , 3) IP
+with the columns representing 1) simulation timestamp (s), 2) latency (ms), 3) IP
 source, 4) IP destination 5) packet size, 6) protocol (17 for UDP, 6 for
 TCP) and 7) TOS field.
 

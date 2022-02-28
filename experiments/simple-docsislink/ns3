@@ -1,0 +1,4 @@
+#!/bin/bash
+# This is a fake ns3 that calls the real ns3 four directories above
+cd ../../../../
+./ns3 "$@"

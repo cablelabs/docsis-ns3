@@ -49,7 +49,9 @@
 #include "ns3/queue-disc.h"
 #include "ns3/queue-item.h"
 #include "ns3/queue.h"
+#ifdef HAVE_PACKET_H
 #include "ns3/fd-net-device.h"
+#endif
 #include "ns3/string.h"
 #include "ns3/pointer.h"
 #include "ns3/drop-tail-queue.h"
@@ -688,7 +690,7 @@ CmtsNetDevice::SendFragment (void)
   NS_LOG_DEBUG ("Finishing fragment with " << fragmentSize);
   // Sending rest of fragment
   Time transmissionTime = GetDsSymbolTime ();
-  bool result;
+  bool result = false;
   Ptr<Packet> packetCopy = m_fragPkt->Copy ();
   if (UseDocsisChannel ())
     {
@@ -696,12 +698,14 @@ CmtsNetDevice::SendFragment (void)
       m_phyTxBeginTrace (m_fragPkt);
       result = GetDocsisChannel ()->TransmitStart (m_fragPkt, this, transmissionTime);
     }
+#ifdef HAVE_PACKET_H
   else
     {
       NS_ASSERT (GetFdNetDevice ());
       m_phyTxBeginTrace (m_fragSdu);
       result = GetFdNetDevice ()->SendFrom (m_fragSdu, m_fragSrc, m_fragDest, m_fragProtocolNumber);
     }
+#endif
   if (result == true)
     {
       AdvanceSymbolState (fragmentSize);
@@ -944,6 +948,7 @@ CmtsNetDevice::SendOut (
                 }
             }
         }
+#ifdef HAVE_PACKET_H
       else
         {
           NS_ASSERT (GetFdNetDevice ());
@@ -955,6 +960,7 @@ CmtsNetDevice::SendOut (
               result = packetCopy->GetSize ();
             }
         }
+#endif
     }
   else
     {

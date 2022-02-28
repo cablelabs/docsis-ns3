@@ -62,7 +62,9 @@
 #include "ns3/mac48-address.h"
 #include "ns3/string.h"
 #include "ns3/pointer.h"
+#ifdef HAVE_PACKET_H
 #include "ns3/fd-net-device.h"
+#endif
 #include "ns3/net-device-queue-interface.h"
 #include "docsis-configuration.h"
 #include "cm-net-device.h"
@@ -1014,6 +1016,7 @@ CmNetDevice::SendOutFromCQueue (
                 }
             }
         }
+#ifdef HAVE_PACKET_H
       else
         {
           // Do not use DOCSIS MAC or Ethernet headers in emulation mode
@@ -1025,6 +1028,7 @@ CmNetDevice::SendOutFromCQueue (
               result = packetSizeOnWire;
             }
         }
+#endif
       if (result > 0)
         {
           m_snifferTrace (packet);
@@ -1156,6 +1160,7 @@ CmNetDevice::SendOutFromLQueue (
                 }
             }
         }
+#ifdef HAVE_PACKET_H
       else
         {
           // Do not use DOCSIS MAC or Ethernet headers in emulation mode
@@ -1167,6 +1172,7 @@ CmNetDevice::SendOutFromLQueue (
               result = packetSizeOnWire;
             }
         }
+#endif
       if (result > 0)
         {
           m_snifferTrace (packet);
@@ -1417,7 +1423,7 @@ CmNetDevice::SendOutFragmentFromCQueue (void)
   // For emulation, we have saved a copy (m_fragSdu) that has no Ethernet frame
   Ptr<Packet> packet = m_cFragment.m_fragPkt;
   Ptr<DocsisChannel> docsisChannel = DynamicCast<DocsisChannel> (GetChannel ());
-  bool result;
+  bool result = false;
   uint32_t bytesTransmitted = 0;
   if (UseDocsisChannel ())
     {
@@ -1427,6 +1433,7 @@ CmNetDevice::SendOutFragmentFromCQueue (void)
       Time transmissionTime = GetFrameDuration ();
       result = docsisChannel->TransmitStart (packetWithDocsisHeader, this, transmissionTime);
     }
+#ifdef HAVE_PACKET_H
   else
     {
       // Do not use DOCSIS MAC or Ethernet headers in emulation mode
@@ -1434,6 +1441,7 @@ CmNetDevice::SendOutFragmentFromCQueue (void)
       m_phyTxBeginTrace (m_cFragment.m_fragSdu);
       result = GetFdNetDevice ()->SendFrom (m_cFragment.m_fragSdu, m_cFragment.m_fragSrc, m_cFragment.m_fragDest, m_cFragment.m_fragProtocolNumber);
     }
+#endif
   if (result == true)
     {
       // Leave off DOCSIS MAC header, which tcpdump cannot parse
@@ -1459,7 +1467,7 @@ CmNetDevice::SendOutFragmentFromLQueue (void)
   // For emulation, we have saved a copy (m_fragSdu) that has no Ethernet frame
   Ptr<Packet> packet = m_lFragment.m_fragPkt;
   Ptr<DocsisChannel> docsisChannel = DynamicCast<DocsisChannel> (GetChannel ());
-  bool result;
+  bool result = false;
   uint32_t bytesTransmitted = 0;
   if (UseDocsisChannel ())
     {
@@ -1469,6 +1477,7 @@ CmNetDevice::SendOutFragmentFromLQueue (void)
       Time transmissionTime = GetFrameDuration ();
       result = docsisChannel->TransmitStart (packetWithDocsisHeader, this, transmissionTime);
     }
+#ifdef HAVE_PACKET_H
   else
     {
       // Do not use DOCSIS MAC or Ethernet headers in emulation mode
@@ -1476,6 +1485,7 @@ CmNetDevice::SendOutFragmentFromLQueue (void)
       m_phyTxBeginTrace (m_lFragment.m_fragSdu);
       result = GetFdNetDevice ()->SendFrom (m_lFragment.m_fragSdu, m_lFragment.m_fragSrc, m_lFragment.m_fragDest, m_lFragment.m_fragProtocolNumber);
     }
+#endif
   if (result == true)
     {
       // Leave off DOCSIS MAC header, which tcpdump cannot parse

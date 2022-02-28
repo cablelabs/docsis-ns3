@@ -18,7 +18,7 @@ and downlink channels on a hybrid fiber/coax (HFC) plant is controlled by a sche
 This module contains |ns3| models for sending Internet traffic between CM and 
 CMTS over an abstracted physical layer channel model representing the HFC plant.
 These |ns3| models are focused on the DOCSIS MAC layer specification
-for low-latency DOCSIS version 3.1, version I19, Oct. 2019 [DOCSIS3.1.I19]_.
+for low-latency DOCSIS version 3.1, version I21, March 2021 [DOCSIS3.1.I21]_.
 
 The |ns3| models contain high-fidelity models of the MAC layer packet forwarding 
 operation of these links, including detailed models of the active queue management (AQM)
@@ -32,7 +32,7 @@ direction, by modeling the channel access mechanism (requests and grants),
 scheduling, and queueing (via Active Queue Management (AQM)) present
 in the cable modem and CMTS. 
 
-The physical channel is a highly abstracted model ofthe Orthogonal Frequency 
+The physical channel is a highly abstracted model of the Orthogonal Frequency 
 Division Multiplexing (OFDM)-based downstream and OFDM with Multiple Access 
 (OFDMA)-based upstream PHY layer.  The channel model supports all of the basic 
 DOCSIS OFDM/OFDMA PHY configuration options (#subcarriers, bit loading, frame 
@@ -406,12 +406,14 @@ The scheduling steps taken, each MAP generation time, are as follows:
    section C.2.2.10.13 of the specification, is followed.  Because segment
    headers are not modelled in |ns3|, the equation simplifies to
 
-.. math:: B_G \geq GGI*GGR
+.. math:: 
 
-   The code does not enforce that PGS grants must fit within the free
-   minislots when the congestion model is being used (i.e., the congestion
-   model only applies to best effort grants).  However, there is an
-   option that can be compiled in to allow such a restriction.
+   B_G \geq GGI*GGR
+
+The code does not enforce that PGS grants must fit within the free
+minislots when the congestion model is being used (i.e., the congestion
+model only applies to best effort grants).  However, there is an
+option that can be compiled in to allow such a restriction.
 
 3. The number of rate shaped bytes available (according to the token bucket
    shaper) is calculated.  The ASF-level QoS
@@ -947,7 +949,7 @@ weighted deficit round robin (WDRR) scheduler that balances between the
 two internal queues, or based on grants that explicitly provide 
 transmission opportunities for each of the two service classes.
 The implementation of Dual Queue Coupled AQM closely follows the pseudocode
-found in Annexes M, N, and O of [DOCSIS3.1.I19]_.
+found in Annexes M, N, and O of [DOCSIS3.1.I21]_.
 
 Queue Protection
 ================
@@ -966,7 +968,7 @@ lighter users of the queue.  Queue Protection is optional and can be
 disabled from a simulation. 
 
 The implementation of Queue Protection closely follows the pseudocode
-found in Annex P of [DOCSIS3.1.I19]_.
+found in Annex P of [DOCSIS3.1.I21]_.
 
 
 

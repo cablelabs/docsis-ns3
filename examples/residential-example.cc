@@ -561,7 +561,6 @@ main (int argc, char *argv[])
       upstreamSf->m_peakRate = upstreamPeakRate;
       upstreamSf->m_maxTrafficBurst = static_cast<uint32_t> (upstreamMsr.GetBitRate () * maximumBurstTime.GetSeconds () / 8);
       upstreamSf->m_targetBuffer = static_cast<uint32_t> (upstreamMsr.GetBitRate () * queueDepthTime.GetSeconds () / 8);
-      docsis.GetUpstream (linkDocsis)->SetUpstreamSf (upstreamSf);
       NS_LOG_DEBUG ("Adding single downstream (classic) service flow");
       Ptr<ServiceFlow> downstreamSf = CreateObject<ServiceFlow> (CLASSIC_SFID);
       downstreamSf->m_maxSustainedRate = downstreamMsr;
@@ -709,7 +708,7 @@ main (int argc, char *argv[])
 
   InternetStackHelper stackHelper;
   InternetStackHelper dctcpStackHelper;
-  dctcpStackHelper.SetTcp ("ns3::TcpL4Protocol", "SocketType", TypeIdValue (TcpDctcp::GetTypeId ()));
+  dctcpStackHelper.SetTcp ("ns3::TcpDctcp");
   stackHelper.Install (clientNs3Endpoints);
   stackHelper.Install (clientTcpEndpoints);
   dctcpStackHelper.Install (clientDctcpEndpoints);
@@ -785,7 +784,7 @@ main (int argc, char *argv[])
     }
 
   // Trace bytes granted, used, and unused
-  bool connected;  // variable used to track whether trace was connected
+  [[maybe_unused]] bool connected;  // variable used to track whether trace was connected
   connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicGrantState", MakeCallback (&ClassicGrantStateTrace));
   NS_ASSERT_MSG (connected, "Couldn't hook trace source");
   connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("LowLatencyGrantState", MakeCallback (&LowLatencyGrantStateTrace));
@@ -824,7 +823,6 @@ main (int argc, char *argv[])
       connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicSojournTime", MakeCallback (&ClassicSojournTrace));
       NS_ABORT_MSG_UNLESS (connected, "couldn't connect C");
     }
-  NS_UNUSED (connected);  // avoid compiler warning in optimized build
 
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");

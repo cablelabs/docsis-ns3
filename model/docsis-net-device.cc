@@ -50,7 +50,9 @@
 #include "ns3/pointer.h"
 #include "ns3/traffic-control-layer.h"
 #include "ns3/queue-disc.h"
+#ifdef HAVE_PACKET_H
 #include "ns3/fd-net-device.h"
+#endif
 #include "ns3/net-device-queue-interface.h"
 #include "ns3/ipv4-header.h"
 #include "docsis-net-device.h"
@@ -488,7 +490,9 @@ DocsisNetDevice::DocsisNetDevice ()
     m_txMachineState (READY),
     m_channel (0),
     m_linkUp (false),
+#ifdef HAVE_PACKET_H
     m_fdNetDevice (0),
+#endif
     m_cachedFramesPerMap (0),
     m_cachedDsSymbolCapacity (0),
     m_cachedUsCapacity (0),
@@ -1074,6 +1078,7 @@ DocsisNetDevice::UseDocsisChannel (void) const
   return m_useDocsisChannel;
 }
 
+#ifdef HAVE_PACKET_H
 void
 DocsisNetDevice::SetFdNetDevice (Ptr<FdNetDevice> device)
 {
@@ -1085,6 +1090,7 @@ DocsisNetDevice::GetFdNetDevice (void) const
 {
   return m_fdNetDevice;
 }
+#endif
 
 Time
 DocsisNetDevice::GetMapInterval (void) const
