@@ -274,11 +274,10 @@ DocsisHelper::Install (Ptr<Node> cmts, Ptr<Node> cm)
   Ptr<CmtsUpstreamScheduler> scheduler = CreateObject<CmtsUpstreamScheduler> ();
   scheduler->SetUpstream (DynamicCast<CmNetDevice> (devB));
   devB->SetCmtsUpstreamScheduler (scheduler);
-  bool connected = devB->TraceConnectWithoutContext ("LowLatencyGrantState", MakeCallback (&CmtsUpstreamScheduler::ReceiveUnusedLGrantUpdate, scheduler));
+  [[maybe_unused]] bool connected = devB->TraceConnectWithoutContext ("LowLatencyGrantState", MakeCallback (&CmtsUpstreamScheduler::ReceiveUnusedLGrantUpdate, scheduler));
   NS_ASSERT_MSG (connected, "Couldn't hook trace source");
   connected = devB->TraceConnectWithoutContext ("ClassicGrantState", MakeCallback (&CmtsUpstreamScheduler::ReceiveUnusedCGrantUpdate, scheduler));
   NS_ASSERT_MSG (connected, "Couldn't hook trace source");
-  NS_UNUSED (connected);
 
   Ptr<DocsisChannel> channel = m_channelFactory.Create<DocsisChannel> ();
 

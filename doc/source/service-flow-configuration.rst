@@ -62,7 +62,7 @@ options:
    rate shaping QoS parameters that are enforced at the CMTS scheduler.
    Additionally, the Classic Service Flow may configure rate shaping
    parameters, in which case the CM upstream requests will be rate
-   shaped based on Service Flow-level paramters.  Although, in practice,
+   shaped based on Service Flow-level parameters.  Although, in practice,
    it is possible to also configure QoS parameters on the Low Latency
    Service Flow, causing rate shaping of upstream grant requests, the
    ns-3 model does not support this; only the Classic Service Flow
@@ -74,7 +74,7 @@ Implementation
 The implementation can be found in ``docsis-configuration.h``.  Two
 classes are defined:  ``ServiceFlow`` and ``AggregateServiceFlow``.
 The members of these objects are organized according to Annex C
-of [DOCSIS3.1.I19]_; in practice, the elements of SF and ASF
+of [DOCSIS3.1.I21]_; in practice, the elements of SF and ASF
 configuration are encoded in TLV structures, and the ns-3
 representation of them closely mirrors the TLV structure and naming
 convention found in the specification.

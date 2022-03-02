@@ -1312,8 +1312,6 @@ private:
   uint32_t m_dropCount {0};
   Time m_mapInterval;
   DataRate m_sendRate;
-  DataRate m_ggr;
-  uint16_t m_ggi;
 
   void DeviceTxCallback (Ptr<const Packet> p);
   void DeviceTxDropCallback (Ptr<const Packet> p);
@@ -1324,11 +1322,11 @@ private:
 DocsisLldGgiTest::DocsisLldGgiTest (Time mapInterval, DataRate amsr, DataRate sendRate, DataRate ggr, uint16_t ggi)
   : DocsisLldTestCase ("Docsis LLD:  GGI"),
     m_mapInterval (mapInterval),
-    m_sendRate (sendRate),
-    m_ggr (ggr),
-    m_ggi (ggi)
+    m_sendRate (sendRate)
 {
   m_upstreamRate = amsr;
+  m_ggr = ggr;
+  m_ggi = ggi;
 }
 
 DocsisLldGgiTest::~DocsisLldGgiTest ()

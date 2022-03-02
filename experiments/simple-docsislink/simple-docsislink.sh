@@ -51,7 +51,7 @@ then
 		dirname='results'
 	fi
 
-	./waf build
+	./ns3 build
 	resultsDir=results/$dirname-`date +%Y%m%d-%H%M%S`
 	mkdir -p ${resultsDir}
 	repositoryVersion=`git rev-parse --abbrev-ref HEAD`
@@ -65,17 +65,17 @@ then
 	then
 		echo "$gitDiff" >> ${resultsDir}/version.txt
 	fi
-	PROFILE=$(./waf --check-profile | tail -1 | awk '{print $NF}')
+	PROFILE=$(./ns3 --check-profile | tail -1 | awk '{print $NF}')
 	VERSION=$(cat ${pathToTopLevelDir}/VERSION | tr -d '\n')
 	EXECUTABLE_NAME=ns${VERSION}-simple-docsislink-${PROFILE}
-	EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+	EXECUTABLE=${pathToTopLevelDir}/build/examples/${EXECUTABLE_NAME}
 	if [ -f "$EXECUTABLE" ]; then
 		cp ${EXECUTABLE} ${resultsDir}/simple-docsislink
 	else
 		echo "$EXECUTABLE not found, exiting"
 		exit 1
 	fi
-	cp ${pathToTopLevelDir}/src/docsis/examples/simple-docsislink.cc ${resultsDir}/.
+	cp ${pathToTopLevelDir}/contrib/docsis/examples/simple-docsislink.cc ${resultsDir}/.
 	cp plot-grants-sojourn.py ${resultsDir}/.
 	cp $0 ${resultsDir}/.
 	cd ${resultsDir}
