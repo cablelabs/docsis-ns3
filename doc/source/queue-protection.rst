@@ -12,7 +12,7 @@ Queue Protection
 
 The Queue Protection model is supported by objects of class 
 ``ns3::docsis::QueueProtection``.   The model is an implementation of the
-pseudocode description of Annex P, CM-SP-MULPIv3.1-I19-191016 [DOCSIS3.1.I19]_.
+pseudocode description of Annex P, CM-SP-MULPIv3.1-I25 [DOCSIS3.1.I25]_.
 This object is designed to be used in conjunction with a
 DualQueueCoupledAqm object.  The two objects have references to one
 another, so that DualQueueCoupledAqm can pass a packet to this object

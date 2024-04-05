@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,16 +31,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: 
+ * Authors:
  * Tom Henderson <tomh@tomh.org>
  *
  */
 
-#include "ns3/object.h"
-#include "ns3/packet.h"
-#include "ns3/packet-filter.h"
 #include "ns3/address.h"
 #include "ns3/docsis-queue-disc-item.h"
+#include "ns3/object.h"
+#include "ns3/packet-filter.h"
+#include "ns3/packet.h"
 
 using namespace ns3;
 using namespace docsis;
@@ -50,28 +50,40 @@ using namespace docsis;
 
 class DualQueueTestItem : public DocsisQueueDiscItem
 {
-public:
-  DualQueueTestItem (Ptr<Packet> p, const Address & source, const Address & dest, uint16_t protocol, uint32_t macHeaderSize, bool isLowLatency);
-  virtual ~DualQueueTestItem ();
-  virtual void AddHeader (void);
-  virtual bool Mark (void);
-  bool IsLowLatency (void) const;
+  public:
+    DualQueueTestItem(Ptr<Packet> p,
+                      const Address& source,
+                      const Address& dest,
+                      uint16_t protocol,
+                      uint32_t macHeaderSize,
+                      bool isLowLatency);
+    ~DualQueueTestItem() override;
+    void AddHeader() override;
+    bool Mark() override;
+    bool IsLowLatency() const;
 
-private:
-  DualQueueTestItem ();
-  DualQueueTestItem (const DualQueueTestItem &);
-  DualQueueTestItem &operator = (const DualQueueTestItem &);
-  bool m_isLowLatency;
+  private:
+    DualQueueTestItem() = delete;
+    DualQueueTestItem(const DualQueueTestItem&) = delete;
+    DualQueueTestItem& operator=(const DualQueueTestItem&) = delete;
+    bool m_isLowLatency;
 };
 
 class DualQueueTestFilter : public PacketFilter
 {
-public:
-  static TypeId GetTypeId (void);
-  DualQueueTestFilter () {}
-  virtual ~DualQueueTestFilter () {}
-private:
-  // DoClassify() and CheckProtocol() are required to be defined
-  virtual bool CheckProtocol (Ptr<QueueDiscItem> item) const;
-  virtual int32_t DoClassify (Ptr<QueueDiscItem> item) const;
+  public:
+    static TypeId GetTypeId();
+
+    DualQueueTestFilter()
+    {
+    }
+
+    ~DualQueueTestFilter() override
+    {
+    }
+
+  private:
+    // DoClassify() and CheckProtocol() are required to be defined
+    bool CheckProtocol(Ptr<QueueDiscItem> item) const override;
+    int32_t DoClassify(Ptr<QueueDiscItem> item) const override;
 };

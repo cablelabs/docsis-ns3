@@ -68,63 +68,80 @@ will skip over them.
 What version of ns-3 is this?
 =============================
 
-This extension module is designed to be run with *ns3.35* release (October
-2021) or later versions of |ns3|.
+This extension module is designed to be run with *ns3.39* release (July
+2023) or later versions of |ns3|.
 
 Prerequisites
 =============
 
 This version of |ns3| requires, at minimum, a modern C++ compiler 
-supporting C++11 (g++ or clang++), a Python 3 installation,
+supporting C++17 (g++ or clang++), a Python 3 installation, CMake,
 and Linux or macOS.  
 
-For Linux, distributions such as Ubuntu 18.04, RedHat 7, or anything
+For Linux, distributions such as Ubuntu 20.04, RedHat 8, or anything
 newer, should suffice.  For macOS, users will either need to install
 the Xcode command line tools or the full Xcode environment.  
 
 We have added experimental control and plotting scripts that have additional
 Python dependencies, including:
 
-* ``matplotlib``:  Consult the Matplotlib installation guide: https://matplotlib.org/faq/installing_faq.html.
-* ``reportlab``:  Typically, either ``pip install reportlab`` or ``easy_install reportlab``
-* `pillow`: The Python Imaging Library (now maintained as pillow).  Typically, ``pip install pillow`` or ``easy_install pillow``
-* A PDF concatenation program, either "``PDFconcat``", "``pdftk``", or "``pdfunite``"
+* ``matplotlib``, ``numpy``, and ``pandas``: Numerical and plotting support  
+* ``reportlab``: PDF and graphics support`
+* ``pillow``: The Python Imaging Library (now maintained as pillow).
 
-For Mac users: ``PDFconcat`` is simply an alias to ``/System/Library/Automator/Combine PDF Pages.action/Contents/Resources/join.py``
+The above five modules should be installed if they are not already, using
+whichever Python package manager is in use for your environment.
 
-What is `waf`? 
-==============
+Finally, the experiment scripts require a PDF concatenation program,
+either "``PDFconcat``", "``pdftk``", or "``pdfunite``".  One script
+also requires ``pdfjam``.
 
-This is a Python-based build system, similar to ``make``.  See the
-`ns-3 documentation <https://www.nsnam.org/documentation>`_ for more information.
+For Mac users: ``pdfunite`` can be installed by installing the ``poppler``
+package (Homebrew or MacPorts).  ``pdfjam`` can also be installed by
+either package system.
 
 How do I build ns-3?
 ====================
 
-There are two steps, ``waf configure`` and ``waf build``.
+There are two steps, ``./ns3 configure`` and ``./ns3 build``.  ``ns3`` is a
+Python wrapper script for an underlying CMake build system.
 
-There are two main build modes supported by waf: `debug` and `optimized`.  When running a simulation campaign, use `optimized` for faster code.  If you are debugging and want to disable optimizations or use |ns3| logging and asserts,
-use `debug` code.
+There are three main build modes defined for ns-3: `default`, `debug`, and `optimized`.  When running a simulation campaign, use `optimized` for faster code.  If you are debugging and want to disable optimizations and use |ns3| logging and asserts,
+use `debug` code.  By default, the `default` build profile provides some level
+of optimization while also retaining the logging and assert capabilities.
 
 Try this set of commands to get started from within the top level |ns3| directory:
 
 .. sourcecode:: bash
 
-    $ ./waf configure -d optimized --enable-examples --enable-tests
-    $ ./waf build
-    $ ./test.py
+    $ ./ns3 configure --enable-examples --enable-tests
+    $ ./ns3 build
 
-The last line above will run all of the |ns3| unit tests.  To build a debug version:
+Unit tests related to the DOCSIS code can be run as follows:
 
 .. sourcecode:: bash
 
-    $ ./waf configure -d debug --enable-examples --enable-tests
-    $ ./waf build
+    $ ./test.py -s docsis-link
+    $ ./test.py -s docsis-lld
+    $ ./test.py -s dual-queue-coupled-aqm
+    $ ./test.py -s queue-protection
 
-``waf configure`` reports missing features?
+To build a debug version (note: this build will create libraries that execute more slowly):
+
+.. sourcecode:: bash
+
+    $ ./ns3 clean
+    $ ./ns3 configure -d debug --enable-examples --enable-tests
+    $ ./ns3 build
+
+It is generally a good idea to clean the build when changing versions
+(the ``./ns3 clean`` command above).  Similar steps can be used to change
+to an optimized build.
+
+``ns3 configure`` reports missing features?
 ===========================================
 
-You will see a configuration report after typing ``./waf configure`` that looks
+You will see a configuration report after typing ``./ns3 configure`` that looks
 something like this:
 
 ::
@@ -145,18 +162,21 @@ Where are the interesting programs located?
 =========================================== 
 
 The ``examples/`` directory contains example DOCSIS simulation
-programs.  Presently, three examples are provided:
+programs.  Presently, four examples are provided:
 
 * ``residential-example.cc``
 * ``simple-docsislink.cc``
 * ``docsis-configuration-example.cc``
+* ``delay-estimation.cc``
 
 In addition, the ``experiments/`` directory
 contains bash scripts to automate the running and plotting of
 scenarios.  The ``experiments/residential/`` contains plotting and execution
 scripting around ``residential-example.cc``.
 The ``experiments/simple-docsislink/`` contains plotting and execution
-scripting around ``simple-docsislink.cc``.
+scripting around ``simple-docsislink.cc``.  Finally, the
+``experiments/delay-estimation/`` contains plotting and execution around
+the ``delay-estimation.cc`` program.
 
 Try these commands:
 
@@ -194,5 +214,5 @@ Editing the code
 
 In most cases, the act of running a program or experiment script will
 trigger the rebuilding of the simulator if needed, but you can force a
-rebuild by typing ``./waf build`` at the top-level |ns3| directory.
+rebuild by typing ``./ns3 build`` at the top-level |ns3| directory.
 

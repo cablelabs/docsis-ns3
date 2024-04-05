@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,95 +35,97 @@
  *   Tom Henderson <tomh@tomh.org>
  */
 
-#include "ns3/header.h"
-#include "ns3/log.h"
 #include "docsis-header.h"
 
-namespace ns3 {
+#include "ns3/header.h"
+#include "ns3/log.h"
 
-NS_LOG_COMPONENT_DEFINE ("DocsisHeader");
-
-namespace docsis {
-
-NS_OBJECT_ENSURE_REGISTERED (DocsisHeader);
-
-TypeId 
-DocsisHeader::GetTypeId (void)
+namespace ns3
 {
-  static TypeId tid = TypeId ("ns3::docsis::DocsisHeader")
-    .SetParent<Header> ()
-    .SetGroupName ("Docsis")
-    .AddConstructor<DocsisHeader> ()
-  ;
-  return tid;
+
+NS_LOG_COMPONENT_DEFINE("DocsisHeader");
+
+namespace docsis
+{
+
+NS_OBJECT_ENSURE_REGISTERED(DocsisHeader);
+
+TypeId
+DocsisHeader::GetTypeId()
+{
+    static TypeId tid = TypeId("ns3::docsis::DocsisHeader")
+                            .SetParent<Header>()
+                            .SetGroupName("Docsis")
+                            .AddConstructor<DocsisHeader>();
+    return tid;
 }
 
-DocsisHeader::DocsisHeader (uint16_t extendedHeaderSize)
-  : m_extendedHeaderSize (extendedHeaderSize)
+DocsisHeader::DocsisHeader(uint16_t extendedHeaderSize)
+    : m_extendedHeaderSize(extendedHeaderSize)
 {
 }
 
-DocsisHeader::DocsisHeader ()
-  : m_extendedHeaderSize (0)
+DocsisHeader::DocsisHeader()
+    : m_extendedHeaderSize(0)
 {
 }
 
 TypeId
-DocsisHeader::GetInstanceTypeId (void) const
+DocsisHeader::GetInstanceTypeId() const
 {
-  NS_LOG_FUNCTION (this);
-  return GetTypeId ();
-}
-
-void 
-DocsisHeader::Print (std::ostream &os) const
-{
-  NS_LOG_FUNCTION (this << &os);
-
-  os << "DOCSIS Dummy Header 0x00:00:00:00:";
-  for (uint16_t i = 0; i < m_extendedHeaderSize; i++)
-    {
-      os << "00:";
-    }
-  os << "00:00";
-}
-
-uint32_t 
-DocsisHeader::GetSerializedSize (void) const
-{
-  NS_LOG_FUNCTION (this);
-  return 6 + m_extendedHeaderSize;
+    NS_LOG_FUNCTION(this);
+    return GetTypeId();
 }
 
 void
-DocsisHeader::Serialize (Buffer::Iterator start) const
+DocsisHeader::Print(std::ostream& os) const
 {
-  NS_LOG_FUNCTION (this << &start);
-  Buffer::Iterator i = start;
-  i.WriteU8 (0); // FCS
-  i.WriteU8 (0); // MAC_PARAM
-  i.WriteHtonU16 (0); // LEN
-  for (uint16_t j = 0; j < m_extendedHeaderSize; j++)
+    NS_LOG_FUNCTION(this << &os);
+
+    os << "DOCSIS Dummy Header 0x00:00:00:00:";
+    for (uint16_t i = 0; i < m_extendedHeaderSize; i++)
     {
-      i.WriteU8 (0);
+        os << "00:";
     }
-  i.WriteHtonU16 (0); // HCS
+    os << "00:00";
 }
 
 uint32_t
-DocsisHeader::Deserialize (Buffer::Iterator start)
+DocsisHeader::GetSerializedSize() const
 {
-  NS_LOG_FUNCTION (this << &start);
-  Buffer::Iterator i = start;
-  i.ReadU8 (); // FCS
-  i.ReadU8 (); // MAC_PARAM
-  i.ReadNtohU16 (); // LEN
-  for (uint16_t j = 0; j < m_extendedHeaderSize; j++)
+    NS_LOG_FUNCTION(this);
+    return 6 + m_extendedHeaderSize;
+}
+
+void
+DocsisHeader::Serialize(Buffer::Iterator start) const
+{
+    NS_LOG_FUNCTION(this << &start);
+    Buffer::Iterator i = start;
+    i.WriteU8(0);      // FCS
+    i.WriteU8(0);      // MAC_PARAM
+    i.WriteHtonU16(0); // LEN
+    for (uint16_t j = 0; j < m_extendedHeaderSize; j++)
     {
-      i.ReadU8 ();
+        i.WriteU8(0);
     }
-  i.ReadNtohU16 (); // HCS
-  return GetSerializedSize ();
+    i.WriteHtonU16(0); // HCS
+}
+
+uint32_t
+DocsisHeader::Deserialize(Buffer::Iterator start)
+{
+    NS_LOG_FUNCTION(this << &start);
+    Buffer::Iterator i = start;
+    i.ReadU8();      // FCS
+    i.ReadU8();      // MAC_PARAM
+    i.ReadNtohU16(); // LEN
+    for (uint16_t j = 0; j < m_extendedHeaderSize; j++)
+    {
+        i.ReadU8();
+    }
+    i.ReadNtohU16(); // HCS
+    return GetSerializedSize();
 }
 
 } // namespace docsis

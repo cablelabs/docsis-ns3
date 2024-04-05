@@ -6,7 +6,8 @@ of ns-3-dev, or the released version, that the patch is known to work with
 For example, ns-3-dev-a30639fc.patch means that the version of ns-3-dev
 at commit a30639fc (April 29, 2020), is known to work.
 
-For the past five releases (3.31, 3.32, 3.33, 3.34, 3.35), the ns-3.3x.patch applies
+For the numbered releases (3.31, 3.32, 3.33, 3.34, 3.35, 3.38, 3.39),
+the ns-3.3x.patch applies
 to the respective ns-3.3x release.  To apply to the development version of
 ns-3 (ns-3-dev), please use the most recent release patch.
 

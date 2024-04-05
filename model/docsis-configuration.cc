@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -37,99 +37,98 @@
  *   Karthik Sundaresan <k.sundaresan@cablelabs.com>
  */
 
-#include "ns3/object.h"
-#include "ns3/log.h"
-#include "ns3/abort.h"
 #include "docsis-configuration.h"
 
-namespace ns3 {
+#include "ns3/abort.h"
+#include "ns3/log.h"
+#include "ns3/object.h"
 
-NS_LOG_COMPONENT_DEFINE ("DocsisConfiguration");
-
-namespace docsis {
-
-NS_OBJECT_ENSURE_REGISTERED (AggregateServiceFlow);
-NS_OBJECT_ENSURE_REGISTERED (ServiceFlow);
-
-TypeId 
-ServiceFlow::GetTypeId (void)
+namespace ns3
 {
-  static TypeId tid = TypeId ("ns3::docsis::ServiceFlow")
-    .SetParent<Object> ()
-    .SetGroupName ("Docsis")
-  ;
-  return tid;
+
+NS_LOG_COMPONENT_DEFINE("DocsisConfiguration");
+
+namespace docsis
+{
+
+NS_OBJECT_ENSURE_REGISTERED(AggregateServiceFlow);
+NS_OBJECT_ENSURE_REGISTERED(ServiceFlow);
+
+TypeId
+ServiceFlow::GetTypeId()
+{
+    static TypeId tid =
+        TypeId("ns3::docsis::ServiceFlow").SetParent<Object>().SetGroupName("Docsis");
+    return tid;
 }
 
-ServiceFlow::ServiceFlow (uint8_t sfid)
-  : m_sfid (sfid)
+ServiceFlow::ServiceFlow(uint8_t sfid)
+    : m_sfid(sfid)
 {
-  NS_ABORT_MSG_IF (sfid == 0 || sfid > 2, "Only values of 1 and 2 supported");
+    NS_ABORT_MSG_IF(sfid == 0 || sfid > 2, "Only values of 1 and 2 supported");
 }
 
-ServiceFlow::~ServiceFlow ()
+ServiceFlow::~ServiceFlow()
 {
-  NS_LOG_FUNCTION (this);
+    NS_LOG_FUNCTION(this);
 }
 
-TypeId 
-AggregateServiceFlow::GetTypeId (void)
+TypeId
+AggregateServiceFlow::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::docsis::AggregateServiceFlow")
-    .SetParent<Object> ()
-    .SetGroupName ("Docsis")
-  ;
-  return tid;
+    static TypeId tid =
+        TypeId("ns3::docsis::AggregateServiceFlow").SetParent<Object>().SetGroupName("Docsis");
+    return tid;
 }
 
-AggregateServiceFlow::AggregateServiceFlow ()
+AggregateServiceFlow::AggregateServiceFlow()
 {
 }
 
-AggregateServiceFlow::~AggregateServiceFlow ()
+AggregateServiceFlow::~AggregateServiceFlow()
 {
-  NS_LOG_FUNCTION (this);
+    NS_LOG_FUNCTION(this);
 }
 
 uint32_t
-AggregateServiceFlow::GetNumServiceFlows (void) const
+AggregateServiceFlow::GetNumServiceFlows() const
 {
-  if (m_classicServiceFlow && m_lowLatencyServiceFlow)
+    if (m_classicServiceFlow && m_lowLatencyServiceFlow)
     {
-      return 2;
+        return 2;
     }
-  else if (m_classicServiceFlow || m_lowLatencyServiceFlow)
+    else if (m_classicServiceFlow || m_lowLatencyServiceFlow)
     {
-      return 1;
+        return 1;
     }
-  else
+    else
     {
-      return 0;
+        return 0;
     }
 }
 
 void
-AggregateServiceFlow::SetClassicServiceFlow (Ptr<ServiceFlow> sf)
+AggregateServiceFlow::SetClassicServiceFlow(Ptr<ServiceFlow> sf)
 {
-  m_classicServiceFlow = sf;
+    m_classicServiceFlow = sf;
 }
 
 void
-AggregateServiceFlow::SetLowLatencyServiceFlow (Ptr<ServiceFlow> sf)
+AggregateServiceFlow::SetLowLatencyServiceFlow(Ptr<ServiceFlow> sf)
 {
-  m_lowLatencyServiceFlow = sf;
+    m_lowLatencyServiceFlow = sf;
 }
 
 Ptr<const ServiceFlow>
-AggregateServiceFlow::GetClassicServiceFlow (void) const
+AggregateServiceFlow::GetClassicServiceFlow() const
 {
-  return m_classicServiceFlow;
+    return m_classicServiceFlow;
 }
 
 Ptr<const ServiceFlow>
-AggregateServiceFlow::GetLowLatencyServiceFlow (void) const
+AggregateServiceFlow::GetLowLatencyServiceFlow() const
 {
-  return m_lowLatencyServiceFlow;
+    return m_lowLatencyServiceFlow;
 }
 
 } // namespace docsis

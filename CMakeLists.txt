@@ -1,0 +1,48 @@
+build_lib(
+  LIBNAME docsis
+  SOURCE_FILES
+    helper/docsis-helper.cc
+    helper/docsis-scenario-helper.cc
+    model/docsis-configuration.cc
+    model/docsis-channel.cc
+    model/docsis-net-device.cc
+    model/cm-net-device.cc
+    model/cmts-net-device.cc
+    model/docsis-header.cc
+    model/docsis-l4s-packet-filter.cc
+    model/docsis-queue-disc-item.cc
+    model/cmts-upstream-scheduler.cc
+    model/dual-queue-coupled-aqm.cc
+    model/queue-protection.cc
+  HEADER_FILES
+    helper/docsis-helper.h
+    helper/docsis-scenario-helper.h
+    model/cm-net-device.h
+    model/cmts-net-device.h
+    model/cmts-upstream-scheduler.h
+    model/docsis-channel.h
+    model/docsis-configuration.h
+    model/docsis-header.h
+    model/docsis-l4s-packet-filter.h
+    model/docsis-net-device.h
+    model/docsis-queue-disc-item.h
+    model/dual-queue-coupled-aqm.h
+    model/microflow-descriptor.h
+    model/queue-protection.h
+  LIBRARIES_TO_LINK ${libcore}
+                    ${libnetwork}
+                    ${libbridge}
+                    ${libpoint-to-point}
+                    ${libtraffic-control}
+                    ${libflow-monitor}
+                    ${libstats}
+                    ${libapplications}
+                    ${libcsma}
+  TEST_SOURCES
+    test/docsis-lld-test-suite.cc
+    test/docsis-link-test-class.cc
+    test/docsis-link-test-suite.cc
+    test/dual-queue-test.cc
+    test/dual-queue-coupled-aqm-test-suite.cc
+    test/queue-protection-test-suite.cc
+)

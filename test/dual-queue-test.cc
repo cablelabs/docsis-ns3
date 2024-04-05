@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -31,7 +31,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors: 
+ * Authors:
  * Tom Henderson <tomh@tomh.org>
  */
 
@@ -40,68 +40,64 @@
 using namespace ns3;
 using namespace docsis;
 
-DualQueueTestItem::DualQueueTestItem (Ptr<Packet> p, const Address & source, const Address & dest, uint16_t protocol, uint32_t macHeaderSize, bool isLowLatency)
-  : DocsisQueueDiscItem (p, source, dest, protocol, macHeaderSize),
-    m_isLowLatency (isLowLatency)
+DualQueueTestItem::DualQueueTestItem(Ptr<Packet> p,
+                                     const Address& source,
+                                     const Address& dest,
+                                     uint16_t protocol,
+                                     uint32_t macHeaderSize,
+                                     bool isLowLatency)
+    : DocsisQueueDiscItem(p, source, dest, protocol, macHeaderSize),
+      m_isLowLatency(isLowLatency)
 {
 }
 
-DualQueueTestItem::~DualQueueTestItem ()
+DualQueueTestItem::~DualQueueTestItem()
 {
 }
 
 void
-DualQueueTestItem::AddHeader (void)
+DualQueueTestItem::AddHeader()
 {
 }
 
 bool
-DualQueueTestItem::Mark (void)
+DualQueueTestItem::Mark()
 {
-  return true;
+    return true;
 }
 
 bool
-DualQueueTestItem::IsLowLatency (void) const
+DualQueueTestItem::IsLowLatency() const
 {
-  return m_isLowLatency;
+    return m_isLowLatency;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 TypeId
-DualQueueTestFilter::GetTypeId (void)
+DualQueueTestFilter::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::DualQueueTetstFilter")
-    .SetParent<PacketFilter> ()
-    .SetGroupName ("Docsis")
-  ;
-  return tid;
+    static TypeId tid =
+        TypeId("ns3::DualQueueTetstFilter").SetParent<PacketFilter>().SetGroupName("Docsis");
+    return tid;
 }
 
 bool
-DualQueueTestFilter::CheckProtocol (Ptr<QueueDiscItem> item) const
+DualQueueTestFilter::CheckProtocol(Ptr<QueueDiscItem> item) const
 {
-  if (DynamicCast<DualQueueTestItem> (item) != 0)
-    {
-      return true;
-    }
-  else
-    {
-      return false;
-    }
+    return static_cast<bool>(DynamicCast<DualQueueTestItem>(item));
 }
 
 int32_t
-DualQueueTestFilter::DoClassify (Ptr<QueueDiscItem> item) const
+DualQueueTestFilter::DoClassify(Ptr<QueueDiscItem> item) const
 {
-  Ptr<DualQueueTestItem> qitem = DynamicCast<DualQueueTestItem> (item);
-  if (qitem->IsLowLatency ())
+    Ptr<DualQueueTestItem> qitem = DynamicCast<DualQueueTestItem>(item);
+    if (qitem->IsLowLatency())
     {
-      return 1;
+        return 1;
     }
-  else
+    else
     {
-      return 0;
+        return 0;
     }
 }

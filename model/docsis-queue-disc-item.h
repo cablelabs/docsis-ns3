@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -42,11 +42,13 @@
 #include "ns3/ptr.h"
 #include "ns3/queue-item.h"
 
-namespace ns3 {
+namespace ns3
+{
 
 class Packet;
 
-namespace docsis {
+namespace docsis
+{
 
 /**
  * \ingroup docsis
@@ -56,36 +58,64 @@ namespace docsis {
  * than simply packets).  The below specialization holds the packet as well
  * as the destination MAC address and protocol number and DOCSIS MAC header length.
  */
-class DocsisQueueDiscItem : public QueueDiscItem {
-public:
-  DocsisQueueDiscItem (Ptr<Packet> p, const Address & source, const Address & dest, uint16_t protocol, uint32_t macHeaderLength);
-  virtual ~DocsisQueueDiscItem ();
-  virtual void AddHeader (void);
-  virtual bool Mark (void);
-  Address GetSource (void) const;
-  uint32_t GetMacHeaderLength (void) const;
+class DocsisQueueDiscItem : public QueueDiscItem
+{
+  public:
+    DocsisQueueDiscItem(Ptr<Packet> p,
+                        const Address& source,
+                        const Address& dest,
+                        uint16_t protocol,
+                        uint32_t macHeaderLength);
+    ~DocsisQueueDiscItem() override;
+    void AddHeader() override;
+    bool Mark() override;
+    Address GetSource() const;
+    uint32_t GetMacHeaderLength() const;
 
-  // Document these four specialized
-  bool SetUint8Value (Uint8Values field, const uint8_t &value);
-  bool GetUint8Value (Uint8Values field, uint8_t &value) const;
-  uint32_t GetValue (void) const;
-  void SetValue (uint32_t value);
+    // Document these four specialized
+    bool SetUint8Value(Uint8Values field, const uint8_t& value);
+    bool GetUint8Value(Uint8Values field, uint8_t& value) const override;
+    uint32_t GetValue() const;
+    void SetValue(uint32_t value);
 
-  /**
-   * \brief Size of the packet within the queue disc, including Ethernet and DOCSIS MAC header
-   *
-   * \note The encapsulated packet should not have already added the
-   * Ethernet framing; this method will add Ethernet framing bytes to
-   * the value that it retrieves from Packet::GetSize ().
-   *
-   * \return the size of the DOCSIS packet (inc. Ethernet and DOCSIS header) included in this item, in bytes
-   */
-  virtual uint32_t GetSize (void) const;
+    /**
+     * \brief Size of the packet within the queue disc, including Ethernet and DOCSIS MAC header
+     *
+     * \note The encapsulated packet should not have already added the
+     * Ethernet framing; this method will add Ethernet framing bytes to
+     * the value that it retrieves from Packet::GetSize ().
+     *
+     * \return the size of the DOCSIS packet (inc. Ethernet and DOCSIS header) included in this
+     * item, in bytes
+     */
+    uint32_t GetSize() const override;
 
-private:
-  Address m_source;
-  uint32_t m_macHeaderLength;
-  uint32_t m_value;
+    /**
+     * \brief Set the delay estimate calculated at queue enqueue (Iaqm) time
+     *
+     * \param estimate the delay estimate
+     */
+    void SetQueueDelayEstimate(Time estimate);
+
+    /**
+     * \brief Return the delay estimate calculated at queue enqueue (Iaqm) time
+     *
+     * \return the delay estimate
+     */
+    Time GetQueueDelayEstimate() const;
+
+    /**
+     * \brief Return whether the packet is CE marked or not
+     *
+     * \return whether the packet is CE marked or not
+     */
+    bool IsMarked() const;
+
+  private:
+    Address m_source;
+    uint32_t m_macHeaderLength;
+    uint32_t m_value;
+    Time m_queueDelayEstimate;
 };
 
 } // namespace docsis

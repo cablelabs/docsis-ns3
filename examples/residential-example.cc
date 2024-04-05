@@ -100,26 +100,27 @@
 // Consult the program documentation (residential-example.md) to learn
 // more about the data and about experiment scripts built around this program.
 
-#include <iostream>
-#include <iomanip>
-#include <fstream>
-#include <algorithm>
-#include <string>
-#include <map>
-#include "ns3/core-module.h"
-#include "ns3/network-module.h"
-#include "ns3/docsis-module.h"
 #include "ns3/applications-module.h"
-#include "ns3/traffic-control-module.h"
 #include "ns3/bridge-module.h"
+#include "ns3/core-module.h"
 #include "ns3/csma-module.h"
+#include "ns3/docsis-module.h"
 #include "ns3/internet-module.h"
+#include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
+#include "ns3/traffic-control-module.h"
+
+#include <algorithm>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <string>
 
 using namespace ns3;
 using namespace docsis;
 
-NS_LOG_COMPONENT_DEFINE ("ResidentialExample");
+NS_LOG_COMPONENT_DEFINE("ResidentialExample");
 
 // These variables are declared outside of main() function so that
 // they are more easily accessible by the callbacks below
@@ -170,957 +171,1133 @@ const uint16_t ipv4ProtocolNumber = 0x0800;
 // Forward declarations (see below the main() function for definition)
 class PacketUidTag;
 struct QueueDiscItemRecord;
-void LowLatencySojournTrace (Time);
-void ClassicSojournTrace (Time);
-void ClassicArrivalTrace (uint32_t);
-void LowLatencyArrivalTrace (uint32_t);
-void CalculatePStateTrace (Time, Time, double, double, double, double);
-void CQueueDropProbabilityTrace (double, double);
-void LQueueMarkProbabilityTrace (double, double);
-void CQueueUpstreamBytesTrace (uint32_t, uint32_t);
-void CQueueDownstreamBytesTrace (uint32_t, uint32_t);
-void LQueueUpstreamBytesTrace (uint32_t, uint32_t);
-void LQueueDownstreamBytesTrace (uint32_t, uint32_t);
-void UpstreamFileTransferCompletionCallback (Time, uint32_t, double);
-void UpstreamDctcpFileTransferCompletionCallback (Time, uint32_t, double);
-void GrantUnusedBandwidthTrace (void);
-void ClassicGrantStateTrace (CmNetDevice::CGrantState);
-void LowLatencyGrantStateTrace (CmNetDevice::LGrantState);
-void GrantTrace (uint32_t);
-void CongestionBytesTrace (uint32_t, double, uint32_t);
-void DocsisEnqueueCallback (std::string, Ptr<const QueueDiscItem>);
-void DeviceEgressCallback (std::string, Ptr<Packet>);
-void DocsisDropCallback (std::string, Ptr<const QueueDiscItem>);
-void ServerConnectionEstablished (Ptr<const ThreeGppHttpServer>, Ptr<Socket>);
-void MainObjectGenerated (uint32_t);
-void EmbeddedObjectGenerated (uint32_t);
-void ServerTx (Ptr<const Packet>);
-void ClientRx (std::string, Ptr<const Packet>, const Address&);
-void ClientMainObjectReceived (std::string, Ptr<const ThreeGppHttpClient>, Ptr<const Packet>);
-void ClientEmbeddedObjectReceived (std::string, Ptr<const ThreeGppHttpClient>, Ptr<const Packet>);
-void ClientStateTransitionCallback (std::string, const std::string&, const std::string&);
-void UnicastForwardTrace (const Ipv4Header&, Ptr<const Packet>, uint32_t);
-void CloseFileDescriptors (void);
+void LowLatencySojournTrace(Time);
+void ClassicSojournTrace(Time);
+void ClassicArrivalTrace(uint32_t);
+void LowLatencyArrivalTrace(uint32_t);
+void CalculatePStateTrace(Time, Time, double, double, double, double);
+void CQueueDropProbabilityTrace(double, double);
+void LQueueMarkProbabilityTrace(double, double);
+void CQueueUpstreamBytesTrace(uint32_t, uint32_t);
+void CQueueDownstreamBytesTrace(uint32_t, uint32_t);
+void LQueueUpstreamBytesTrace(uint32_t, uint32_t);
+void LQueueDownstreamBytesTrace(uint32_t, uint32_t);
+void UpstreamFileTransferCompletionCallback(Time, uint32_t, double);
+void UpstreamDctcpFileTransferCompletionCallback(Time, uint32_t, double);
+void GrantUnusedBandwidthTrace();
+void ClassicGrantStateTrace(CmNetDevice::CGrantState);
+void LowLatencyGrantStateTrace(CmNetDevice::LGrantState);
+void GrantTrace(uint32_t);
+void CongestionBytesTrace(uint32_t, double, uint32_t);
+void DocsisEnqueueCallback(std::string, Ptr<const QueueDiscItem>);
+void DeviceEgressCallback(std::string, Ptr<Packet>);
+void DocsisDropCallback(std::string, Ptr<const QueueDiscItem>);
+void ServerConnectionEstablished(Ptr<const ThreeGppHttpServer>, Ptr<Socket>);
+void MainObjectGenerated(uint32_t);
+void EmbeddedObjectGenerated(uint32_t);
+void ServerTx(Ptr<const Packet>);
+void ClientRx(std::string, Ptr<const Packet>, const Address&);
+void ClientMainObjectReceived(std::string, Ptr<const ThreeGppHttpClient>, Ptr<const Packet>);
+void ClientEmbeddedObjectReceived(std::string, Ptr<const ThreeGppHttpClient>, Ptr<const Packet>);
+void ClientStateTransitionCallback(std::string, const std::string&, const std::string&);
+void UnicastForwardTrace(const Ipv4Header&, Ptr<const Packet>, uint32_t);
+void CloseFileDescriptors();
 
 ////////////////////////////////////////////////////////////
 // main program                                           //
 ////////////////////////////////////////////////////////////
 
 int
-main (int argc, char *argv[])
+main(int argc, char* argv[])
 {
-  // Variables used in command-line arguments
-  uint16_t numTcpDownloads = 0;
-  uint16_t numTcpUploads = 0;
-  uint16_t numTcpDashStreams = 0;
-  uint16_t numDctcpDownloads = 0;
-  uint16_t numDctcpUploads = 0;
-  uint16_t numDctcpDashStreams = 0;
-  uint16_t numWebUsers = 1;
-  uint16_t numUdpEfUp = 1;
-  uint16_t numUdpEfDown = 1;
-  uint16_t numUdpBeUp = 1;
-  uint16_t numUdpBeDown = 1;
-  uint16_t numServiceFlows = 2;
-  Time tcpDelayStart ("2ms");
-  Time tcpDelayStep ("3ms");
-  Time linkDelayWebServer ("5ms");
-  DataRate upstreamMsr ("20Mbps");
-  DataRate upstreamPeakRate (0); // defaults to 2 * upstreamMsr
-  DataRate downstreamMsr ("100Mbps");
-  DataRate downstreamPeakRate (0); // defaults to 2 * downstreamMsr
-  Time maximumBurstTime = MilliSeconds (100);  // Used to set Maximum Traffic Burst
-  DataRate guaranteedGrantRate (0);
-  Time mapInterval = MilliSeconds (1);
-  Time simulationEndTime ("10s");
-  Time ftpStartTime ("0.2s");
-  Time ftpStartStep ("1s");
-  bool enableTrace = false;
-  bool enablePcap = false;
-  bool disableQP = false;
-  Time queueDepthTime ("50ms"); // target latency for C-queue
+    // Variables used in command-line arguments
+    uint16_t numTcpDownloads = 0;
+    uint16_t numTcpUploads = 0;
+    uint16_t numTcpDashStreams = 0;
+    uint16_t numDctcpDownloads = 0;
+    uint16_t numDctcpUploads = 0;
+    uint16_t numDctcpDashStreams = 0;
+    uint16_t numWebUsers = 1;
+    uint16_t numUdpEfUp = 1;
+    uint16_t numUdpEfDown = 1;
+    uint16_t numUdpBeUp = 1;
+    uint16_t numUdpBeDown = 1;
+    uint16_t numServiceFlows = 2;
+    Time tcpDelayStart("2ms");
+    Time tcpDelayStep("3ms");
+    Time linkDelayWebServer("5ms");
+    DataRate upstreamMsr("20Mbps");
+    DataRate upstreamPeakRate(0); // defaults to 2 * upstreamMsr
+    DataRate downstreamMsr("100Mbps");
+    DataRate downstreamPeakRate(0);            // defaults to 2 * downstreamMsr
+    Time maximumBurstTime = MilliSeconds(100); // Used to set Maximum Traffic Burst
+    DataRate guaranteedGrantRate(0);
+    Time mapInterval = MilliSeconds(1);
+    Time simulationEndTime("10s");
+    Time ftpStartTime("0.2s");
+    Time ftpStartStep("1s");
+    bool enableTrace = false;
+    bool enablePcap = false;
+    bool disableQP = false;
+    Time queueDepthTime("50ms"); // target latency for C-queue
 
-  // Filenames used in command-line arguments; trace files written by default
-  std::string fileNameCm = "latency-CM.dat";
-  std::string fileNameCmts = "latency-CMTS.dat";
-  std::string fileNamePageLoad = "pageLoadTime.dat";
-  std::string fileNameTcpFileCompletion = "tcpFileCompletion.dat";
-  std::string fileNameDctcpFileCompletion = "dctcpFileCompletion.dat";
-  std::string fileNameSummary = "summary.dat";
-  // The following trace files are not written by default
-  std::string fileNameGrantsUnused;
-  std::string fileNameCQueueDownstreamBytes;
-  std::string fileNameCQueueUpstreamBytes;
-  std::string fileNameLQueueDownstreamBytes;
-  std::string fileNameLQueueUpstreamBytes;
-  std::string fileNameCQueueDropProbability;
-  std::string fileNameLQueueMarkProbability;
-  std::string fileNameUnusedBandwidth;
-  std::string fileNameTcpPacketTrace;
-  std::string fileNameCGrantState;
-  std::string fileNameLGrantState;
-  std::string fileNameClassicSojourn;
-  std::string fileNameLowLatencySojourn;
-  std::string fileNameCalculatePState;
-  std::string fileNameCongestionBytes;
-  std::string fileNameCmDrop;
-  std::string fileNameCmtsDrop;
-  // Filenames or prefixes used if pcap or ascii tracing is enabled
-  std::string fileNamePcap = "residential";
-  std::string fileNameUpstreamTrace = "docsis_upstream.tr";
-  std::string fileNameDownstreamTrace = "docsis_downstream.tr";
+    // Filenames used in command-line arguments; trace files written by default
+    std::string fileNameCm = "latency-CM.dat";
+    std::string fileNameCmts = "latency-CMTS.dat";
+    std::string fileNamePageLoad = "pageLoadTime.dat";
+    std::string fileNameTcpFileCompletion = "tcpFileCompletion.dat";
+    std::string fileNameDctcpFileCompletion = "dctcpFileCompletion.dat";
+    std::string fileNameSummary = "summary.dat";
+    // The following trace files are not written by default
+    std::string fileNameGrantsUnused;
+    std::string fileNameCQueueDownstreamBytes;
+    std::string fileNameCQueueUpstreamBytes;
+    std::string fileNameLQueueDownstreamBytes;
+    std::string fileNameLQueueUpstreamBytes;
+    std::string fileNameCQueueDropProbability;
+    std::string fileNameLQueueMarkProbability;
+    std::string fileNameUnusedBandwidth;
+    std::string fileNameTcpPacketTrace;
+    std::string fileNameCGrantState;
+    std::string fileNameLGrantState;
+    std::string fileNameClassicSojourn;
+    std::string fileNameLowLatencySojourn;
+    std::string fileNameCalculatePState;
+    std::string fileNameCongestionBytes;
+    std::string fileNameCmDrop;
+    std::string fileNameCmtsDrop;
+    // Filenames or prefixes used if pcap or ascii tracing is enabled
+    std::string fileNamePcap = "residential";
+    std::string fileNameUpstreamTrace = "docsis_upstream.tr";
+    std::string fileNameDownstreamTrace = "docsis_downstream.tr";
 
-  // Other constants
-  int64_t streamIndex = 100;  // for assigning fixed random variable streams
-  uint16_t servPortDownstream = 37000;  // base server port for downstream flows
-  uint16_t servPortUpstream = 38500; // base server port for upstream flows
-  uint16_t servPortDash = 39000; // base server port for DASH flows
-  uint16_t servPortEfUp = 20000;
-  uint16_t servPortEfDown = 25000;
-  uint16_t servPortBeUp = 30000;
-  uint16_t servPortBeDown = 35000;
-  QueueSize queueSize (QueueSizeUnit::PACKETS, 100);  // packet queue depth; used for PointToPoint links
-  Time linkDelayRtrToEfServer ("2ms");
-  Time linkDelayRtrToUdpServer ("2ms");
-  DataRate linkRateCsma ("1Gbps");
-  DataRate linkRateWan ("1Gbps");
-  std::string fileModel = "empirical";
-  uint32_t maxDashBytes = 3750000;  // 3.75 MB for 2.5 seconds ~ 6 Mb/s
-  Time dashDelayStart ("10ms"); // 10ms yields 20ms base RTT for DASH
-  Time dashDelayStep ("0ms");
-  Time dashStartTime ("0.2s");
-  Time webClientStartTime ("1s");
-  g_grantsUnusedSamplingInterval = MilliSeconds (1000);
-  g_grantsUnusedCounter = 0;
-  g_transitionFromPageReading = Seconds (0);
-  std::string tcpSocketFactoryType = "ns3::TcpSocketFactory";
-  std::string dctcpSocketFactoryType = "ns3::TcpSocketFactory";
+    // Other constants
+    int64_t streamIndex = 100;           // for assigning fixed random variable streams
+    uint16_t servPortDownstream = 37000; // base server port for downstream flows
+    uint16_t servPortUpstream = 38500;   // base server port for upstream flows
+    uint16_t servPortDash = 39000;       // base server port for DASH flows
+    uint16_t servPortEfUp = 20000;
+    uint16_t servPortEfDown = 25000;
+    uint16_t servPortBeUp = 30000;
+    uint16_t servPortBeDown = 35000;
+    QueueSize queueSize(QueueSizeUnit::PACKETS,
+                        100); // packet queue depth; used for PointToPoint links
+    Time linkDelayRtrToEfServer("2ms");
+    Time linkDelayRtrToUdpServer("2ms");
+    DataRate linkRateCsma("1Gbps");
+    DataRate linkRateWan("1Gbps");
+    std::string fileModel = "empirical";
+    uint32_t maxDashBytes = 3750000; // 3.75 MB for 2.5 seconds ~ 6 Mb/s
+    Time dashDelayStart("10ms");     // 10ms yields 20ms base RTT for DASH
+    Time dashDelayStep("0ms");
+    Time dashStartTime("0.2s");
+    Time webClientStartTime("1s");
+    g_grantsUnusedSamplingInterval = MilliSeconds(1000);
+    g_grantsUnusedCounter = 0;
+    g_transitionFromPageReading = Seconds(0);
+    std::string tcpSocketFactoryType = "ns3::TcpSocketFactory";
+    std::string dctcpSocketFactoryType = "ns3::TcpSocketFactory";
 
-  // HTTP model configuration
-  Config::SetDefault ("ns3::ThreeGppHttpVariables::ReadingTimeMean",TimeValue (Seconds (3)));
-  Config::SetDefault ("ns3::FileTransferApplication::UseFileTransferDuration", BooleanValue (true));
-  // Avoid fragmentation; this variable controls TCP segment size
-  Config::SetDefault ("ns3::ThreeGppHttpVariables::HighMtuSize", UintegerValue (1440));
+    // HTTP model configuration
+    Config::SetDefault("ns3::ThreeGppHttpVariables::ReadingTimeMean", TimeValue(Seconds(3)));
+    Config::SetDefault("ns3::FileTransferApplication::UseFileTransferDuration", BooleanValue(true));
+    // Avoid fragmentation; this variable controls TCP segment size
+    Config::SetDefault("ns3::ThreeGppHttpVariables::HighMtuSize", UintegerValue(1440));
 
-  // TCP configuration -- increase default buffer sizes to improve throughput
-  // over long delay paths
-  Config::SetDefault ("ns3::TcpSocket::SndBufSize",UintegerValue (2048000));
-  Config::SetDefault ("ns3::TcpSocket::RcvBufSize",UintegerValue (2048000));
-  // Use 1500 byte IP packets for full-sized TCP data segments
-  Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (1448));
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TcpNewReno::GetTypeId ()));
-  // By default ns-3 DCTCP uses ECT(0) instead of ECT(1).  Setting this to
-  // false will cause DCTCP to use ECT(1) and be handled by the low latency
-  // queue.
-  Config::SetDefault ("ns3::TcpDctcp::UseEct0", BooleanValue (false));
-  // Use Linux-like TCP pacing
-  Config::SetDefault ("ns3::TcpSocketState::EnablePacing", BooleanValue (true));
-  // Disable PRR (not interacting well with DCTCP)
-  Config::SetDefault ("ns3::TcpL4Protocol::RecoveryType", TypeIdValue (TcpClassicRecovery::GetTypeId ()));
+    // TCP configuration -- increase default buffer sizes to improve throughput
+    // over long delay paths
+    Config::SetDefault("ns3::TcpSocket::SndBufSize", UintegerValue(2048000));
+    Config::SetDefault("ns3::TcpSocket::RcvBufSize", UintegerValue(2048000));
+    // Use 1500 byte IP packets for full-sized TCP data segments
+    Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1448));
+    Config::SetDefault("ns3::TcpL4Protocol::SocketType", TypeIdValue(TcpNewReno::GetTypeId()));
+    // By default ns-3 DCTCP uses ECT(0) instead of ECT(1).  Setting this to
+    // false will cause DCTCP to use ECT(1) and be handled by the low latency
+    // queue.
+    Config::SetDefault("ns3::TcpDctcp::UseEct0", BooleanValue(false));
+    // Use Linux-like TCP pacing
+    Config::SetDefault("ns3::TcpSocketState::EnablePacing", BooleanValue(true));
+    // Disable PRR (not interacting well with DCTCP)
+    Config::SetDefault("ns3::TcpL4Protocol::RecoveryType",
+                       TypeIdValue(TcpClassicRecovery::GetTypeId()));
 
-  Config::SetDefault ("ns3::QueueDisc::Quota", UintegerValue (1024));
+    Config::SetDefault("ns3::QueueDisc::Quota", UintegerValue(1024));
 
-  // Configure DOCSIS Channel & System parameters
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::UsScSpacing", DoubleValue (50e3));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::NumUsSc", UintegerValue (1880));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::SymbolsPerFrame", UintegerValue (6));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::UsSpectralEfficiency", DoubleValue (10.0));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::UsCpLen", UintegerValue (256));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::UsMacHdrSize", UintegerValue (10));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::UsSegHdrSize", UintegerValue (8));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::MapInterval", TimeValue (mapInterval));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::CmtsMapProcTime", TimeValue (MicroSeconds (200)));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::CmtsUsPipelineFactor", UintegerValue (1));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::CmUsPipelineFactor", UintegerValue (1));
-  // Upstream parameters that affect downstream UCD and MAP message overhead
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::NumUsChannels", UintegerValue (1));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::AverageUsBurst", UintegerValue (150));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::AverageUsUtilization", DoubleValue (0.1));
-  // Downstream channel parameters
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::DsScSpacing", DoubleValue (50e3));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::NumDsSc", UintegerValue (3745));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::DsSpectralEfficiency", DoubleValue (12.0));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::DsIntlvM", UintegerValue (3));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::DsCpLen", UintegerValue (512));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::CmtsDsPipelineFactor", UintegerValue (1));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::CmDsPipelineFactor", UintegerValue (1));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::DsMacHdrSize", UintegerValue (10));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::AverageCodewordFill", DoubleValue (0.99));
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::NcpModulation", UintegerValue (4));
-  // Plant distance (km)
-  Config::SetDefault ("ns3::docsis::DocsisNetDevice::MaximumDistance", DoubleValue (8.0));
+    // Configure DOCSIS Channel & System parameters
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::UsScSpacing", DoubleValue(50e3));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::NumUsSc", UintegerValue(1880));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::SymbolsPerFrame", UintegerValue(6));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::UsSpectralEfficiency", DoubleValue(10.0));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::UsCpLen", UintegerValue(256));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::UsMacHdrSize", UintegerValue(10));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::UsSegHdrSize", UintegerValue(8));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::MapInterval", TimeValue(mapInterval));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::CmtsMapProcTime",
+                       TimeValue(MicroSeconds(200)));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::CmtsUsPipelineFactor", UintegerValue(1));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::CmUsPipelineFactor", UintegerValue(1));
+    // Upstream parameters that affect downstream UCD and MAP message overhead
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::NumUsChannels", UintegerValue(1));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::AverageUsBurst", UintegerValue(150));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::AverageUsUtilization", DoubleValue(0.1));
+    // Downstream channel parameters
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::DsScSpacing", DoubleValue(50e3));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::NumDsSc", UintegerValue(3745));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::DsSpectralEfficiency", DoubleValue(12.0));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::DsIntlvM", UintegerValue(3));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::DsCpLen", UintegerValue(512));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::CmtsDsPipelineFactor", UintegerValue(1));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::CmDsPipelineFactor", UintegerValue(1));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::DsMacHdrSize", UintegerValue(10));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::AverageCodewordFill", DoubleValue(0.99));
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::NcpModulation", UintegerValue(4));
+    // Plant distance (km)
+    Config::SetDefault("ns3::docsis::DocsisNetDevice::MaximumDistance", DoubleValue(8.0));
 
-////////////////////////////////////////////////////////////
-// command-line argument handling                         //
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    // command-line argument handling                         //
+    ////////////////////////////////////////////////////////////
 
-  CommandLine cmd;
+    CommandLine cmd;
 
-  cmd.AddValue ("numTcpDownloads","Number of TCP downloads", numTcpDownloads);
-  cmd.AddValue ("numTcpUploads","Number of TCP uploads", numTcpUploads);
-  cmd.AddValue ("numTcpDashStreams","Number of Dash streams", numTcpDashStreams);
-  cmd.AddValue ("numDctcpDownloads","Number of DCTCP downloads", numDctcpDownloads);
-  cmd.AddValue ("numDctcpUploads","Number of DCTCP uploads", numDctcpUploads);
-  cmd.AddValue ("numDctcpDashStreams","Number of Dash streams", numDctcpDashStreams);
-  cmd.AddValue ("numWebUsers", "Number of Web users", numWebUsers);
-  cmd.AddValue ("numUdpEfUp", "Number of upstream UDP EF flows", numUdpEfUp);
-  cmd.AddValue ("numUdpEfDown", "Number of downstream UDP EF flows", numUdpEfDown);
-  cmd.AddValue ("numUdpBeUp", "Number of upstream UDP best effort flows", numUdpBeUp);
-  cmd.AddValue ("numUdpBeDown", "Number of downstream UDP best effort flows", numUdpBeDown);
-  cmd.AddValue ("numServiceFlows", "Number of service flows (1 or 2)", numServiceFlows);
-  cmd.AddValue ("tcpDelayStart","Point to Point Delay",tcpDelayStart);
-  cmd.AddValue ("tcpDelayStep","Point to Point Step",tcpDelayStep);
-  cmd.AddValue ("linkDelayWebServer","link delay from router to web server",linkDelayWebServer);
-  cmd.AddValue ("upstreamMsr", "Upstream (aggregate) MSR", upstreamMsr);
-  cmd.AddValue ("upstreamPeakRate", "Upstream peak rate", upstreamPeakRate);
-  cmd.AddValue ("downstreamMsr", "Downstream (aggregate) MSR", downstreamMsr);
-  cmd.AddValue ("downstreamPeakRate", "Downstream peak rate", downstreamPeakRate);
-  cmd.AddValue ("guaranteedGrantRate", "Guaranteed grant rate for low latency flow", guaranteedGrantRate);
-  cmd.AddValue ("fileModel", "Model the FTP file size:  empirical, speedtest, or unlimited", fileModel);
-  cmd.AddValue ("simulationEndTime", "Time to end the simulation", simulationEndTime);
-  cmd.AddValue ("ftpStoppingCriteria", "Number of FTP completions after which to end the simulation", g_ftpStoppingCriteria);
-  cmd.AddValue ("ftpStartTime", "Ftp Start time", ftpStartTime);
-  cmd.AddValue ("ftpStartStep", "Ftp Start time offset for each additional flow", ftpStartStep);
-  cmd.AddValue ("fileNameCm", "filename for CM tracing", fileNameCm);
-  cmd.AddValue ("fileNameCmts", "filename for CMTS tracing", fileNameCmts);
-  cmd.AddValue ("fileNamePageLoad", "filename for Page Load Time tracing", fileNamePageLoad);
-  cmd.AddValue ("fileNameTcpFileCompletion", "filename for upstream file transfer completion tracing", fileNameTcpFileCompletion);
-  cmd.AddValue ("fileNameDctcpFileCompletion", "filename for upstream DCTCP file transfer completion tracing", fileNameDctcpFileCompletion);
-  cmd.AddValue ("fileNameGrantsUnused", "filename for grants unused tracing", fileNameGrantsUnused);
-  cmd.AddValue ("fileNameUnusedBandwidth", "filename for unused bandwidth tracing", fileNameUnusedBandwidth);
-  cmd.AddValue ("fileNameTcpPacketTrace", "filename for TCP packet tracing", fileNameTcpPacketTrace);
-  cmd.AddValue ("fileNameCGrantState", "filename for classic grant state tracing", fileNameCGrantState);
-  cmd.AddValue ("fileNameLGrantState", "filename for low-latency grant state tracing", fileNameLGrantState);
-  cmd.AddValue ("fileNameLowLatencySojourn", "filename for LL sojourn time tracing", fileNameLowLatencySojourn);
-  cmd.AddValue ("fileNameClassicSojourn", "filename for classic sojourn time tracing", fileNameClassicSojourn);
-  cmd.AddValue ("fileNameCQueueUpstreamBytes", "filename for upstream classic queue bytes tracing", fileNameCQueueUpstreamBytes);
-  cmd.AddValue ("fileNameCQueueDownstreamBytes", "filename for downstream classic queue bytes tracing", fileNameCQueueDownstreamBytes);
-  cmd.AddValue ("fileNameLQueueUpstreamBytes", "filename for upstream LL queue bytes tracing", fileNameLQueueUpstreamBytes);
-  cmd.AddValue ("fileNameLQueueDownstreamBytes", "filename for downstream LL queue bytes tracing", fileNameLQueueDownstreamBytes);
-  cmd.AddValue ("fileNameCQueueDropProbability", "filename for upstream classic queue drop probability", fileNameCQueueDropProbability);
-  cmd.AddValue ("fileNameLQueueMarkProbability", "filename for upstream classic queue mark probability", fileNameLQueueMarkProbability);
-  cmd.AddValue ("fileNameCalculatePState", "filename for LLD ClassicP state tracing", fileNameCalculatePState);
-  cmd.AddValue ("fileNameSummary", "filename for summary statistics", fileNameSummary);
-  cmd.AddValue ("fileNamePcap", "filename for .pcap", fileNamePcap);
-  cmd.AddValue ("fileNameUpstreamTrace", "filename for upstream ascii", fileNameUpstreamTrace);
-  cmd.AddValue ("fileNameDownstreamTrace", "filename for downstream ascii", fileNameDownstreamTrace);
-  cmd.AddValue ("fileNameCongestionBytes", "filename for congestion bytes tracing", fileNameCongestionBytes);
-  cmd.AddValue ("fileNameCmDrop", "filename for CM tracing", fileNameCmDrop);
-  cmd.AddValue ("fileNameCmtsDrop", "filename for CM tracing", fileNameCmtsDrop);
-  cmd.AddValue ("enableTrace", "enable tracing", enableTrace);
-  cmd.AddValue ("enablePcap", "enable Pcap", enablePcap);
-  cmd.AddValue ("queueDepthTime", "queue depth time", queueDepthTime);
-  cmd.AddValue ("disableQP","disable queue protection", disableQP);
-  cmd.Parse (argc, argv);
+    cmd.AddValue("numTcpDownloads", "Number of TCP downloads", numTcpDownloads);
+    cmd.AddValue("numTcpUploads", "Number of TCP uploads", numTcpUploads);
+    cmd.AddValue("numTcpDashStreams", "Number of Dash streams", numTcpDashStreams);
+    cmd.AddValue("numDctcpDownloads", "Number of DCTCP downloads", numDctcpDownloads);
+    cmd.AddValue("numDctcpUploads", "Number of DCTCP uploads", numDctcpUploads);
+    cmd.AddValue("numDctcpDashStreams", "Number of Dash streams", numDctcpDashStreams);
+    cmd.AddValue("numWebUsers", "Number of Web users", numWebUsers);
+    cmd.AddValue("numUdpEfUp", "Number of upstream UDP EF flows", numUdpEfUp);
+    cmd.AddValue("numUdpEfDown", "Number of downstream UDP EF flows", numUdpEfDown);
+    cmd.AddValue("numUdpBeUp", "Number of upstream UDP best effort flows", numUdpBeUp);
+    cmd.AddValue("numUdpBeDown", "Number of downstream UDP best effort flows", numUdpBeDown);
+    cmd.AddValue("numServiceFlows", "Number of service flows (1 or 2)", numServiceFlows);
+    cmd.AddValue("tcpDelayStart", "Point to Point Delay", tcpDelayStart);
+    cmd.AddValue("tcpDelayStep", "Point to Point Step", tcpDelayStep);
+    cmd.AddValue("linkDelayWebServer", "link delay from router to web server", linkDelayWebServer);
+    cmd.AddValue("upstreamMsr", "Upstream (aggregate) MSR", upstreamMsr);
+    cmd.AddValue("upstreamPeakRate", "Upstream peak rate", upstreamPeakRate);
+    cmd.AddValue("downstreamMsr", "Downstream (aggregate) MSR", downstreamMsr);
+    cmd.AddValue("downstreamPeakRate", "Downstream peak rate", downstreamPeakRate);
+    cmd.AddValue("guaranteedGrantRate",
+                 "Guaranteed grant rate for low latency flow",
+                 guaranteedGrantRate);
+    cmd.AddValue("fileModel",
+                 "Model the FTP file size:  empirical, speedtest, or unlimited",
+                 fileModel);
+    cmd.AddValue("simulationEndTime", "Time to end the simulation", simulationEndTime);
+    cmd.AddValue("ftpStoppingCriteria",
+                 "Number of FTP completions after which to end the simulation",
+                 g_ftpStoppingCriteria);
+    cmd.AddValue("ftpStartTime", "Ftp Start time", ftpStartTime);
+    cmd.AddValue("ftpStartStep", "Ftp Start time offset for each additional flow", ftpStartStep);
+    cmd.AddValue("fileNameCm", "filename for CM tracing", fileNameCm);
+    cmd.AddValue("fileNameCmts", "filename for CMTS tracing", fileNameCmts);
+    cmd.AddValue("fileNamePageLoad", "filename for Page Load Time tracing", fileNamePageLoad);
+    cmd.AddValue("fileNameTcpFileCompletion",
+                 "filename for upstream file transfer completion tracing",
+                 fileNameTcpFileCompletion);
+    cmd.AddValue("fileNameDctcpFileCompletion",
+                 "filename for upstream DCTCP file transfer completion tracing",
+                 fileNameDctcpFileCompletion);
+    cmd.AddValue("fileNameGrantsUnused",
+                 "filename for grants unused tracing",
+                 fileNameGrantsUnused);
+    cmd.AddValue("fileNameUnusedBandwidth",
+                 "filename for unused bandwidth tracing",
+                 fileNameUnusedBandwidth);
+    cmd.AddValue("fileNameTcpPacketTrace",
+                 "filename for TCP packet tracing",
+                 fileNameTcpPacketTrace);
+    cmd.AddValue("fileNameCGrantState",
+                 "filename for classic grant state tracing",
+                 fileNameCGrantState);
+    cmd.AddValue("fileNameLGrantState",
+                 "filename for low-latency grant state tracing",
+                 fileNameLGrantState);
+    cmd.AddValue("fileNameLowLatencySojourn",
+                 "filename for LL sojourn time tracing",
+                 fileNameLowLatencySojourn);
+    cmd.AddValue("fileNameClassicSojourn",
+                 "filename for classic sojourn time tracing",
+                 fileNameClassicSojourn);
+    cmd.AddValue("fileNameCQueueUpstreamBytes",
+                 "filename for upstream classic queue bytes tracing",
+                 fileNameCQueueUpstreamBytes);
+    cmd.AddValue("fileNameCQueueDownstreamBytes",
+                 "filename for downstream classic queue bytes tracing",
+                 fileNameCQueueDownstreamBytes);
+    cmd.AddValue("fileNameLQueueUpstreamBytes",
+                 "filename for upstream LL queue bytes tracing",
+                 fileNameLQueueUpstreamBytes);
+    cmd.AddValue("fileNameLQueueDownstreamBytes",
+                 "filename for downstream LL queue bytes tracing",
+                 fileNameLQueueDownstreamBytes);
+    cmd.AddValue("fileNameCQueueDropProbability",
+                 "filename for upstream classic queue drop probability",
+                 fileNameCQueueDropProbability);
+    cmd.AddValue("fileNameLQueueMarkProbability",
+                 "filename for upstream classic queue mark probability",
+                 fileNameLQueueMarkProbability);
+    cmd.AddValue("fileNameCalculatePState",
+                 "filename for LLD ClassicP state tracing",
+                 fileNameCalculatePState);
+    cmd.AddValue("fileNameSummary", "filename for summary statistics", fileNameSummary);
+    cmd.AddValue("fileNamePcap", "filename for .pcap", fileNamePcap);
+    cmd.AddValue("fileNameUpstreamTrace", "filename for upstream ascii", fileNameUpstreamTrace);
+    cmd.AddValue("fileNameDownstreamTrace",
+                 "filename for downstream ascii",
+                 fileNameDownstreamTrace);
+    cmd.AddValue("fileNameCongestionBytes",
+                 "filename for congestion bytes tracing",
+                 fileNameCongestionBytes);
+    cmd.AddValue("fileNameCmDrop", "filename for CM tracing", fileNameCmDrop);
+    cmd.AddValue("fileNameCmtsDrop", "filename for CM tracing", fileNameCmtsDrop);
+    cmd.AddValue("enableTrace", "enable tracing", enableTrace);
+    cmd.AddValue("enablePcap", "enable Pcap", enablePcap);
+    cmd.AddValue("queueDepthTime", "queue depth time", queueDepthTime);
+    cmd.AddValue("disableQP", "disable queue protection", disableQP);
+    cmd.Parse(argc, argv);
 
-  LogComponentEnable ("ResidentialExample", LOG_LEVEL_INFO);
+    LogComponentEnable("ResidentialExample", LOG_LEVEL_INFO);
 
-  if (numServiceFlows > 2 || numServiceFlows < 1)
+    if (numServiceFlows > 2 || numServiceFlows < 1)
     {
-      std::cerr << "Error: only 1 or 2 service flows permitted" << std::endl;
-      exit (1);
+        std::cerr << "Error: only 1 or 2 service flows permitted" << std::endl;
+        exit(1);
     }
 
-  if (g_ftpStoppingCriteria > 0)
+    if (g_ftpStoppingCriteria > 0)
     {
-      // Do not stop at a fixed simulation time, but instead when
-      // ftpStoppingCriteria transfers have completed.  Set
-      // simulationEndTime to a large value; roughly 600 seconds (10 minutes)
-      // for each FTP requested, so the simulation doesn't run forever
-      simulationEndTime = Seconds (600 * g_ftpStoppingCriteria);
+        // Do not stop at a fixed simulation time, but instead when
+        // ftpStoppingCriteria transfers have completed.  Set
+        // simulationEndTime to a large value; roughly 600 seconds (10 minutes)
+        // for each FTP requested, so the simulation doesn't run forever
+        simulationEndTime = Seconds(600 * g_ftpStoppingCriteria);
     }
 
-  if (disableQP)
+    if (disableQP)
     {
-      Config::SetDefault ("ns3::docsis::QueueProtection::QProtectOn", BooleanValue (false));
+        Config::SetDefault("ns3::docsis::QueueProtection::QProtectOn", BooleanValue(false));
     }
 
-  if (upstreamPeakRate.GetBitRate () == 0)
+    if (upstreamPeakRate.GetBitRate() == 0)
     {
-      // Unless user has explicitly configured via command-line, set it to
-      // twice the upstream token rate
-      upstreamPeakRate = DataRate (2 * upstreamMsr.GetBitRate ());
+        // Unless user has explicitly configured via command-line, set it to
+        // twice the upstream token rate
+        upstreamPeakRate = DataRate(2 * upstreamMsr.GetBitRate());
     }
-  if (downstreamPeakRate.GetBitRate () == 0)
+    if (downstreamPeakRate.GetBitRate() == 0)
     {
-      // Unless user has explicitly configured via command-line, set it to
-      // twice the downstream token rate
-      downstreamPeakRate = DataRate (2 * downstreamMsr.GetBitRate ());
-    }
-
-  // Open and format active trace files
-  if (!fileNameCm.empty ())
-    {
-      g_fileCm.open (fileNameCm.c_str (), std::ofstream::out);
-      g_fileCm << std::fixed << std::setprecision (6);
-    }
-  if (!fileNameCmts.empty ())
-    {
-      g_fileCmts.open (fileNameCmts.c_str (), std::ofstream::out);
-      g_fileCmts << std::fixed << std::setprecision (6);
-    }
-  if (!fileNameCmDrop.empty ())
-    {
-      g_fileCmDrop.open (fileNameCmDrop.c_str (), std::ofstream::out);
-      g_fileCmDrop << std::fixed << std::setprecision (6);
-    }
-  if (!fileNameCmtsDrop.empty ())
-    {
-      g_fileCmtsDrop.open (fileNameCmtsDrop.c_str (), std::ofstream::out);
-      g_fileCmtsDrop << std::fixed << std::setprecision (6);
-    }
-  if (!fileNameTcpFileCompletion.empty ())
-    {
-      g_fileTcpFileCompletion.open (fileNameTcpFileCompletion.c_str (), std::ofstream::out);
-    }
-  if (!fileNameDctcpFileCompletion.empty ())
-    {
-      g_fileDctcpFileCompletion.open (fileNameDctcpFileCompletion.c_str (), std::ofstream::out);
-    }
-  if (!fileNamePageLoad.empty ())
-    {
-      g_filePageLoadTime.open (fileNamePageLoad.c_str (), std::ofstream::out);
+        // Unless user has explicitly configured via command-line, set it to
+        // twice the downstream token rate
+        downstreamPeakRate = DataRate(2 * downstreamMsr.GetBitRate());
     }
 
-////////////////////////////////////////////////////////////
-// topology creation                                      //
-////////////////////////////////////////////////////////////
-
-  Ptr<Node> udpEfClient = CreateObject<Node> ();
-  Ptr<Node> udpClient = CreateObject<Node> ();
-  Ptr<Node> tcpClient = CreateObject<Node> ();
-  Ptr<Node> dctcpClient = CreateObject<Node> ();
-  NodeContainer webClients;
-  webClients.Create (numWebUsers);
-  Ptr<Node> bridge = CreateObject<Node> ();
-  Ptr<Node> CM = CreateObject<Node> ();
-  g_cmNodeId = CM->GetId ();
-  Ptr<Node> CMTS = CreateObject<Node> ();
-  g_cmtsNodeId = CMTS->GetId ();
-  Ptr<Node> router = CreateObject<Node> ();
-  Ptr<Node> udpEfServer = CreateObject<Node> ();
-  Ptr<Node> udpServer = CreateObject<Node> ();
-
-  // compute the maximum value of TcpUp and TcpDown
-  uint16_t totalTcpDownloads = numTcpDownloads + numTcpDashStreams;
-  uint16_t numTcpServers = std::max (totalTcpDownloads, numTcpUploads);
-  uint16_t totalDctcpDownloads = numDctcpDownloads + numDctcpDashStreams;
-  uint16_t numDctcpServers = std::max (totalDctcpDownloads, numDctcpUploads);
-  NodeContainer tcpServers;
-  tcpServers.Create (numTcpServers);
-  NodeContainer dctcpServers;
-  dctcpServers.Create (numDctcpServers);
-  Ptr<Node> webServer = CreateObject<Node> ();
-
-  //
-  // Create the physical layer topology
-  //
-  NodeContainer clientLanEndpoints (udpEfClient, udpClient, tcpClient, dctcpClient);
-  NodeContainer clientNs3Endpoints (udpEfClient, udpClient);
-  NodeContainer clientTcpEndpoints (tcpClient);
-  NodeContainer clientDctcpEndpoints (dctcpClient);
-  if (numWebUsers > 0)
+    // Open and format active trace files
+    if (!fileNameCm.empty())
     {
-      clientLanEndpoints.Add (webClients);
-      clientNs3Endpoints.Add (webClients);
+        g_fileCm.open(fileNameCm.c_str(), std::ofstream::out);
+        g_fileCm << std::fixed << std::setprecision(6);
     }
-  NodeContainer clientLan = clientLanEndpoints;
-  clientLan.Add (CM);
-
-  NetDeviceContainer clientLanDevices;
-  NetDeviceContainer clientBridgeDevices;
-
-  // (default) 1 Gbps and 1 microsecond delay for CSMA channel
-  CsmaHelper csma;
-  csma.SetChannelAttribute ("DataRate", DataRateValue (linkRateCsma));
-  csma.SetChannelAttribute ("Delay", TimeValue (MicroSeconds (1)));
-
-  NetDeviceContainer lanLink;
-  for (uint32_t i = 0; i < clientLan.GetN () - 1; i++)
+    if (!fileNameCmts.empty())
     {
-      // install a csma channel between the ith toplan node and the bridge node
-      lanLink = csma.Install (NodeContainer (clientLan.Get (i), bridge));
-      clientLanDevices.Add (lanLink.Get (0));
-      clientBridgeDevices.Add (lanLink.Get (1));
+        g_fileCmts.open(fileNameCmts.c_str(), std::ofstream::out);
+        g_fileCmts << std::fixed << std::setprecision(6);
     }
-  lanLink = csma.Install (NodeContainer (clientLan.Get (clientLan.GetN () - 1), bridge));
-  clientBridgeDevices.Add (lanLink.Get (1));
-
-  BridgeHelper bridgeHelper;
-  bridgeHelper.Install (bridge, clientBridgeDevices);
-
-  DocsisHelper docsis;
-  NetDeviceContainer linkDocsis;
-
-  // Add service flow definitions and install DOCSIS objects
-  if (numServiceFlows == 1)
+    if (!fileNameCmDrop.empty())
     {
-      NS_LOG_DEBUG ("Adding single upstream (classic) service flow");
-      Ptr<ServiceFlow> upstreamSf = CreateObject<ServiceFlow> (CLASSIC_SFID);
-      upstreamSf->m_maxSustainedRate = upstreamMsr;
-      upstreamSf->m_peakRate = upstreamPeakRate;
-      upstreamSf->m_maxTrafficBurst = static_cast<uint32_t> (upstreamMsr.GetBitRate () * maximumBurstTime.GetSeconds () / 8);
-      upstreamSf->m_targetBuffer = static_cast<uint32_t> (upstreamMsr.GetBitRate () * queueDepthTime.GetSeconds () / 8);
-      docsis.GetUpstream (linkDocsis)->SetUpstreamSf (upstreamSf);
-      NS_LOG_DEBUG ("Adding single downstream (classic) service flow");
-      Ptr<ServiceFlow> downstreamSf = CreateObject<ServiceFlow> (CLASSIC_SFID);
-      downstreamSf->m_maxSustainedRate = downstreamMsr;
-      downstreamSf->m_peakRate = downstreamPeakRate;
-      downstreamSf->m_maxTrafficBurst = static_cast<uint32_t> (downstreamMsr.GetBitRate () * maximumBurstTime.GetSeconds () / 8);
-      downstreamSf->m_targetBuffer = static_cast<uint32_t> (downstreamMsr.GetBitRate () * queueDepthTime.GetSeconds () / 8);
-      linkDocsis = docsis.Install (CMTS, CM, upstreamSf, downstreamSf);
+        g_fileCmDrop.open(fileNameCmDrop.c_str(), std::ofstream::out);
+        g_fileCmDrop << std::fixed << std::setprecision(6);
     }
-  else
+    if (!fileNameCmtsDrop.empty())
     {
-      NS_LOG_DEBUG ("Adding upstream aggregate service flow");
-      Ptr<AggregateServiceFlow> upstreamAsf = CreateObject<AggregateServiceFlow> ();
-      upstreamAsf->m_maxSustainedRate = upstreamMsr;
-      upstreamAsf->m_peakRate = upstreamPeakRate;
-      upstreamAsf->m_maxTrafficBurst = static_cast<uint32_t> (upstreamMsr.GetBitRate () * maximumBurstTime.GetSeconds () / 8);
-      Ptr<ServiceFlow> sf1 = CreateObject<ServiceFlow> (CLASSIC_SFID);
-      sf1->m_targetBuffer = static_cast<uint32_t> (upstreamMsr.GetBitRate () * queueDepthTime.GetSeconds () / 8);
-      upstreamAsf->SetClassicServiceFlow (sf1);
-      Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
-      sf2->m_guaranteedGrantRate = guaranteedGrantRate;
-      upstreamAsf->SetLowLatencyServiceFlow (sf2);
-      NS_LOG_DEBUG ("Adding downstream aggregate service flow");
-      Ptr<AggregateServiceFlow> downstreamAsf = CreateObject<AggregateServiceFlow> ();
-      downstreamAsf = CreateObject<AggregateServiceFlow> ();
-      downstreamAsf->m_maxSustainedRate = downstreamMsr;
-      downstreamAsf->m_peakRate = downstreamPeakRate;
-      downstreamAsf->m_maxTrafficBurst = static_cast<uint32_t> (downstreamMsr.GetBitRate () * maximumBurstTime.GetSeconds () / 8);
-      sf1 = CreateObject<ServiceFlow> (CLASSIC_SFID);
-      sf1->m_targetBuffer = static_cast<uint32_t> (downstreamMsr.GetBitRate () * queueDepthTime.GetSeconds () / 8);
-      downstreamAsf->SetClassicServiceFlow (sf1);
-      sf2 = CreateObject<ServiceFlow> (LOW_LATENCY_SFID);
-      downstreamAsf->SetLowLatencyServiceFlow (sf2);
-      linkDocsis = docsis.Install (CMTS, CM, upstreamAsf, downstreamAsf);
+        g_fileCmtsDrop.open(fileNameCmtsDrop.c_str(), std::ofstream::out);
+        g_fileCmtsDrop << std::fixed << std::setprecision(6);
+    }
+    if (!fileNameTcpFileCompletion.empty())
+    {
+        g_fileTcpFileCompletion.open(fileNameTcpFileCompletion.c_str(), std::ofstream::out);
+    }
+    if (!fileNameDctcpFileCompletion.empty())
+    {
+        g_fileDctcpFileCompletion.open(fileNameDctcpFileCompletion.c_str(), std::ofstream::out);
+    }
+    if (!fileNamePageLoad.empty())
+    {
+        g_filePageLoadTime.open(fileNamePageLoad.c_str(), std::ofstream::out);
     }
 
-  NodeContainer cmtsRouterNodes (CMTS, router);
-  NetDeviceContainer cmtsRouterLink = csma.Install (cmtsRouterNodes);
-  // Add the router interface to the container for IP subnet addressing
-  clientLanDevices.Add (cmtsRouterLink.Get (1));
+    ////////////////////////////////////////////////////////////
+    // topology creation                                      //
+    ////////////////////////////////////////////////////////////
 
-  // TODO encapsulate this configuration within DocsisHelper
-  NetDeviceContainer cmDevices;
-  cmDevices.Add (linkDocsis.Get (1));
-  cmDevices.Add (lanLink.Get (0));
+    Ptr<Node> udpEfClient = CreateObject<Node>();
+    Ptr<Node> udpClient = CreateObject<Node>();
+    Ptr<Node> tcpClient = CreateObject<Node>();
+    Ptr<Node> dctcpClient = CreateObject<Node>();
+    NodeContainer webClients;
+    webClients.Create(numWebUsers);
+    Ptr<Node> bridge = CreateObject<Node>();
+    Ptr<Node> CM = CreateObject<Node>();
+    g_cmNodeId = CM->GetId();
+    Ptr<Node> CMTS = CreateObject<Node>();
+    g_cmtsNodeId = CMTS->GetId();
+    Ptr<Node> router = CreateObject<Node>();
+    Ptr<Node> udpEfServer = CreateObject<Node>();
+    Ptr<Node> udpServer = CreateObject<Node>();
 
-  NetDeviceContainer cmtsDevices;
-  cmtsDevices.Add (linkDocsis.Get (0));
-  cmtsDevices.Add (cmtsRouterLink.Get (0));
+    // compute the maximum value of TcpUp and TcpDown
+    uint16_t totalTcpDownloads = numTcpDownloads + numTcpDashStreams;
+    uint16_t numTcpServers = std::max(totalTcpDownloads, numTcpUploads);
+    uint16_t totalDctcpDownloads = numDctcpDownloads + numDctcpDashStreams;
+    uint16_t numDctcpServers = std::max(totalDctcpDownloads, numDctcpUploads);
+    NodeContainer tcpServers;
+    tcpServers.Create(numTcpServers);
+    NodeContainer dctcpServers;
+    dctcpServers.Create(numDctcpServers);
+    Ptr<Node> webServer = CreateObject<Node>();
 
-  bridgeHelper.Install (CM, cmDevices);
-  bridgeHelper.Install (CMTS, cmtsDevices);
-
-  PointToPointHelper p2pRtrEfServer;
-  p2pRtrEfServer.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-  p2pRtrEfServer.SetQueue ("ns3::DropTailQueue","MaxSize",QueueSizeValue (queueSize));
-  p2pRtrEfServer.SetChannelAttribute ("Delay", TimeValue (linkDelayRtrToEfServer));
-
-  NodeContainer routerUdpEfServer (router, udpEfServer);
-  NetDeviceContainer routerUdpEfDevices = p2pRtrEfServer.Install (routerUdpEfServer);
-
-  PointToPointHelper p2pRtrUdpServer;
-  p2pRtrUdpServer.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-  p2pRtrUdpServer.SetQueue ("ns3::DropTailQueue","MaxSize",QueueSizeValue (queueSize));
-  p2pRtrUdpServer.SetChannelAttribute ("Delay", TimeValue (linkDelayRtrToUdpServer));
-
-  NodeContainer routerUdpServer (router, udpServer);
-  NetDeviceContainer routerUdpDevices = p2pRtrUdpServer.Install (routerUdpServer);
-
-  PointToPointHelper p2pRtrWebServer;
-  NodeContainer routerWebServer (router, webServer);
-  p2pRtrWebServer.SetDeviceAttribute ("DataRate", DataRateValue ( linkRateWan));
-  p2pRtrWebServer.SetQueue ("ns3::DropTailQueue","MaxSize",QueueSizeValue (queueSize));
-  p2pRtrWebServer.SetChannelAttribute ("Delay", TimeValue (linkDelayWebServer));
-  NetDeviceContainer routerWebServerDevices = p2pRtrWebServer.Install (routerWebServer);
-
-  // numTcpServers is the maximum of the sum of downstream FTP and dash servers
-  // and the number of upstream FTP flows.  Create a point-to-point link
-  // between router and each server, each with a base delay and each
-  // subsequent one with a delay increment.  Handle DASH servers first, and
-  // the rest are TCP (FTP) servers.
-  std::vector<NetDeviceContainer> routerTcpServerDevices;
-  uint16_t index = 0;
-  for (; index < numTcpDashStreams; index++)
+    //
+    // Create the physical layer topology
+    //
+    NodeContainer clientLanEndpoints(udpEfClient, udpClient, tcpClient, dctcpClient);
+    NodeContainer clientNs3Endpoints(udpEfClient, udpClient);
+    NodeContainer clientTcpEndpoints(tcpClient);
+    NodeContainer clientDctcpEndpoints(dctcpClient);
+    if (numWebUsers > 0)
     {
-      PointToPointHelper dashPtpHelper;
-      NodeContainer routerTcpServer (router, tcpServers.Get (index));
-      dashPtpHelper.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-      dashPtpHelper.SetQueue ("ns3::DropTailQueue", "MaxSize", QueueSizeValue (queueSize));
-      Time delay = dashDelayStart + index * dashDelayStep;
-      NS_LOG_INFO ("Link delay from DASH client/FTP upstream server node to router:  " << delay.GetMilliSeconds () << "ms");
-      dashPtpHelper.SetChannelAttribute ("Delay", TimeValue (delay));
-      NetDeviceContainer nodeC = dashPtpHelper.Install (routerTcpServer);
-      routerTcpServerDevices.push_back (nodeC);
+        clientLanEndpoints.Add(webClients);
+        clientNs3Endpoints.Add(webClients);
     }
-  // Keep going with index, but start a new index j to reset the delay offset
-  for (uint16_t j = 0; index < numTcpServers; index++, j++)
-    {
-      PointToPointHelper tcpPtpHelper;
-      NodeContainer routerTcpServer (router, tcpServers.Get (index));
-      tcpPtpHelper.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-      tcpPtpHelper.SetQueue ("ns3::DropTailQueue", "MaxSize", QueueSizeValue (queueSize));
-      Time delay = tcpDelayStart + j * tcpDelayStep;
-      NS_LOG_INFO ("Link delay from FTP client node to router: " << delay.GetMilliSeconds () << "ms");
-      tcpPtpHelper.SetChannelAttribute ("Delay", TimeValue (delay));
-      NetDeviceContainer nodeC = tcpPtpHelper.Install (routerTcpServer);
-      routerTcpServerDevices.push_back (nodeC);
-    }
+    NodeContainer clientLan = clientLanEndpoints;
+    clientLan.Add(CM);
 
-  // Repeat above but for DCTCP servers.
-  // numDctcpServers is the maximum of the sum of downstream FTP and dash servers
-  // and the number of upstream FTP flows.  Create a point-to-point link
-  // between router and each server, each with a base delay and each
-  // subsequent one with a delay increment.  Handle DASH servers first, and
-  // the rest are DCTCP (FTP) servers.
-  std::vector<NetDeviceContainer> routerDctcpServerDevices;
-  for (index = 0; index < numDctcpDashStreams; index++)
-    {
-      PointToPointHelper dashPtpHelper;
-      NodeContainer routerDctcpServer (router, dctcpServers.Get (index));
-      dashPtpHelper.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-      dashPtpHelper.SetQueue ("ns3::DropTailQueue", "MaxSize", QueueSizeValue (queueSize));
-      Time delay = dashDelayStart + index * dashDelayStep;
-      NS_LOG_INFO ("Link delay from DCTCP DASH client/FTP upstream server node to router:  " << delay.GetMilliSeconds () << "ms");
-      dashPtpHelper.SetChannelAttribute ("Delay", TimeValue (delay));
-      NetDeviceContainer nodeC = dashPtpHelper.Install (routerDctcpServer);
-      routerDctcpServerDevices.push_back (nodeC);
-    }
-  // Keep going with index, but start a new index j to reset the delay offset
-  for (uint16_t j = 0; index < numDctcpServers; index++, j++)
-    {
-      PointToPointHelper dctcpPtpHelper;
-      NodeContainer routerDctcpServer (router, dctcpServers.Get (index));
-      dctcpPtpHelper.SetDeviceAttribute ("DataRate", DataRateValue (linkRateWan));
-      dctcpPtpHelper.SetQueue ("ns3::DropTailQueue", "MaxSize", QueueSizeValue (queueSize));
-      Time delay = tcpDelayStart + j * tcpDelayStep;
-      NS_LOG_INFO ("Link delay from DCTCP FTP downstream client node to router: " << delay.GetMilliSeconds () << "ms");
-      dctcpPtpHelper.SetChannelAttribute ("Delay", TimeValue (delay));
-      NetDeviceContainer nodeC = dctcpPtpHelper.Install (routerDctcpServer);
-      routerDctcpServerDevices.push_back (nodeC);
-    }
+    NetDeviceContainer clientLanDevices;
+    NetDeviceContainer clientBridgeDevices;
 
-////////////////////////////////////////////////////////////
-// protocol stack, device, and queue configuration        //
-////////////////////////////////////////////////////////////
+    // (default) 1 Gbps and 1 microsecond delay for CSMA channel
+    CsmaHelper csma;
+    csma.SetChannelAttribute("DataRate", DataRateValue(linkRateCsma));
+    csma.SetChannelAttribute("Delay", TimeValue(MicroSeconds(1)));
 
-  InternetStackHelper stackHelper;
-  InternetStackHelper dctcpStackHelper;
-  dctcpStackHelper.SetTcp ("ns3::TcpL4Protocol", "SocketType", TypeIdValue (TcpDctcp::GetTypeId ()));
-  stackHelper.Install (clientNs3Endpoints);
-  stackHelper.Install (clientTcpEndpoints);
-  dctcpStackHelper.Install (clientDctcpEndpoints);
-  stackHelper.Install (router);
+    NetDeviceContainer lanLink;
+    for (uint32_t i = 0; i < clientLan.GetN() - 1; i++)
+    {
+        // install a csma channel between the ith toplan node and the bridge node
+        lanLink = csma.Install(NodeContainer(clientLan.Get(i), bridge));
+        clientLanDevices.Add(lanLink.Get(0));
+        clientBridgeDevices.Add(lanLink.Get(1));
+    }
+    lanLink = csma.Install(NodeContainer(clientLan.Get(clientLan.GetN() - 1), bridge));
+    clientBridgeDevices.Add(lanLink.Get(1));
 
-  stackHelper.Install (udpEfServer);
-  stackHelper.Install (udpServer);
-  for (uint16_t i = 0; i < numTcpServers; i++)
-    {
-      stackHelper.Install (tcpServers.Get (i));
-    }
-  for (uint16_t i = 0; i < numDctcpServers; i++)
-    {
-      dctcpStackHelper.Install (dctcpServers.Get (i));
-    }
-  stackHelper.Install (webServer);
+    BridgeHelper bridgeHelper;
+    bridgeHelper.Install(bridge, clientBridgeDevices);
 
-  // Configure upstream traces
-  Ptr<DualQueueCoupledAqm> dualQueue = docsis.GetUpstream (linkDocsis)->GetQueue ();
-  Ptr<QueueProtection> queueProtection = dualQueue->GetQueueProtection ();
-  if (!fileNameCQueueUpstreamBytes.empty ())
-    {
-      g_fileCQueueUpstreamBytes.open (fileNameCQueueUpstreamBytes.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("ClassicBytes", MakeCallback (&CQueueUpstreamBytesTrace));
-    }
-  if (!fileNameLQueueUpstreamBytes.empty ())
-    {
-      g_fileLQueueUpstreamBytes.open (fileNameLQueueUpstreamBytes.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("LowLatencyBytes", MakeCallback (&LQueueUpstreamBytesTrace));
-    }
-  if (!fileNameCQueueDropProbability.empty ())
-    {
-      g_fileCQueueDropProbability.open (fileNameCQueueDropProbability.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("ClassicDropProbability", MakeCallback (&CQueueDropProbabilityTrace));
-    }
-  if (!fileNameLQueueMarkProbability.empty ())
-    {
-      g_fileLQueueMarkProbability.open (fileNameLQueueMarkProbability.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("ProbNative", MakeCallback (&LQueueMarkProbabilityTrace));
-    }
-  if (!fileNameCalculatePState.empty ())
-    {
-      g_fileCalculatePState.open (fileNameCalculatePState.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("CalculatePState", MakeCallback (&CalculatePStateTrace));
-    }
-  if (!fileNameCongestionBytes.empty ())
-    {
-      g_fileCongestionBytes.open (fileNameCongestionBytes.c_str (), std::ofstream::out);
-      queueProtection->TraceConnectWithoutContext ("CongestionBytesUpdate", MakeCallback (&CongestionBytesTrace));
-    }
-  dualQueue->TraceConnectWithoutContext ("LowLatencyArrival", MakeCallback (&LowLatencyArrivalTrace));
-  dualQueue->TraceConnectWithoutContext ("ClassicArrival", MakeCallback (&ClassicArrivalTrace));
+    DocsisHelper docsis;
+    NetDeviceContainer linkDocsis;
 
-  // Configure downstream traces
-  dualQueue = docsis.GetDownstream (linkDocsis)->GetQueue ();
-  if (!fileNameCQueueDownstreamBytes.empty ())
+    // Add service flow definitions and install DOCSIS objects
+    if (numServiceFlows == 1)
     {
-      g_fileCQueueDownstreamBytes.open (fileNameCQueueDownstreamBytes.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("ClassicBytes", MakeCallback (&CQueueDownstreamBytesTrace));
+        NS_LOG_DEBUG("Adding single upstream (classic) service flow");
+        Ptr<ServiceFlow> upstreamSf = CreateObject<ServiceFlow>(CLASSIC_SFID);
+        upstreamSf->m_maxSustainedRate = upstreamMsr;
+        upstreamSf->m_peakRate = upstreamPeakRate;
+        upstreamSf->m_maxTrafficBurst =
+            static_cast<uint32_t>(upstreamMsr.GetBitRate() * maximumBurstTime.GetSeconds() / 8);
+        upstreamSf->m_targetBuffer =
+            static_cast<uint32_t>(upstreamMsr.GetBitRate() * queueDepthTime.GetSeconds() / 8);
+        NS_LOG_DEBUG("Adding single downstream (classic) service flow");
+        Ptr<ServiceFlow> downstreamSf = CreateObject<ServiceFlow>(CLASSIC_SFID);
+        downstreamSf->m_maxSustainedRate = downstreamMsr;
+        downstreamSf->m_peakRate = downstreamPeakRate;
+        downstreamSf->m_maxTrafficBurst =
+            static_cast<uint32_t>(downstreamMsr.GetBitRate() * maximumBurstTime.GetSeconds() / 8);
+        downstreamSf->m_targetBuffer =
+            static_cast<uint32_t>(downstreamMsr.GetBitRate() * queueDepthTime.GetSeconds() / 8);
+        linkDocsis = docsis.Install(CMTS, CM, upstreamSf, downstreamSf);
     }
-  if (!fileNameLQueueDownstreamBytes.empty ())
+    else
     {
-      g_fileLQueueDownstreamBytes.open (fileNameLQueueDownstreamBytes.c_str (), std::ofstream::out);
-      dualQueue->TraceConnectWithoutContext ("LowLatencyBytes", MakeCallback (&LQueueDownstreamBytesTrace));
+        NS_LOG_DEBUG("Adding upstream aggregate service flow");
+        Ptr<AggregateServiceFlow> upstreamAsf = CreateObject<AggregateServiceFlow>();
+        upstreamAsf->m_maxSustainedRate = upstreamMsr;
+        upstreamAsf->m_peakRate = upstreamPeakRate;
+        upstreamAsf->m_maxTrafficBurst =
+            static_cast<uint32_t>(upstreamMsr.GetBitRate() * maximumBurstTime.GetSeconds() / 8);
+        Ptr<ServiceFlow> sf1 = CreateObject<ServiceFlow>(CLASSIC_SFID);
+        sf1->m_targetBuffer =
+            static_cast<uint32_t>(upstreamMsr.GetBitRate() * queueDepthTime.GetSeconds() / 8);
+        upstreamAsf->SetClassicServiceFlow(sf1);
+        Ptr<ServiceFlow> sf2 = CreateObject<ServiceFlow>(LOW_LATENCY_SFID);
+        sf2->m_guaranteedGrantRate = guaranteedGrantRate;
+        upstreamAsf->SetLowLatencyServiceFlow(sf2);
+        NS_LOG_DEBUG("Adding downstream aggregate service flow");
+        Ptr<AggregateServiceFlow> downstreamAsf = CreateObject<AggregateServiceFlow>();
+        downstreamAsf = CreateObject<AggregateServiceFlow>();
+        downstreamAsf->m_maxSustainedRate = downstreamMsr;
+        downstreamAsf->m_peakRate = downstreamPeakRate;
+        downstreamAsf->m_maxTrafficBurst =
+            static_cast<uint32_t>(downstreamMsr.GetBitRate() * maximumBurstTime.GetSeconds() / 8);
+        sf1 = CreateObject<ServiceFlow>(CLASSIC_SFID);
+        sf1->m_targetBuffer =
+            static_cast<uint32_t>(downstreamMsr.GetBitRate() * queueDepthTime.GetSeconds() / 8);
+        downstreamAsf->SetClassicServiceFlow(sf1);
+        sf2 = CreateObject<ServiceFlow>(LOW_LATENCY_SFID);
+        downstreamAsf->SetLowLatencyServiceFlow(sf2);
+        linkDocsis = docsis.Install(CMTS, CM, upstreamAsf, downstreamAsf);
     }
 
-  if (!fileNameTcpPacketTrace.empty ())
+    NodeContainer cmtsRouterNodes(CMTS, router);
+    NetDeviceContainer cmtsRouterLink = csma.Install(cmtsRouterNodes);
+    // Add the router interface to the container for IP subnet addressing
+    clientLanDevices.Add(cmtsRouterLink.Get(1));
+
+    // TODO encapsulate this configuration within DocsisHelper
+    NetDeviceContainer cmDevices;
+    cmDevices.Add(linkDocsis.Get(1));
+    cmDevices.Add(lanLink.Get(0));
+
+    NetDeviceContainer cmtsDevices;
+    cmtsDevices.Add(linkDocsis.Get(0));
+    cmtsDevices.Add(cmtsRouterLink.Get(0));
+
+    bridgeHelper.Install(CM, cmDevices);
+    bridgeHelper.Install(CMTS, cmtsDevices);
+
+    PointToPointHelper p2pRtrEfServer;
+    p2pRtrEfServer.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+    p2pRtrEfServer.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+    p2pRtrEfServer.SetChannelAttribute("Delay", TimeValue(linkDelayRtrToEfServer));
+
+    NodeContainer routerUdpEfServer(router, udpEfServer);
+    NetDeviceContainer routerUdpEfDevices = p2pRtrEfServer.Install(routerUdpEfServer);
+
+    PointToPointHelper p2pRtrUdpServer;
+    p2pRtrUdpServer.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+    p2pRtrUdpServer.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+    p2pRtrUdpServer.SetChannelAttribute("Delay", TimeValue(linkDelayRtrToUdpServer));
+
+    NodeContainer routerUdpServer(router, udpServer);
+    NetDeviceContainer routerUdpDevices = p2pRtrUdpServer.Install(routerUdpServer);
+
+    PointToPointHelper p2pRtrWebServer;
+    NodeContainer routerWebServer(router, webServer);
+    p2pRtrWebServer.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+    p2pRtrWebServer.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+    p2pRtrWebServer.SetChannelAttribute("Delay", TimeValue(linkDelayWebServer));
+    NetDeviceContainer routerWebServerDevices = p2pRtrWebServer.Install(routerWebServer);
+
+    // numTcpServers is the maximum of the sum of downstream FTP and dash servers
+    // and the number of upstream FTP flows.  Create a point-to-point link
+    // between router and each server, each with a base delay and each
+    // subsequent one with a delay increment.  Handle DASH servers first, and
+    // the rest are TCP (FTP) servers.
+    std::vector<NetDeviceContainer> routerTcpServerDevices;
+    uint16_t index = 0;
+    for (; index < numTcpDashStreams; index++)
     {
-      g_fileTcpPacketTrace.open (fileNameTcpPacketTrace.c_str (), std::ofstream::out);
-      // Trace IP packets forwarded at router
-      Ptr<Ipv4L3Protocol> routerIpv4 = router->GetObject<Ipv4L3Protocol> ();
-      routerIpv4->TraceConnectWithoutContext ("UnicastForward", MakeCallback (&UnicastForwardTrace));
+        PointToPointHelper dashPtpHelper;
+        NodeContainer routerTcpServer(router, tcpServers.Get(index));
+        dashPtpHelper.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+        dashPtpHelper.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+        Time delay = dashDelayStart + index * dashDelayStep;
+        NS_LOG_INFO("Link delay from DASH client/FTP upstream server node to router:  "
+                    << delay.GetMilliSeconds() << "ms");
+        dashPtpHelper.SetChannelAttribute("Delay", TimeValue(delay));
+        NetDeviceContainer nodeC = dashPtpHelper.Install(routerTcpServer);
+        routerTcpServerDevices.push_back(nodeC);
+    }
+    // Keep going with index, but start a new index j to reset the delay offset
+    for (uint16_t j = 0; index < numTcpServers; index++, j++)
+    {
+        PointToPointHelper tcpPtpHelper;
+        NodeContainer routerTcpServer(router, tcpServers.Get(index));
+        tcpPtpHelper.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+        tcpPtpHelper.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+        Time delay = tcpDelayStart + j * tcpDelayStep;
+        NS_LOG_INFO("Link delay from FTP client node to router: " << delay.GetMilliSeconds()
+                                                                  << "ms");
+        tcpPtpHelper.SetChannelAttribute("Delay", TimeValue(delay));
+        NetDeviceContainer nodeC = tcpPtpHelper.Install(routerTcpServer);
+        routerTcpServerDevices.push_back(nodeC);
     }
 
-  // Trace bytes granted, used, and unused
-  bool connected;  // variable used to track whether trace was connected
-  connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicGrantState", MakeCallback (&ClassicGrantStateTrace));
-  NS_ASSERT_MSG (connected, "Couldn't hook trace source");
-  connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("LowLatencyGrantState", MakeCallback (&LowLatencyGrantStateTrace));
-  NS_ASSERT_MSG (connected, "Couldn't hook trace source");
-  if (!fileNameGrantsUnused.empty ())
+    // Repeat above but for DCTCP servers.
+    // numDctcpServers is the maximum of the sum of downstream FTP and dash servers
+    // and the number of upstream FTP flows.  Create a point-to-point link
+    // between router and each server, each with a base delay and each
+    // subsequent one with a delay increment.  Handle DASH servers first, and
+    // the rest are DCTCP (FTP) servers.
+    std::vector<NetDeviceContainer> routerDctcpServerDevices;
+    for (index = 0; index < numDctcpDashStreams; index++)
     {
-      g_fileGrantsUnused.open (fileNameGrantsUnused.c_str (), std::ofstream::out);
+        PointToPointHelper dashPtpHelper;
+        NodeContainer routerDctcpServer(router, dctcpServers.Get(index));
+        dashPtpHelper.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+        dashPtpHelper.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+        Time delay = dashDelayStart + index * dashDelayStep;
+        NS_LOG_INFO("Link delay from DCTCP DASH client/FTP upstream server node to router:  "
+                    << delay.GetMilliSeconds() << "ms");
+        dashPtpHelper.SetChannelAttribute("Delay", TimeValue(delay));
+        NetDeviceContainer nodeC = dashPtpHelper.Install(routerDctcpServer);
+        routerDctcpServerDevices.push_back(nodeC);
     }
-  if (!fileNameCGrantState.empty ())
+    // Keep going with index, but start a new index j to reset the delay offset
+    for (uint16_t j = 0; index < numDctcpServers; index++, j++)
     {
-      g_fileCGrantState.open (fileNameCGrantState.c_str (), std::ofstream::out);
-    }
-  if (!fileNameLGrantState.empty ())
-    {
-      g_fileLGrantState.open (fileNameLGrantState.c_str (), std::ofstream::out);
-    }
-  if (!fileNameUnusedBandwidth.empty ())
-    {
-      g_fileUnusedBandwidth.open (fileNameUnusedBandwidth.c_str (), std::ofstream::out);
-      // Schedule the polling to determine unused bandwidth
-      Simulator::Schedule (g_grantsUnusedSamplingInterval, &GrantUnusedBandwidthTrace);
-    }
-  connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicGrantReceived", MakeCallback (&GrantTrace));
-  NS_ASSERT_MSG (connected, "Couldn't hook trace source");
-  connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("LowLatencyGrantReceived", MakeCallback (&GrantTrace));
-  NS_ASSERT_MSG (connected, "Couldn't hook trace source");
-  if (!fileNameLowLatencySojourn.empty ())
-    {
-      g_fileDualQLlSojourn.open (fileNameLowLatencySojourn.c_str (), std::ofstream::out);
-      connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("LowLatencySojournTime", MakeCallback (&LowLatencySojournTrace));
-      NS_ABORT_MSG_UNLESS (connected, "couldn't connect L");
-    }
-  if (!fileNameClassicSojourn.empty ())
-    {
-      g_fileDualQClassicSojourn.open (fileNameClassicSojourn.c_str (), std::ofstream::out);
-      connected = docsis.GetUpstream (linkDocsis)->TraceConnectWithoutContext ("ClassicSojournTime", MakeCallback (&ClassicSojournTrace));
-      NS_ABORT_MSG_UNLESS (connected, "couldn't connect C");
-    }
-  NS_UNUSED (connected);  // avoid compiler warning in optimized build
-
-  Ipv4AddressHelper ipv4;
-  ipv4.SetBase ("10.1.1.0", "255.255.255.0");
-  Ipv4InterfaceContainer clientLanIfaces = ipv4.Assign (clientLanDevices);
-  ipv4.SetBase ("10.1.2.0", "255.255.255.0");
-  Ipv4InterfaceContainer routerUdpEfIfaces = ipv4.Assign (routerUdpEfDevices);
-  ipv4.SetBase ("10.1.3.0", "255.255.255.0");
-  Ipv4InterfaceContainer routerUdpIfaces = ipv4.Assign (routerUdpDevices);
-  std::vector<Ipv4Address> tcpServerAddresses;
-  ipv4.SetBase ("10.1.5.0", "255.255.255.0");
-  for (uint16_t i = 0; i < numTcpServers; i++)
-    {
-      Ipv4InterfaceContainer ipv4Iface = ipv4.Assign (routerTcpServerDevices[i]);
-      tcpServerAddresses.push_back (ipv4Iface.GetAddress (1));
-      ipv4.NewNetwork ();
-    }
-  std::vector<Ipv4Address> dctcpServerAddresses;
-  ipv4.SetBase ("10.2.5.0", "255.255.255.0");
-  for (uint16_t i = 0; i < numDctcpServers; i++)
-    {
-      Ipv4InterfaceContainer ipv4Iface = ipv4.Assign (routerDctcpServerDevices[i]);
-      dctcpServerAddresses.push_back (ipv4Iface.GetAddress (1));
-      ipv4.NewNetwork ();
-    }
-  ipv4.SetBase ("10.5.1.0", "255.255.255.0");
-  Ipv4InterfaceContainer routerWebServerIfaces = ipv4.Assign (routerWebServerDevices);
-
-  // Add global routing tables after the topology is fully constructed
-  Ipv4GlobalRoutingHelper::PopulateRoutingTables ();
-
-////////////////////////////////////////////////////////////
-// application configuration                              //
-////////////////////////////////////////////////////////////
-
-  NS_LOG_INFO ("Number of TCP downloads = " << numTcpDownloads);
-  NS_LOG_INFO ("Number of TCP uploads = " << numTcpUploads);
-  NS_LOG_INFO ("Number of TCP DASH streams = " << numTcpDashStreams);
-
-  Time dashStartTimeIncrement = Seconds (5);
-  if (numTcpDashStreams > 0)
-    {
-      dashStartTimeIncrement = dashStartTimeIncrement / numTcpDashStreams;
-    }
-  for (uint16_t i = 0; i < numTcpDashStreams; i++)
-    {
-      Ptr<Node> destNode = tcpClient;
-      uint16_t destPort = servPortDash + i;
-      Time startTime = dashStartTime + i * dashStartTimeIncrement + TimeStep (1);
-      NS_LOG_INFO ("Add DASH session to " << destNode->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      docsis.AddDashSession (tcpServers.Get (i), destNode, destPort, startTime, simulationEndTime, tcpSocketFactoryType, maxDashBytes);
+        PointToPointHelper dctcpPtpHelper;
+        NodeContainer routerDctcpServer(router, dctcpServers.Get(index));
+        dctcpPtpHelper.SetDeviceAttribute("DataRate", DataRateValue(linkRateWan));
+        dctcpPtpHelper.SetQueue("ns3::DropTailQueue", "MaxSize", QueueSizeValue(queueSize));
+        Time delay = tcpDelayStart + j * tcpDelayStep;
+        NS_LOG_INFO("Link delay from DCTCP FTP downstream client node to router: "
+                    << delay.GetMilliSeconds() << "ms");
+        dctcpPtpHelper.SetChannelAttribute("Delay", TimeValue(delay));
+        NetDeviceContainer nodeC = dctcpPtpHelper.Install(routerDctcpServer);
+        routerDctcpServerDevices.push_back(nodeC);
     }
 
-  for (uint16_t i = numTcpDashStreams; i < totalTcpDownloads; i++)
+    ////////////////////////////////////////////////////////////
+    // protocol stack, device, and queue configuration        //
+    ////////////////////////////////////////////////////////////
+
+    InternetStackHelper stackHelper;
+    stackHelper.Install(clientNs3Endpoints);
+    stackHelper.Install(clientTcpEndpoints);
+    stackHelper.Install(clientDctcpEndpoints);
+    for (uint16_t i = 0; i < clientDctcpEndpoints.GetN(); i++)
     {
-      Ptr<Node> destNode = tcpClient;
-      uint16_t destPort = servPortDownstream + (i - numTcpDashStreams);
-      Time startTime = ftpStartTime + TimeStep (1);
-      if (fileModel == "empirical")
+        Ptr<TcpL4Protocol> tcp = clientTcpEndpoints.Get(i)->GetObject<TcpL4Protocol>();
+        tcp->SetAttribute("SocketType", TypeIdValue(TcpDctcp::GetTypeId()));
+    }
+
+    stackHelper.Install(router);
+
+    stackHelper.Install(udpEfServer);
+    stackHelper.Install(udpServer);
+    for (uint16_t i = 0; i < numTcpServers; i++)
+    {
+        stackHelper.Install(tcpServers.Get(i));
+    }
+    for (uint16_t i = 0; i < numDctcpServers; i++)
+    {
+        stackHelper.Install(dctcpServers.Get(i));
+        Ptr<TcpL4Protocol> tcp = dctcpServers.Get(i)->GetObject<TcpL4Protocol>();
+        tcp->SetAttribute("SocketType", TypeIdValue(TcpDctcp::GetTypeId()));
+    }
+    stackHelper.Install(webServer);
+
+    // Configure upstream traces
+    Ptr<DualQueueCoupledAqm> dualQueue = docsis.GetUpstream(linkDocsis)->GetQueue();
+    Ptr<QueueProtection> queueProtection = dualQueue->GetQueueProtection();
+    if (!fileNameCQueueUpstreamBytes.empty())
+    {
+        g_fileCQueueUpstreamBytes.open(fileNameCQueueUpstreamBytes.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("ClassicBytes",
+                                              MakeCallback(&CQueueUpstreamBytesTrace));
+    }
+    if (!fileNameLQueueUpstreamBytes.empty())
+    {
+        g_fileLQueueUpstreamBytes.open(fileNameLQueueUpstreamBytes.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("LowLatencyBytes",
+                                              MakeCallback(&LQueueUpstreamBytesTrace));
+    }
+    if (!fileNameCQueueDropProbability.empty())
+    {
+        g_fileCQueueDropProbability.open(fileNameCQueueDropProbability.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("ClassicDropProbability",
+                                              MakeCallback(&CQueueDropProbabilityTrace));
+    }
+    if (!fileNameLQueueMarkProbability.empty())
+    {
+        g_fileLQueueMarkProbability.open(fileNameLQueueMarkProbability.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("ProbNative",
+                                              MakeCallback(&LQueueMarkProbabilityTrace));
+    }
+    if (!fileNameCalculatePState.empty())
+    {
+        g_fileCalculatePState.open(fileNameCalculatePState.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("CalculatePState",
+                                              MakeCallback(&CalculatePStateTrace));
+    }
+    if (!fileNameCongestionBytes.empty())
+    {
+        g_fileCongestionBytes.open(fileNameCongestionBytes.c_str(), std::ofstream::out);
+        queueProtection->TraceConnectWithoutContext("CongestionBytesUpdate",
+                                                    MakeCallback(&CongestionBytesTrace));
+    }
+    dualQueue->TraceConnectWithoutContext("LowLatencyArrival",
+                                          MakeCallback(&LowLatencyArrivalTrace));
+    dualQueue->TraceConnectWithoutContext("ClassicArrival", MakeCallback(&ClassicArrivalTrace));
+
+    // Configure downstream traces
+    dualQueue = docsis.GetDownstream(linkDocsis)->GetQueue();
+    if (!fileNameCQueueDownstreamBytes.empty())
+    {
+        g_fileCQueueDownstreamBytes.open(fileNameCQueueDownstreamBytes.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("ClassicBytes",
+                                              MakeCallback(&CQueueDownstreamBytesTrace));
+    }
+    if (!fileNameLQueueDownstreamBytes.empty())
+    {
+        g_fileLQueueDownstreamBytes.open(fileNameLQueueDownstreamBytes.c_str(), std::ofstream::out);
+        dualQueue->TraceConnectWithoutContext("LowLatencyBytes",
+                                              MakeCallback(&LQueueDownstreamBytesTrace));
+    }
+
+    if (!fileNameTcpPacketTrace.empty())
+    {
+        g_fileTcpPacketTrace.open(fileNameTcpPacketTrace.c_str(), std::ofstream::out);
+        // Trace IP packets forwarded at router
+        Ptr<Ipv4L3Protocol> routerIpv4 = router->GetObject<Ipv4L3Protocol>();
+        routerIpv4->TraceConnectWithoutContext("UnicastForward",
+                                               MakeCallback(&UnicastForwardTrace));
+    }
+
+    // Trace bytes granted, used, and unused
+    bool connected [[maybe_unused]]; // variable used to track whether trace was connected
+    connected = docsis.GetUpstream(linkDocsis)
+                    ->TraceConnectWithoutContext("ClassicGrantState",
+                                                 MakeCallback(&ClassicGrantStateTrace));
+    NS_ASSERT_MSG(connected, "Couldn't hook trace source");
+    connected = docsis.GetUpstream(linkDocsis)
+                    ->TraceConnectWithoutContext("LowLatencyGrantState",
+                                                 MakeCallback(&LowLatencyGrantStateTrace));
+    NS_ASSERT_MSG(connected, "Couldn't hook trace source");
+    if (!fileNameGrantsUnused.empty())
+    {
+        g_fileGrantsUnused.open(fileNameGrantsUnused.c_str(), std::ofstream::out);
+    }
+    if (!fileNameCGrantState.empty())
+    {
+        g_fileCGrantState.open(fileNameCGrantState.c_str(), std::ofstream::out);
+    }
+    if (!fileNameLGrantState.empty())
+    {
+        g_fileLGrantState.open(fileNameLGrantState.c_str(), std::ofstream::out);
+    }
+    if (!fileNameUnusedBandwidth.empty())
+    {
+        g_fileUnusedBandwidth.open(fileNameUnusedBandwidth.c_str(), std::ofstream::out);
+        // Schedule the polling to determine unused bandwidth
+        Simulator::Schedule(g_grantsUnusedSamplingInterval, &GrantUnusedBandwidthTrace);
+    }
+    connected = docsis.GetUpstream(linkDocsis)
+                    ->TraceConnectWithoutContext("ClassicGrantReceived", MakeCallback(&GrantTrace));
+    NS_ASSERT_MSG(connected, "Couldn't hook trace source");
+    connected =
+        docsis.GetUpstream(linkDocsis)
+            ->TraceConnectWithoutContext("LowLatencyGrantReceived", MakeCallback(&GrantTrace));
+    NS_ASSERT_MSG(connected, "Couldn't hook trace source");
+    if (!fileNameLowLatencySojourn.empty())
+    {
+        g_fileDualQLlSojourn.open(fileNameLowLatencySojourn.c_str(), std::ofstream::out);
+        connected = docsis.GetUpstream(linkDocsis)
+                        ->TraceConnectWithoutContext("LowLatencySojournTime",
+                                                     MakeCallback(&LowLatencySojournTrace));
+        NS_ABORT_MSG_UNLESS(connected, "couldn't connect L");
+    }
+    if (!fileNameClassicSojourn.empty())
+    {
+        g_fileDualQClassicSojourn.open(fileNameClassicSojourn.c_str(), std::ofstream::out);
+        connected = docsis.GetUpstream(linkDocsis)
+                        ->TraceConnectWithoutContext("ClassicSojournTime",
+                                                     MakeCallback(&ClassicSojournTrace));
+        NS_ABORT_MSG_UNLESS(connected, "couldn't connect C");
+    }
+
+    Ipv4AddressHelper ipv4;
+    ipv4.SetBase("10.1.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer clientLanIfaces = ipv4.Assign(clientLanDevices);
+    ipv4.SetBase("10.1.2.0", "255.255.255.0");
+    Ipv4InterfaceContainer routerUdpEfIfaces = ipv4.Assign(routerUdpEfDevices);
+    ipv4.SetBase("10.1.3.0", "255.255.255.0");
+    Ipv4InterfaceContainer routerUdpIfaces = ipv4.Assign(routerUdpDevices);
+    std::vector<Ipv4Address> tcpServerAddresses;
+    ipv4.SetBase("10.1.5.0", "255.255.255.0");
+    for (uint16_t i = 0; i < numTcpServers; i++)
+    {
+        Ipv4InterfaceContainer ipv4Iface = ipv4.Assign(routerTcpServerDevices[i]);
+        tcpServerAddresses.push_back(ipv4Iface.GetAddress(1));
+        ipv4.NewNetwork();
+    }
+    std::vector<Ipv4Address> dctcpServerAddresses;
+    ipv4.SetBase("10.2.5.0", "255.255.255.0");
+    for (uint16_t i = 0; i < numDctcpServers; i++)
+    {
+        Ipv4InterfaceContainer ipv4Iface = ipv4.Assign(routerDctcpServerDevices[i]);
+        dctcpServerAddresses.push_back(ipv4Iface.GetAddress(1));
+        ipv4.NewNetwork();
+    }
+    ipv4.SetBase("10.5.1.0", "255.255.255.0");
+    Ipv4InterfaceContainer routerWebServerIfaces = ipv4.Assign(routerWebServerDevices);
+
+    // Add global routing tables after the topology is fully constructed
+    Ipv4GlobalRoutingHelper::PopulateRoutingTables();
+
+    ////////////////////////////////////////////////////////////
+    // application configuration                              //
+    ////////////////////////////////////////////////////////////
+
+    NS_LOG_INFO("Number of TCP downloads = " << numTcpDownloads);
+    NS_LOG_INFO("Number of TCP uploads = " << numTcpUploads);
+    NS_LOG_INFO("Number of TCP DASH streams = " << numTcpDashStreams);
+
+    Time dashStartTimeIncrement = Seconds(5);
+    if (numTcpDashStreams > 0)
+    {
+        dashStartTimeIncrement = dashStartTimeIncrement / numTcpDashStreams;
+    }
+    for (uint16_t i = 0; i < numTcpDashStreams; i++)
+    {
+        Ptr<Node> destNode = tcpClient;
+        uint16_t destPort = servPortDash + i;
+        Time startTime = dashStartTime + i * dashStartTimeIncrement + TimeStep(1);
+        NS_LOG_INFO("Add DASH session to " << destNode->GetId() << " port " << destPort
+                                           << " start time " << startTime.GetSeconds() << "s");
+        docsis.AddDashSession(tcpServers.Get(i),
+                              destNode,
+                              destPort,
+                              startTime,
+                              simulationEndTime,
+                              tcpSocketFactoryType,
+                              maxDashBytes);
+    }
+
+    for (uint16_t i = numTcpDashStreams; i < totalTcpDownloads; i++)
+    {
+        Ptr<Node> destNode = tcpClient;
+        uint16_t destPort = servPortDownstream + (i - numTcpDashStreams);
+        Time startTime = ftpStartTime + TimeStep(1);
+        if (fileModel == "empirical")
         {
-          // Stagger the start times
-          startTime = ftpStartTime + (i - numTcpDashStreams) * ftpStartStep + TimeStep (1);
+            // Stagger the start times
+            startTime = ftpStartTime + (i - numTcpDashStreams) * ftpStartStep + TimeStep(1);
         }
-      NS_LOG_INFO ("Add downstream FTP session to " << destNode->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      docsis.AddFtpSession (tcpServers.Get (i), destNode, destPort, startTime, simulationEndTime, tcpSocketFactoryType, fileModel);
+        NS_LOG_INFO("Add downstream FTP session to " << destNode->GetId() << " port " << destPort
+                                                     << " start time " << startTime.GetSeconds()
+                                                     << "s");
+        docsis.AddFtpSession(tcpServers.Get(i),
+                             destNode,
+                             destPort,
+                             startTime,
+                             simulationEndTime,
+                             tcpSocketFactoryType,
+                             fileModel);
     }
 
-  for (uint16_t i = 0; i < numTcpUploads; i++)
+    for (uint16_t i = 0; i < numTcpUploads; i++)
     {
-      Ptr<Node> srcNode = tcpClient;
-      uint16_t destPort = servPortUpstream + i;
-      Time startTime = ftpStartTime + TimeStep (1);
-      if (fileModel == "empirical")
+        Ptr<Node> srcNode = tcpClient;
+        uint16_t destPort = servPortUpstream + i;
+        Time startTime = ftpStartTime + TimeStep(1);
+        if (fileModel == "empirical")
         {
-          // Stagger the start times
-          startTime = ftpStartTime + i * ftpStartStep + TimeStep (1);
+            // Stagger the start times
+            startTime = ftpStartTime + i * ftpStartStep + TimeStep(1);
         }
-      Ptr<FileTransferApplication> fileTransferApp;
-      NS_LOG_INFO ("Add upstream FTP session to " << tcpServers.Get (i)->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      fileTransferApp = docsis.AddFtpSession (srcNode, tcpServers.Get (i), destPort, startTime, simulationEndTime, tcpSocketFactoryType, fileModel);
-      // Hook each upstream file transfer client for file completion stats
-      fileTransferApp->TraceConnectWithoutContext ("FileTransferCompletion", MakeCallback (&UpstreamFileTransferCompletionCallback));
+        Ptr<FileTransferApplication> fileTransferApp;
+        NS_LOG_INFO("Add upstream FTP session to " << tcpServers.Get(i)->GetId() << " port "
+                                                   << destPort << " start time "
+                                                   << startTime.GetSeconds() << "s");
+        fileTransferApp = docsis.AddFtpSession(srcNode,
+                                               tcpServers.Get(i),
+                                               destPort,
+                                               startTime,
+                                               simulationEndTime,
+                                               tcpSocketFactoryType,
+                                               fileModel);
+        // Hook each upstream file transfer client for file completion stats
+        fileTransferApp->TraceConnectWithoutContext(
+            "FileTransferCompletion",
+            MakeCallback(&UpstreamFileTransferCompletionCallback));
     }
 
-  NS_LOG_INFO ("Number of DCTCP downloads = " << numDctcpDownloads);
-  NS_LOG_INFO ("Number of DCTCP uploads = " << numDctcpUploads);
-  NS_LOG_INFO ("Number of DCTCP DASH streams = " << numDctcpDashStreams);
+    NS_LOG_INFO("Number of DCTCP downloads = " << numDctcpDownloads);
+    NS_LOG_INFO("Number of DCTCP uploads = " << numDctcpUploads);
+    NS_LOG_INFO("Number of DCTCP DASH streams = " << numDctcpDashStreams);
 
-  dashStartTimeIncrement = Seconds (5);
-  if (numDctcpDashStreams > 0)
+    dashStartTimeIncrement = Seconds(5);
+    if (numDctcpDashStreams > 0)
     {
-      dashStartTimeIncrement = dashStartTimeIncrement / numDctcpDashStreams;
+        dashStartTimeIncrement = dashStartTimeIncrement / numDctcpDashStreams;
     }
-  for (uint16_t i = 0; i < numDctcpDashStreams; i++)
+    for (uint16_t i = 0; i < numDctcpDashStreams; i++)
     {
-      Ptr<Node> destNode = dctcpClient;
-      uint16_t destPort = servPortDash + i;
-      Time startTime = dashStartTime + i * dashStartTimeIncrement + TimeStep (1);
-      NS_LOG_INFO ("Add DCTCP DASH session to " << destNode->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      docsis.AddDashSession (dctcpServers.Get (i), destNode, destPort, startTime, simulationEndTime, dctcpSocketFactoryType, maxDashBytes);
+        Ptr<Node> destNode = dctcpClient;
+        uint16_t destPort = servPortDash + i;
+        Time startTime = dashStartTime + i * dashStartTimeIncrement + TimeStep(1);
+        NS_LOG_INFO("Add DCTCP DASH session to " << destNode->GetId() << " port " << destPort
+                                                 << " start time " << startTime.GetSeconds()
+                                                 << "s");
+        docsis.AddDashSession(dctcpServers.Get(i),
+                              destNode,
+                              destPort,
+                              startTime,
+                              simulationEndTime,
+                              dctcpSocketFactoryType,
+                              maxDashBytes);
     }
 
-  for (uint16_t i = numDctcpDashStreams; i < totalDctcpDownloads; i++)
+    for (uint16_t i = numDctcpDashStreams; i < totalDctcpDownloads; i++)
     {
-      Ptr<Node> destNode = dctcpClient;
-      uint16_t destPort = servPortDownstream + (i - numDctcpDashStreams);
-      Time startTime = ftpStartTime + TimeStep (1);
-      if (fileModel == "empirical")
+        Ptr<Node> destNode = dctcpClient;
+        uint16_t destPort = servPortDownstream + (i - numDctcpDashStreams);
+        Time startTime = ftpStartTime + TimeStep(1);
+        if (fileModel == "empirical")
         {
-          // Stagger the start times
-          startTime = ftpStartTime + (i - numDctcpDashStreams) * ftpStartStep + TimeStep (1);
+            // Stagger the start times
+            startTime = ftpStartTime + (i - numDctcpDashStreams) * ftpStartStep + TimeStep(1);
         }
-      NS_LOG_INFO ("Add downstream DCTCP FTP session to " << destNode->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      docsis.AddFtpSession (dctcpServers.Get (i), destNode, destPort, startTime, simulationEndTime, dctcpSocketFactoryType, fileModel);
+        NS_LOG_INFO("Add downstream DCTCP FTP session to " << destNode->GetId() << " port "
+                                                           << destPort << " start time "
+                                                           << startTime.GetSeconds() << "s");
+        docsis.AddFtpSession(dctcpServers.Get(i),
+                             destNode,
+                             destPort,
+                             startTime,
+                             simulationEndTime,
+                             dctcpSocketFactoryType,
+                             fileModel);
     }
 
-  for (uint16_t i = 0; i < numDctcpUploads; i++)
+    for (uint16_t i = 0; i < numDctcpUploads; i++)
     {
-      Ptr<Node> srcNode = dctcpClient;
-      uint16_t destPort = servPortUpstream + i;
-      Time startTime = ftpStartTime + TimeStep (1);
-      if (fileModel == "empirical")
+        Ptr<Node> srcNode = dctcpClient;
+        uint16_t destPort = servPortUpstream + i;
+        Time startTime = ftpStartTime + TimeStep(1);
+        if (fileModel == "empirical")
         {
-          // Stagger the start times
-          startTime = ftpStartTime + i * ftpStartStep + TimeStep (1);
+            // Stagger the start times
+            startTime = ftpStartTime + i * ftpStartStep + TimeStep(1);
         }
-      Ptr<FileTransferApplication> fileTransferApp;
-      NS_LOG_INFO ("Add upstream DCTCP FTP session to " << dctcpServers.Get (i)->GetId () << " port " << destPort << " start time " << startTime.GetSeconds () << "s");
-      fileTransferApp = docsis.AddFtpSession (srcNode, dctcpServers.Get (i), destPort, startTime, simulationEndTime, dctcpSocketFactoryType, fileModel);
-      // Hook each upstream file transfer client for file completion stats
-      fileTransferApp->TraceConnectWithoutContext ("FileTransferCompletion", MakeCallback (&UpstreamDctcpFileTransferCompletionCallback));
+        Ptr<FileTransferApplication> fileTransferApp;
+        NS_LOG_INFO("Add upstream DCTCP FTP session to " << dctcpServers.Get(i)->GetId() << " port "
+                                                         << destPort << " start time "
+                                                         << startTime.GetSeconds() << "s");
+        fileTransferApp = docsis.AddFtpSession(srcNode,
+                                               dctcpServers.Get(i),
+                                               destPort,
+                                               startTime,
+                                               simulationEndTime,
+                                               dctcpSocketFactoryType,
+                                               fileModel);
+        // Hook each upstream file transfer client for file completion stats
+        fileTransferApp->TraceConnectWithoutContext(
+            "FileTransferCompletion",
+            MakeCallback(&UpstreamDctcpFileTransferCompletionCallback));
     }
 
-  // Create UDP packet flows
-  for (uint16_t i = 0; i < numUdpEfUp; i++)
+    // Create UDP packet flows
+    for (uint16_t i = 0; i < numUdpEfUp; i++)
     {
-      uint16_t servPortUdp = servPortEfUp + i;
-      NS_LOG_INFO ("Add upstream UDP EF game session from " << clientLanIfaces.GetAddress (0) << " to " << udpEfServer->GetId () << " port " << servPortUdp);
-      Ptr<GameClient> game = docsis.AddUpstreamGameSession (udpEfClient, udpEfServer, servPortUdp, TimeStep (1), simulationEndTime);
-      streamIndex += game->AssignStreams (streamIndex);
+        uint16_t servPortUdp = servPortEfUp + i;
+        NS_LOG_INFO("Add upstream UDP EF game session from "
+                    << clientLanIfaces.GetAddress(0) << " to " << udpEfServer->GetId() << " port "
+                    << servPortUdp);
+        Ptr<GameClient> game = docsis.AddUpstreamGameSession(udpEfClient,
+                                                             udpEfServer,
+                                                             servPortUdp,
+                                                             TimeStep(1),
+                                                             simulationEndTime);
+        streamIndex += game->AssignStreams(streamIndex);
     }
-  for (uint16_t i = 0; i < numUdpEfDown; i++)
+    for (uint16_t i = 0; i < numUdpEfDown; i++)
     {
-      uint16_t servPortUdp = servPortEfDown + i;
-      NS_LOG_INFO ("Add downstream UDP EF game session from " << routerUdpEfIfaces.GetAddress (1) << " to " << udpEfClient->GetId () << " port " << servPortUdp);
-      Ptr<GameClient> game = docsis.AddDownstreamGameSession (udpEfServer, udpEfClient, servPortUdp, TimeStep (1), simulationEndTime);
-      streamIndex += game->AssignStreams (streamIndex);
+        uint16_t servPortUdp = servPortEfDown + i;
+        NS_LOG_INFO("Add downstream UDP EF game session from "
+                    << routerUdpEfIfaces.GetAddress(1) << " to " << udpEfClient->GetId() << " port "
+                    << servPortUdp);
+        Ptr<GameClient> game = docsis.AddDownstreamGameSession(udpEfServer,
+                                                               udpEfClient,
+                                                               servPortUdp,
+                                                               TimeStep(1),
+                                                               simulationEndTime);
+        streamIndex += game->AssignStreams(streamIndex);
     }
-  for (uint16_t i = 0; i < numUdpBeUp; i++)
+    for (uint16_t i = 0; i < numUdpBeUp; i++)
     {
-      uint16_t servPortUdp = servPortBeUp + i;
-      NS_LOG_INFO ("Add upstream UDP best effort session from " << clientLanIfaces.GetAddress (1) << " to " << udpServer->GetId () << " port " << servPortUdp);
-      Ptr<GameClient> game = docsis.AddUpstreamGameSession (udpClient, udpServer, servPortUdp, TimeStep (1), simulationEndTime, Ipv4Header::DscpDefault);
-      streamIndex += game->AssignStreams (streamIndex);
+        uint16_t servPortUdp = servPortBeUp + i;
+        NS_LOG_INFO("Add upstream UDP best effort session from "
+                    << clientLanIfaces.GetAddress(1) << " to " << udpServer->GetId() << " port "
+                    << servPortUdp);
+        Ptr<GameClient> game = docsis.AddUpstreamGameSession(udpClient,
+                                                             udpServer,
+                                                             servPortUdp,
+                                                             TimeStep(1),
+                                                             simulationEndTime,
+                                                             Ipv4Header::DscpDefault);
+        streamIndex += game->AssignStreams(streamIndex);
     }
-  for (uint16_t i = 0; i < numUdpBeDown; i++)
+    for (uint16_t i = 0; i < numUdpBeDown; i++)
     {
-      uint16_t servPortUdp = servPortBeDown + i;
-      NS_LOG_INFO ("Add downstream UDP best effort session from " << routerUdpIfaces.GetAddress (1) << " to " << udpClient->GetId () << " port " << servPortUdp);
-      Ptr<GameClient> game = docsis.AddDownstreamGameSession (udpServer, udpClient, servPortUdp, TimeStep (1), simulationEndTime, Ipv4Header::DscpDefault);
-      streamIndex += game->AssignStreams (streamIndex);
+        uint16_t servPortUdp = servPortBeDown + i;
+        NS_LOG_INFO("Add downstream UDP best effort session from "
+                    << routerUdpIfaces.GetAddress(1) << " to " << udpClient->GetId() << " port "
+                    << servPortUdp);
+        Ptr<GameClient> game = docsis.AddDownstreamGameSession(udpServer,
+                                                               udpClient,
+                                                               servPortUdp,
+                                                               TimeStep(1),
+                                                               simulationEndTime,
+                                                               Ipv4Header::DscpDefault);
+        streamIndex += game->AssignStreams(streamIndex);
     }
 
-  Ipv4Address serverAddress = routerWebServerIfaces.GetAddress (1);
-  if (webClients.GetN () > 0)
+    Ipv4Address serverAddress = routerWebServerIfaces.GetAddress(1);
+    if (webClients.GetN() > 0)
     {
-      NS_LOG_INFO ("Adding " << webClients.GetN () << " web clients");
-      ThreeGppHttpServerHelper serverHelper (serverAddress);
+        NS_LOG_INFO("Adding " << webClients.GetN() << " web clients");
+        ThreeGppHttpServerHelper serverHelper(serverAddress);
 
-      // Install HTTP server
-      ApplicationContainer serverApps = serverHelper.Install (webServer);
-      Ptr<ThreeGppHttpServer> httpServer = serverApps.Get (0)->GetObject<ThreeGppHttpServer> ();
+        // Install HTTP server
+        ApplicationContainer serverApps = serverHelper.Install(webServer);
+        Ptr<ThreeGppHttpServer> httpServer = serverApps.Get(0)->GetObject<ThreeGppHttpServer>();
 
-      // Example of connecting to the trace sources
-      httpServer->TraceConnectWithoutContext ("ConnectionEstablished", MakeCallback (&ServerConnectionEstablished));
-      httpServer->TraceConnectWithoutContext ("MainObject", MakeCallback (&MainObjectGenerated));
-      httpServer->TraceConnectWithoutContext ("EmbeddedObject", MakeCallback (&EmbeddedObjectGenerated));
-      httpServer->TraceConnectWithoutContext ("Tx", MakeCallback (&ServerTx));
+        // Example of connecting to the trace sources
+        httpServer->TraceConnectWithoutContext("ConnectionEstablished",
+                                               MakeCallback(&ServerConnectionEstablished));
+        httpServer->TraceConnectWithoutContext("MainObject", MakeCallback(&MainObjectGenerated));
+        httpServer->TraceConnectWithoutContext("EmbeddedObject",
+                                               MakeCallback(&EmbeddedObjectGenerated));
+        httpServer->TraceConnectWithoutContext("Tx", MakeCallback(&ServerTx));
 
-      // Setup HTTP variables for the server
-      PointerValue ptrValue;
-      httpServer->GetAttribute ("Variables", ptrValue);
-      Ptr<ThreeGppHttpVariables> httpVariables = ptrValue.Get<ThreeGppHttpVariables> ();
-      httpVariables->SetMainObjectSizeMean (102400); // 100kB
-      httpVariables->SetMainObjectSizeStdDev (40960); // 40kB
+        // Setup HTTP variables for the server
+        PointerValue ptrValue;
+        httpServer->GetAttribute("Variables", ptrValue);
+        Ptr<ThreeGppHttpVariables> httpVariables = ptrValue.Get<ThreeGppHttpVariables>();
+        httpVariables->SetMainObjectSizeMean(102400);  // 100kB
+        httpVariables->SetMainObjectSizeStdDev(40960); // 40kB
     }
 
-  // Create HTTP client helper
-  ThreeGppHttpClientHelper clientHelper (serverAddress);
+    // Create HTTP client helper
+    ThreeGppHttpClientHelper clientHelper(serverAddress);
 
-  // Install HTTP clients
-  ApplicationContainer clientApps;
-  for (uint16_t i = 0; i < webClients.GetN (); i++)
+    // Install HTTP clients
+    ApplicationContainer clientApps;
+    for (uint16_t i = 0; i < webClients.GetN(); i++)
     {
-      ApplicationContainer a = clientHelper.Install (webClients.Get (i));
-      clientApps.Add (a);
-      Ptr<ThreeGppHttpClient> httpClient = a.Get (0)->GetObject<ThreeGppHttpClient> ();
+        ApplicationContainer a = clientHelper.Install(webClients.Get(i));
+        clientApps.Add(a);
+        Ptr<ThreeGppHttpClient> httpClient = a.Get(0)->GetObject<ThreeGppHttpClient>();
 
-      std::stringstream ss;
-      ss << webClients.Get (i)->GetId ();
+        std::stringstream ss;
+        ss << webClients.Get(i)->GetId();
 
-      // Example of connecting to the trace sources
-      httpClient->TraceConnect ("RxMainObject", ss.str (), MakeCallback (&ClientMainObjectReceived));
-      httpClient->TraceConnect ("RxEmbeddedObject", ss.str (), MakeCallback (&ClientEmbeddedObjectReceived));
-      httpClient->TraceConnect ("Rx", ss.str (), MakeCallback (&ClientRx));
-      httpClient->TraceConnect ("StateTransition", ss.str (), MakeCallback (&ClientStateTransitionCallback));
+        // Example of connecting to the trace sources
+        httpClient->TraceConnect("RxMainObject", ss.str(), MakeCallback(&ClientMainObjectReceived));
+        httpClient->TraceConnect("RxEmbeddedObject",
+                                 ss.str(),
+                                 MakeCallback(&ClientEmbeddedObjectReceived));
+        httpClient->TraceConnect("Rx", ss.str(), MakeCallback(&ClientRx));
+        httpClient->TraceConnect("StateTransition",
+                                 ss.str(),
+                                 MakeCallback(&ClientStateTransitionCallback));
     }
 
-  clientApps.Start (webClientStartTime + TimeStep (1));
-  clientApps.Stop (simulationEndTime);
+    clientApps.Start(webClientStartTime + TimeStep(1));
+    clientApps.Stop(simulationEndTime);
 
-////////////////////////////////////////////////////////////
-// additional tracing configuration                       //
-////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////
+    // additional tracing configuration                       //
+    ////////////////////////////////////////////////////////////
 
-  // Trace latency for node CM.  Traces on both sides of the link are hooked.
-  docsis.GetUpstream (linkDocsis)->GetQueue ()->TraceConnect ("Enqueue", "CM", MakeCallback (&DocsisEnqueueCallback));
-  docsis.GetDownstream (linkDocsis)->TraceConnect ("DeviceEgress", "CM", MakeCallback (&DeviceEgressCallback));
-  // Trace drop for node CM
-  docsis.GetUpstream (linkDocsis)->GetQueue ()->TraceConnect ("Drop", "CM", MakeCallback (&DocsisDropCallback));
+    // Trace latency for node CM.  Traces on both sides of the link are hooked.
+    docsis.GetUpstream(linkDocsis)
+        ->GetQueue()
+        ->TraceConnect("Enqueue", "CM", MakeCallback(&DocsisEnqueueCallback));
+    docsis.GetDownstream(linkDocsis)
+        ->TraceConnect("DeviceEgress", "CM", MakeCallback(&DeviceEgressCallback));
+    // Trace drop for node CM
+    docsis.GetUpstream(linkDocsis)
+        ->GetQueue()
+        ->TraceConnect("Drop", "CM", MakeCallback(&DocsisDropCallback));
 
-  // Repeat for node CMTS
-  docsis.GetDownstream (linkDocsis)->GetQueue ()->TraceConnect ("Enqueue", "CMTS", MakeCallback (&DocsisEnqueueCallback));
-  docsis.GetUpstream (linkDocsis)->TraceConnect ("DeviceEgress", "CMTS", MakeCallback (&DeviceEgressCallback));
-  docsis.GetDownstream (linkDocsis)->GetQueue ()->TraceConnect ("Drop", "CMTS", MakeCallback (&DocsisDropCallback));
+    // Repeat for node CMTS
+    docsis.GetDownstream(linkDocsis)
+        ->GetQueue()
+        ->TraceConnect("Enqueue", "CMTS", MakeCallback(&DocsisEnqueueCallback));
+    docsis.GetUpstream(linkDocsis)
+        ->TraceConnect("DeviceEgress", "CMTS", MakeCallback(&DeviceEgressCallback));
+    docsis.GetDownstream(linkDocsis)
+        ->GetQueue()
+        ->TraceConnect("Drop", "CMTS", MakeCallback(&DocsisDropCallback));
 
-  //Ask for ASCII and pcap traces of network traffic
-  if (enableTrace)
+    // Ask for ASCII and pcap traces of network traffic
+    if (enableTrace)
     {
-      AsciiTraceHelper ascii;
-      docsis.EnableAscii (fileNameUpstreamTrace, linkDocsis.Get (0), true);
-      docsis.EnableAscii (fileNameDownstreamTrace, linkDocsis.Get (1), true);
+        AsciiTraceHelper ascii;
+        docsis.EnableAscii(fileNameUpstreamTrace, linkDocsis.Get(0), true);
+        docsis.EnableAscii(fileNameDownstreamTrace, linkDocsis.Get(1), true);
     }
-  if (enablePcap)
+    if (enablePcap)
     {
-      // the cable modem device in the clientBridgeDevices container will be
-      // the last one added; i.e. clientBridgeDevices.GetN () - 1
-      uint32_t cableModemIndex = clientBridgeDevices.GetN () - 1;
-      csma.EnablePcap (fileNamePcap.c_str (), clientBridgeDevices.Get (cableModemIndex), true);
+        // the cable modem device in the clientBridgeDevices container will be
+        // the last one added; i.e. clientBridgeDevices.GetN () - 1
+        uint32_t cableModemIndex = clientBridgeDevices.GetN() - 1;
+        csma.EnablePcap(fileNamePcap, clientBridgeDevices.Get(cableModemIndex), true);
     }
 
+    ////////////////////////////////////////////////////////////
+    // Run simulation                                         //
+    ////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////
-// Run simulation                                         //
-////////////////////////////////////////////////////////////
+    NS_LOG_INFO("Run simulation for " << simulationEndTime.GetSeconds() << "s");
+    Simulator::Stop(simulationEndTime);
+    Simulator::Run();
+    NS_LOG_INFO("Start post-processing");
 
-  NS_LOG_INFO ("Run simulation for " << simulationEndTime.GetSeconds () << "s");
-  Simulator::Stop (simulationEndTime);
-  Simulator::Run ();
-  NS_LOG_INFO ("Start post-processing");
+    ////////////////////////////////////////////////////////////
+    // Data post-processing                                   //
+    ////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////
-// Data post-processing                                   //
-////////////////////////////////////////////////////////////
+    std::cout << std::endl;
+    docsis.PrintConfiguration(std::cout, linkDocsis);
+    std::cout << std::endl;
 
-  std::cout << std::endl;
-  docsis.PrintConfiguration (std::cout, linkDocsis);
-  std::cout << std::endl;
+    std::cout << "================" << std::endl;
+    std::cout << "Simulation Stats" << std::endl;
+    std::cout << "================" << std::endl;
 
-  std::cout << "================" << std::endl;
-  std::cout << "Simulation Stats" << std::endl;
-  std::cout << "================" << std::endl;
+    UintegerValue uVal;
+    TimeValue tVal;
+    docsis.GetUpstream(linkDocsis)->GetAttribute("MinislotsPerMap", uVal);
+    uint32_t minislotsPerMap = uVal.Get();
+    docsis.GetUpstream(linkDocsis)->GetAttribute("ActualMapInterval", tVal);
+    Time actualMapInterval = tVal.Get();
+    std::cout << "Simulation duration = " << Simulator::Now().As(Time::S) << std::endl;
+    double simulationMinislots =
+        (minislotsPerMap / actualMapInterval.GetSeconds()) * simulationEndTime.GetSeconds();
+    std::cout << "Simulation minislots = " << simulationMinislots << std::endl;
+    docsis.GetUpstream(linkDocsis)->GetAttribute("MinislotCapacity", uVal);
+    std::cout << "Minislots granted = " << (g_grantsCounter / uVal.Get()) << std::endl;
+    std::cout << "Simulation minislots/minislots granted (est. number of users) = "
+              << simulationMinislots / (g_grantsCounter / uVal.Get()) << std::endl;
+    std::cout << "Bytes granted = " << g_grantsCounter << std::endl;
+    std::cout << "Bytes sent = " << g_grantsUsedCounter << std::endl;
+    std::cout << "Bytes sent/granted (efficiency) = "
+              << static_cast<double>(g_grantsUsedCounter) / g_grantsCounter << std::endl;
 
-  UintegerValue uVal;
-  TimeValue tVal;
-  docsis.GetUpstream (linkDocsis)->GetAttribute ("MinislotsPerMap", uVal);
-  uint32_t minislotsPerMap = uVal.Get ();
-  docsis.GetUpstream (linkDocsis)->GetAttribute ("ActualMapInterval", tVal);
-  Time actualMapInterval = tVal.Get ();
-  std::cout << "Simulation duration = " << Simulator::Now ().As (Time::S) << std::endl;
-  double simulationMinislots = (minislotsPerMap / actualMapInterval.GetSeconds ()) * simulationEndTime.GetSeconds ();
-  std::cout << "Simulation minislots = " << simulationMinislots << std::endl;
-  docsis.GetUpstream (linkDocsis)->GetAttribute ("MinislotCapacity", uVal);
-  std::cout << "Minislots granted = " << (g_grantsCounter / uVal.Get ()) << std::endl;
-  std::cout << "Simulation minislots/minislots granted (est. number of users) = " << simulationMinislots / (g_grantsCounter / uVal.Get ()) << std::endl;
-  std::cout << "Bytes granted = " << g_grantsCounter << std::endl;
-  std::cout << "Bytes sent = " << g_grantsUsedCounter << std::endl;
-  std::cout << "Bytes sent/granted (efficiency) = " << static_cast<double> (g_grantsUsedCounter) / g_grantsCounter << std::endl;
-
-  uint32_t wastedBytes = g_grantsCounter - g_grantsUsedCounter;
-  if (!fileNameSummary.empty ())
+    uint32_t wastedBytes = g_grantsCounter - g_grantsUsedCounter;
+    if (!fileNameSummary.empty())
     {
-      g_fileSummary.open (fileNameSummary.c_str (), std::ofstream::out);
+        g_fileSummary.open(fileNameSummary.c_str(), std::ofstream::out);
 
-      g_fileSummary << std::setprecision (3) <<
-        simulationEndTime.GetSeconds () << " " <<
-      (g_grantsCounter * 8.0 / simulationEndTime.GetSeconds ()) / 1e6 << " " <<
-      (g_grantsUsedCounter * 8.0 / simulationEndTime.GetSeconds ()) / 1e6 << " " <<
-      (wastedBytes * 8.0 / simulationEndTime.GetSeconds ()) / 1e6 << " " <<
-      (g_grantsUsedCounter / double (g_grantsCounter));
-      g_fileSummary.close ();
+        g_fileSummary << std::setprecision(3) << simulationEndTime.GetSeconds() << " "
+                      << (g_grantsCounter * 8.0 / simulationEndTime.GetSeconds()) / 1e6 << " "
+                      << (g_grantsUsedCounter * 8.0 / simulationEndTime.GetSeconds()) / 1e6 << " "
+                      << (wastedBytes * 8.0 / simulationEndTime.GetSeconds()) / 1e6 << " "
+                      << (g_grantsUsedCounter / double(g_grantsCounter));
+        g_fileSummary.close();
     }
 
-  // Release dynamically allocated memory
-  Simulator::Destroy ();
-  // Close all open file descriptors
-  CloseFileDescriptors ();
+    // Release dynamically allocated memory
+    Simulator::Destroy();
+    // Close all open file descriptors
+    CloseFileDescriptors();
 }
 
 ////////////////////////////////////////////////////////////
@@ -1136,508 +1313,578 @@ main (int argc, char *argv[])
  */
 class PacketUidTag : public Tag
 {
-public:
-  static TypeId GetTypeId (void);
-  virtual TypeId GetInstanceTypeId (void) const;
-  virtual uint32_t GetSerializedSize (void) const;
-  virtual void Serialize (TagBuffer i) const;
-  virtual void Deserialize (TagBuffer i);
-  virtual void Print (std::ostream &os) const;
+  public:
+    static TypeId GetTypeId();
+    TypeId GetInstanceTypeId() const override;
+    uint32_t GetSerializedSize() const override;
+    void Serialize(TagBuffer i) const override;
+    void Deserialize(TagBuffer i) override;
+    void Print(std::ostream& os) const override;
 
-  // these are our accessors to our tag structure
-  void SetUniqueId (uint64_t id);
-  uint64_t GetUniqueId (void) const;
+    // these are our accessors to our tag structure
+    void SetUniqueId(uint64_t id);
+    uint64_t GetUniqueId() const;
 
-private:
-  uint64_t m_uniqueId;
+  private:
+    uint64_t m_uniqueId;
 };
 
 TypeId
-PacketUidTag::GetTypeId (void)
+PacketUidTag::GetTypeId()
 {
-  static TypeId tid = TypeId ("ns3::docsis::PacketUidTag")
-    .SetParent<Tag> ()
-    .AddConstructor<PacketUidTag> ()
-  ;
-  return tid;
+    static TypeId tid =
+        TypeId("ns3::docsis::PacketUidTag").SetParent<Tag>().AddConstructor<PacketUidTag>();
+    return tid;
 }
 
 TypeId
-PacketUidTag::GetInstanceTypeId (void) const
+PacketUidTag::GetInstanceTypeId() const
 {
-  return GetTypeId ();
+    return GetTypeId();
 }
 
 uint32_t
-PacketUidTag::GetSerializedSize (void) const
+PacketUidTag::GetSerializedSize() const
 {
-  return 8;
+    return 8;
 }
 
 void
-PacketUidTag::Serialize (TagBuffer i) const
+PacketUidTag::Serialize(TagBuffer i) const
 {
-  i.WriteU64 (m_uniqueId);
+    i.WriteU64(m_uniqueId);
 }
 
 void
-PacketUidTag::Print (std::ostream &os) const
+PacketUidTag::Print(std::ostream& os) const
 {
-  os << "v=" << m_uniqueId;
+    os << "v=" << m_uniqueId;
 }
 
 void
-PacketUidTag::Deserialize (TagBuffer i)
+PacketUidTag::Deserialize(TagBuffer i)
 {
-  m_uniqueId = i.ReadU64 ();
+    m_uniqueId = i.ReadU64();
 }
 
 void
-PacketUidTag::SetUniqueId (uint64_t value)
+PacketUidTag::SetUniqueId(uint64_t value)
 {
-  m_uniqueId = value;
+    m_uniqueId = value;
 }
 
 uint64_t
-PacketUidTag::GetUniqueId (void) const
+PacketUidTag::GetUniqueId() const
 {
-  return m_uniqueId;
+    return m_uniqueId;
 }
 
 struct QueueDiscItemRecord
 {
-  Ipv4Header header;
-  Time txTime;
+    Ipv4Header header;
+    Time txTime;
 };
 
 void
-LowLatencySojournTrace (Time newVal)
+LowLatencySojournTrace(Time newVal)
 {
-  g_fileDualQLlSojourn << Simulator::Now ().GetSeconds () << " " << newVal.GetSeconds () * 1000 << std::endl;
+    g_fileDualQLlSojourn << Simulator::Now().GetSeconds() << " " << newVal.GetSeconds() * 1000
+                         << std::endl;
 }
 
 void
-ClassicSojournTrace (Time newVal)
+ClassicSojournTrace(Time newVal)
 {
-  g_fileDualQClassicSojourn << Simulator::Now ().GetSeconds () << " " << newVal.GetSeconds () * 1000 << std::endl;
+    g_fileDualQClassicSojourn << Simulator::Now().GetSeconds() << " " << newVal.GetSeconds() * 1000
+                              << std::endl;
 }
 
 void
-ClassicArrivalTrace (uint32_t size)
+ClassicArrivalTrace(uint32_t size)
 {
-  g_cArrivalsSinceLastUpdate++;
+    g_cArrivalsSinceLastUpdate++;
 }
 
 void
-LowLatencyArrivalTrace (uint32_t size)
+LowLatencyArrivalTrace(uint32_t size)
 {
-  g_lArrivalsSinceLastUpdate++;
-}
-
-
-void
-CalculatePStateTrace (Time qDelay, Time qDelayOld, double p, double dropProb, double baseProb, double probCL)
-{
-  g_fileCalculatePState << std::fixed << std::setprecision (6) << Simulator::Now ().GetSeconds () << " "
-                        << qDelay.GetSeconds () << " "
-                        << std::setw (7) <<  std::setprecision (3) << (qDelay - qDelayOld).GetSeconds () * 1000 << " "
-                        << std::setw (3) << g_lArrivalsSinceLastUpdate << " "
-                        << std::setw (3) << g_cArrivalsSinceLastUpdate << " "
-                        << std::setw (6) << p << " "
-                        << std::setprecision (4) << dropProb << " "
-                        << baseProb << " "
-                        << probCL << std::endl;
-  g_lArrivalsSinceLastUpdate = 0;
-  g_cArrivalsSinceLastUpdate = 0;
+    g_lArrivalsSinceLastUpdate++;
 }
 
 void
-CQueueDropProbabilityTrace (double oldValue, double newValue)
+CalculatePStateTrace(Time qDelay,
+                     Time qDelayOld,
+                     double p,
+                     double dropProb,
+                     double baseProb,
+                     double probCL)
 {
-  g_fileCQueueDropProbability << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileCalculatePState << std::fixed << std::setprecision(6) << Simulator::Now().GetSeconds()
+                          << " " << qDelay.GetSeconds() << " " << std::setw(7)
+                          << std::setprecision(3) << (qDelay - qDelayOld).GetSeconds() * 1000 << " "
+                          << std::setw(3) << g_lArrivalsSinceLastUpdate << " " << std::setw(3)
+                          << g_cArrivalsSinceLastUpdate << " " << std::setw(6) << p << " "
+                          << std::setprecision(4) << dropProb << " " << baseProb << " " << probCL
+                          << std::endl;
+    g_lArrivalsSinceLastUpdate = 0;
+    g_cArrivalsSinceLastUpdate = 0;
 }
 
 void
-LQueueMarkProbabilityTrace (double oldValue, double newValue)
+CQueueDropProbabilityTrace(double oldValue, double newValue)
 {
-  g_fileLQueueMarkProbability << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileCQueueDropProbability << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
 }
 
 void
-CQueueUpstreamBytesTrace (uint32_t oldValue, uint32_t newValue)
+LQueueMarkProbabilityTrace(double oldValue, double newValue)
 {
-  g_fileCQueueUpstreamBytes << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileLQueueMarkProbability << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
 }
 
 void
-CQueueDownstreamBytesTrace (uint32_t oldValue, uint32_t newValue)
+CQueueUpstreamBytesTrace(uint32_t oldValue, uint32_t newValue)
 {
-  g_fileCQueueDownstreamBytes << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileCQueueUpstreamBytes << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
 }
 
 void
-LQueueUpstreamBytesTrace (uint32_t oldValue, uint32_t newValue)
+CQueueDownstreamBytesTrace(uint32_t oldValue, uint32_t newValue)
 {
-  g_fileLQueueUpstreamBytes << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileCQueueDownstreamBytes << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
 }
 
 void
-LQueueDownstreamBytesTrace (uint32_t oldValue, uint32_t newValue)
+LQueueUpstreamBytesTrace(uint32_t oldValue, uint32_t newValue)
 {
-  g_fileLQueueDownstreamBytes << Simulator::Now ().GetSeconds () << " " << newValue << std::endl;
+    g_fileLQueueUpstreamBytes << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
 }
 
 void
-UpstreamFileTransferCompletionCallback (Time completionTime, uint32_t bytes, double throughput)
+LQueueDownstreamBytesTrace(uint32_t oldValue, uint32_t newValue)
 {
-  g_fileTransferCounter++;
-  g_fileTcpFileCompletion << Simulator::Now ().GetSeconds () << " " << completionTime.GetSeconds () << " " << bytes << " " << throughput / 1000000 << std::endl;
-  if (g_ftpStoppingCriteria && g_fileTransferCounter >= g_ftpStoppingCriteria)
+    g_fileLQueueDownstreamBytes << Simulator::Now().GetSeconds() << " " << newValue << std::endl;
+}
+
+void
+UpstreamFileTransferCompletionCallback(Time completionTime, uint32_t bytes, double throughput)
+{
+    g_fileTransferCounter++;
+    g_fileTcpFileCompletion << Simulator::Now().GetSeconds() << " " << completionTime.GetSeconds()
+                            << " " << bytes << " " << throughput / 1000000 << std::endl;
+    if (g_ftpStoppingCriteria && g_fileTransferCounter >= g_ftpStoppingCriteria)
     {
-      NS_LOG_INFO ("Stopping upstream file transfers at " << Simulator::Now ().GetSeconds () << " after " << g_fileTransferCounter << " FTPs");
-      Simulator::Stop ();
+        NS_LOG_INFO("Stopping upstream file transfers at " << Simulator::Now().GetSeconds()
+                                                           << " after " << g_fileTransferCounter
+                                                           << " FTPs");
+        Simulator::Stop();
     }
 }
 
 void
-UpstreamDctcpFileTransferCompletionCallback (Time completionTime, uint32_t bytes, double throughput)
+UpstreamDctcpFileTransferCompletionCallback(Time completionTime, uint32_t bytes, double throughput)
 {
-  g_fileDctcpFileCompletion << Simulator::Now ().GetSeconds () << " " << completionTime.GetSeconds () << " " << bytes << " " << throughput / 1000000 << std::endl;
+    g_fileDctcpFileCompletion << Simulator::Now().GetSeconds() << " " << completionTime.GetSeconds()
+                              << " " << bytes << " " << throughput / 1000000 << std::endl;
 }
 
 void
-GrantUnusedBandwidthTrace (void)
+GrantUnusedBandwidthTrace()
 {
-  g_fileUnusedBandwidth << Simulator::Now ().GetSeconds () << " "
-                        << (g_grantsUnusedCounter * 8 / g_grantsUnusedSamplingInterval.GetSeconds ()) / 1000000 << std::endl;
-  g_grantsUnusedCounter = 0;
-  Simulator::Schedule (g_grantsUnusedSamplingInterval, &GrantUnusedBandwidthTrace);
+    g_fileUnusedBandwidth << Simulator::Now().GetSeconds() << " "
+                          << (g_grantsUnusedCounter * 8 /
+                              g_grantsUnusedSamplingInterval.GetSeconds()) /
+                                 1000000
+                          << std::endl;
+    g_grantsUnusedCounter = 0;
+    Simulator::Schedule(g_grantsUnusedSamplingInterval, &GrantUnusedBandwidthTrace);
 }
 
 void
-ClassicGrantStateTrace (CmNetDevice::CGrantState state)
+ClassicGrantStateTrace(CmNetDevice::CGrantState state)
 {
-  g_grantsUsedCounter += state.used;
-  g_fileGrantsUnused << Simulator::Now ().GetSeconds () << " " << state.unused << std::endl;
-  g_grantsUnusedCounter += state.unused;
+    g_grantsUsedCounter += state.used;
+    g_fileGrantsUnused << Simulator::Now().GetSeconds() << " " << state.unused << std::endl;
+    g_grantsUnusedCounter += state.unused;
 
-  if (g_fileCGrantState.is_open ())
+    if (g_fileCGrantState.is_open())
     {
-      g_fileCGrantState << std::setw (8) << std::fixed << std::setprecision (6)
-                        << Simulator::Now ().GetSeconds () << " "
-                        << "sfid:"  << state.sfid << " "
-                        << std::setw (5) << state.granted << " "
-                        << std::setw (5) << state.used << " "
-                        << std::setw (5) << state.unused << " "
-                        << std::setw (7) << state.queued << " "
-                        << std::setprecision (3)
-                        << std::setw (7) << state.delay.GetSeconds () * 1000 << " "
-                        << std::setw (6) << state.dropProb << std::endl;
+        g_fileCGrantState << std::setw(8) << std::fixed << std::setprecision(6)
+                          << Simulator::Now().GetSeconds() << " "
+                          << "sfid:" << state.sfid << " " << std::setw(5) << state.granted << " "
+                          << std::setw(5) << state.used << " " << std::setw(5) << state.unused
+                          << " " << std::setw(7) << state.queued << " " << std::setprecision(3)
+                          << std::setw(7) << state.delay.GetSeconds() * 1000 << " " << std::setw(6)
+                          << state.dropProb << std::endl;
     }
 }
 
 void
-LowLatencyGrantStateTrace (CmNetDevice::LGrantState state)
+LowLatencyGrantStateTrace(CmNetDevice::LGrantState state)
 {
-  g_grantsUsedCounter += state.used;
-  g_fileGrantsUnused << Simulator::Now ().GetSeconds () << " " << state.unused << std::endl;
-  g_grantsUnusedCounter += state.unused;
+    g_grantsUsedCounter += state.used;
+    g_fileGrantsUnused << Simulator::Now().GetSeconds() << " " << state.unused << std::endl;
+    g_grantsUnusedCounter += state.unused;
 
-  if (g_fileLGrantState.is_open ())
+    if (g_fileLGrantState.is_open())
     {
-      g_fileLGrantState << std::setw (8) << std::fixed << std::setprecision (6)
-                        << Simulator::Now ().GetSeconds () << " "
-                        << "sfid:"  << state.sfid << " "
-                        << std::setw (5) << state.granted << " "
-                        << std::setw (5) << state.used << " "
-                        << std::setw (5) << state.unused << " "
-                        << std::setw (7) << state.queued << " "
-                        << std::setprecision (3)
-                        << std::setw (7) << state.delay.GetSeconds () * 1000 << " "
-                        << std::setw (6) << state.markProb << " "
-                        << std::setw (6) << state.coupledMarkProb << std::endl;
+        g_fileLGrantState << std::setw(8) << std::fixed << std::setprecision(6)
+                          << Simulator::Now().GetSeconds() << " "
+                          << "sfid:" << state.sfid << " " << std::setw(5) << state.granted << " "
+                          << std::setw(5) << state.used << " " << std::setw(5) << state.unused
+                          << " " << std::setw(7) << state.queued << " " << std::setprecision(3)
+                          << std::setw(7) << state.delay.GetSeconds() * 1000 << " " << std::setw(6)
+                          << state.markProb << " " << std::setw(6) << state.coupledMarkProb
+                          << std::endl;
     }
 }
 
 void
-GrantTrace (uint32_t bytes)
+GrantTrace(uint32_t bytes)
 {
-  g_grantsCounter += bytes;
+    g_grantsCounter += bytes;
 }
 
 void
-CongestionBytesTrace (uint32_t flowId, double p, uint32_t size)
+CongestionBytesTrace(uint32_t flowId, double p, uint32_t size)
 {
-  g_fileCongestionBytes << Simulator::Now ().GetSeconds () << " " << flowId << " " << p * size << " " << p << " " << size << std::endl;
+    g_fileCongestionBytes << Simulator::Now().GetSeconds() << " " << flowId << " " << p * size
+                          << " " << p << " " << size << std::endl;
 }
 
 void
-DocsisEnqueueCallback (std::string context, Ptr<const QueueDiscItem> item)
+DocsisEnqueueCallback(std::string context, Ptr<const QueueDiscItem> item)
 {
-  NS_LOG_FUNCTION (context << item);
-  Ptr<const DocsisQueueDiscItem> docsisItem = DynamicCast<const DocsisQueueDiscItem> (item);
-  NS_ABORT_MSG_UNLESS (docsisItem, "Should observe only DOCSIS queue disc items");
-  if (docsisItem->GetProtocol () != ipv4ProtocolNumber)
+    NS_LOG_FUNCTION(context << item);
+    Ptr<const DocsisQueueDiscItem> docsisItem = DynamicCast<const DocsisQueueDiscItem>(item);
+    NS_ABORT_MSG_UNLESS(docsisItem, "Should observe only DOCSIS queue disc items");
+    if (docsisItem->GetProtocol() != ipv4ProtocolNumber)
     {
-      NS_LOG_LOGIC ("non DOCSIS IPv4 packet received; value = " << std::hex << docsisItem->GetProtocol ());
-      return;
+        NS_LOG_LOGIC("non DOCSIS IPv4 packet received; value = " << std::hex
+                                                                 << docsisItem->GetProtocol());
+        return;
     }
-  Ipv4Header hdr;
-  item->GetPacket ()->PeekHeader (hdr);
-  QueueDiscItemRecord record;
-  record.txTime = Simulator::Now ();
-  record.header = hdr;
-  if (context == "CM")
+    Ipv4Header hdr;
+    item->GetPacket()->PeekHeader(hdr);
+    QueueDiscItemRecord record;
+    record.txTime = Simulator::Now();
+    record.header = hdr;
+    if (context == "CM")
     {
-      NS_LOG_LOGIC ("context " << context << " header " << record.header);
-      PacketUidTag tag;
-      uint64_t uid = g_packetUniqueId++;
-      tag.SetUniqueId (uid);
-      item->GetPacket ()->ReplacePacketTag (tag);
-      g_packetsSeenCm[uid] = record;
+        NS_LOG_LOGIC("context " << context << " header " << record.header);
+        PacketUidTag tag;
+        uint64_t uid = g_packetUniqueId++;
+        tag.SetUniqueId(uid);
+        item->GetPacket()->ReplacePacketTag(tag);
+        g_packetsSeenCm[uid] = record;
     }
-  else if (context == "CMTS")
+    else if (context == "CMTS")
     {
-      NS_LOG_LOGIC ("context " << context << " header " << record.header);
-      PacketUidTag tag;
-      uint64_t uid = g_packetUniqueId++;
-      tag.SetUniqueId (uid);
-      item->GetPacket ()->ReplacePacketTag (tag);
-      g_packetsSeenCmts[uid] = record;
+        NS_LOG_LOGIC("context " << context << " header " << record.header);
+        PacketUidTag tag;
+        uint64_t uid = g_packetUniqueId++;
+        tag.SetUniqueId(uid);
+        item->GetPacket()->ReplacePacketTag(tag);
+        g_packetsSeenCmts[uid] = record;
     }
-  else
+    else
     {
-      std::cerr << "Unknown context " << context << std::endl;
-      exit (1);
+        std::cerr << "Unknown context " << context << std::endl;
+        exit(1);
     }
 }
 
 void
-DeviceEgressCallback (std::string context, Ptr<Packet> packet)
+DeviceEgressCallback(std::string context, Ptr<Packet> packet)
 {
-  NS_LOG_FUNCTION (context << packet);
-  std::map<uint64_t, struct QueueDiscItemRecord>::iterator it;
-  PacketUidTag tag;
-  bool found = packet->PeekPacketTag (tag);
-  if (!found)
+    NS_LOG_FUNCTION(context << packet);
+    std::map<uint64_t, struct QueueDiscItemRecord>::iterator it;
+    PacketUidTag tag;
+    bool found = packet->PeekPacketTag(tag);
+    if (!found)
     {
-      return;
+        return;
     }
-  uint64_t uid = tag.GetUniqueId ();
-  if (context == "CM")
+    uint64_t uid = tag.GetUniqueId();
+    if (context == "CM")
     {
-      it = g_packetsSeenCm.find (uid);
-      if (it != g_packetsSeenCm.end ())
+        it = g_packetsSeenCm.find(uid);
+        if (it != g_packetsSeenCm.end())
         {
-          QueueDiscItemRecord record = it->second;
-          // Data format:  timestamp sojourn src_addr dst_addr proto tos
-          // sojourn time is in units of ms
-          g_fileCm << Simulator::Now ().GetMicroSeconds () / 1000000.0 << " "
-                   << (Simulator::Now () - it->second.txTime).GetNanoSeconds () / 1000000.0 << " "
-                   << record.header.GetSource ()  << " "
-                   << record.header.GetDestination () << " "
-                   << packet->GetSize () << " "
-                   << (uint16_t) record.header.GetProtocol () << " "
-                   << std::hex << (uint16_t) record.header.GetTos () << " "
-                   << std::dec << std::endl;
-          g_packetsSeenCm.erase (it); // only trace first instance of packet
-          packet->RemovePacketTag (tag);
+            QueueDiscItemRecord record = it->second;
+            // Data format:  timestamp sojourn src_addr dst_addr proto tos
+            // sojourn time is in units of ms
+            g_fileCm << Simulator::Now().GetMicroSeconds() / 1000000.0 << " "
+                     << (Simulator::Now() - it->second.txTime).GetNanoSeconds() / 1000000.0 << " "
+                     << record.header.GetSource() << " " << record.header.GetDestination() << " "
+                     << packet->GetSize() << " " << (uint16_t)record.header.GetProtocol() << " "
+                     << std::hex << (uint16_t)record.header.GetTos() << " " << std::dec
+                     << std::endl;
+            g_packetsSeenCm.erase(it); // only trace first instance of packet
+            packet->RemovePacketTag(tag);
         }
     }
-  else if (context == "CMTS")
+    else if (context == "CMTS")
     {
-      it = g_packetsSeenCmts.find (uid);
-      if (it != g_packetsSeenCmts.end ())
+        it = g_packetsSeenCmts.find(uid);
+        if (it != g_packetsSeenCmts.end())
         {
-          QueueDiscItemRecord record = it->second;
-          // Data format:  timestamp sojourn src_addr dst_addr proto tos
-          // sojourn time is in units of ms
-          g_fileCmts << Simulator::Now ().GetMicroSeconds () / 1000000.0 << " "
-                     << (Simulator::Now () - it->second.txTime).GetNanoSeconds () / 1000000.0 << " "
-                     <<  record.header.GetSource ()  << " "
-                     <<  record.header.GetDestination () << " "
-                     << packet->GetSize () << " "
-                     <<  (uint16_t) record.header.GetProtocol () << " "
-                     << std::hex <<  (uint16_t) record.header.GetTos () << " "
-                     << std::dec << std::endl;
-          g_packetsSeenCmts.erase (it); // only trace first instance of packet
-          packet->RemovePacketTag (tag);
+            QueueDiscItemRecord record = it->second;
+            // Data format:  timestamp sojourn src_addr dst_addr proto tos
+            // sojourn time is in units of ms
+            g_fileCmts << Simulator::Now().GetMicroSeconds() / 1000000.0 << " "
+                       << (Simulator::Now() - it->second.txTime).GetNanoSeconds() / 1000000.0 << " "
+                       << record.header.GetSource() << " " << record.header.GetDestination() << " "
+                       << packet->GetSize() << " " << (uint16_t)record.header.GetProtocol() << " "
+                       << std::hex << (uint16_t)record.header.GetTos() << " " << std::dec
+                       << std::endl;
+            g_packetsSeenCmts.erase(it); // only trace first instance of packet
+            packet->RemovePacketTag(tag);
         }
     }
-  else
+    else
     {
-      std::cerr << "Unknown context " << context << std::endl;
-      exit (1);
+        std::cerr << "Unknown context " << context << std::endl;
+        exit(1);
     }
 }
 
 void
-DocsisDropCallback (std::string context, Ptr<const QueueDiscItem> item)
+DocsisDropCallback(std::string context, Ptr<const QueueDiscItem> item)
 {
-  Ipv4Header hdr;
-  item->GetPacket ()->PeekHeader (hdr);
+    Ipv4Header hdr;
+    item->GetPacket()->PeekHeader(hdr);
 
-  if (context == "CM")
+    if (context == "CM")
     {
-      g_fileCmDrop << Simulator::Now ().GetMicroSeconds () / 1000000.0 << " "
-                   << hdr.GetSource ()  << " "
-                   << hdr.GetDestination () << " "
-                   << item->GetPacket ()->GetSize () << " "
-                   << (uint16_t) hdr.GetProtocol () << " "
-                   << std::hex << (uint16_t) hdr.GetTos () << " "
-                   << std::dec << std::endl;
+        g_fileCmDrop << Simulator::Now().GetMicroSeconds() / 1000000.0 << " " << hdr.GetSource()
+                     << " " << hdr.GetDestination() << " " << item->GetPacket()->GetSize() << " "
+                     << (uint16_t)hdr.GetProtocol() << " " << std::hex << (uint16_t)hdr.GetTos()
+                     << " " << std::dec << std::endl;
     }
-  else if (context == "CMTS")
+    else if (context == "CMTS")
     {
-      g_fileCmtsDrop << Simulator::Now ().GetMicroSeconds () / 1000000.0 << " "
-                     << hdr.GetSource ()  << " "
-                     << hdr.GetDestination () << " "
-                     << item->GetPacket ()->GetSize () << " "
-                     << (uint16_t) hdr.GetProtocol () << " "
-                     << std::hex << (uint16_t) hdr.GetTos () << " "
-                     << std::dec << std::endl;
+        g_fileCmtsDrop << Simulator::Now().GetMicroSeconds() / 1000000.0 << " " << hdr.GetSource()
+                       << " " << hdr.GetDestination() << " " << item->GetPacket()->GetSize() << " "
+                       << (uint16_t)hdr.GetProtocol() << " " << std::hex << (uint16_t)hdr.GetTos()
+                       << " " << std::dec << std::endl;
     }
-  else
+    else
     {
-      std::cerr << "Unknown context " << context << std::endl;
-      exit (1);
+        std::cerr << "Unknown context " << context << std::endl;
+        exit(1);
     }
 }
 
 void
-ServerConnectionEstablished (Ptr<const ThreeGppHttpServer>, Ptr<Socket>)
+ServerConnectionEstablished(Ptr<const ThreeGppHttpServer>, Ptr<Socket>)
 {
-  NS_LOG_LOGIC ("Client has established a connection to the server.");
-
+    NS_LOG_LOGIC("Client has established a connection to the server.");
 }
 
 void
-MainObjectGenerated (uint32_t size)
+MainObjectGenerated(uint32_t size)
 {
-  NS_LOG_LOGIC ("Server generated a main object of " << size << " bytes.");
+    NS_LOG_LOGIC("Server generated a main object of " << size << " bytes.");
 }
 
 void
-EmbeddedObjectGenerated (uint32_t size)
+EmbeddedObjectGenerated(uint32_t size)
 {
-  NS_LOG_LOGIC ("Server generated an embedded object of " << size << " bytes.");
+    NS_LOG_LOGIC("Server generated an embedded object of " << size << " bytes.");
 }
 
 void
-ServerTx (Ptr<const Packet> packet)
+ServerTx(Ptr<const Packet> packet)
 {
-  NS_LOG_LOGIC ("Server sent a packet of " << packet->GetSize () << " bytes.");
+    NS_LOG_LOGIC("Server sent a packet of " << packet->GetSize() << " bytes.");
 }
 
 void
-ClientRx (std::string context, Ptr<const Packet> packet, const Address &address)
+ClientRx(std::string context, Ptr<const Packet> packet, const Address& address)
 {
-  NS_LOG_LOGIC ("Node " << context << " client received a packet of " << packet->GetSize () << " bytes from " << address);
+    NS_LOG_LOGIC("Node " << context << " client received a packet of " << packet->GetSize()
+                         << " bytes from " << address);
 }
 
 void
-ClientMainObjectReceived (std::string context, Ptr<const ThreeGppHttpClient>, Ptr<const Packet> packet)
+ClientMainObjectReceived(std::string context,
+                         Ptr<const ThreeGppHttpClient>,
+                         Ptr<const Packet> packet)
 {
-  NS_LOG_LOGIC ("Node " << context << " client main object received");
-  Ptr<Packet> p = packet->Copy ();
-  ThreeGppHttpHeader header;
-  p->RemoveHeader (header);
-  if (header.GetContentLength () == p->GetSize ()
-      && header.GetContentType () == ThreeGppHttpHeader::MAIN_OBJECT)
+    NS_LOG_LOGIC("Node " << context << " client main object received");
+    Ptr<Packet> p = packet->Copy();
+    ThreeGppHttpHeader header;
+    p->RemoveHeader(header);
+    if (header.GetContentLength() == p->GetSize() &&
+        header.GetContentType() == ThreeGppHttpHeader::MAIN_OBJECT)
     {
-      NS_LOG_LOGIC ("Client has succesfully received a main object of "
-                    << p->GetSize () << " bytes.");
+        NS_LOG_LOGIC("Client has succesfully received a main object of " << p->GetSize()
+                                                                         << " bytes.");
     }
-  else
+    else
     {
-      NS_LOG_LOGIC ("Client failed to parse a main object. ");
-    }
-}
-
-void
-ClientEmbeddedObjectReceived (std::string context, Ptr<const ThreeGppHttpClient>, Ptr<const Packet> packet)
-{
-  NS_LOG_LOGIC ("Node " << context << " client embedded object received");
-  Ptr<Packet> p = packet->Copy ();
-  ThreeGppHttpHeader header;
-  p->RemoveHeader (header);
-  if (header.GetContentLength () == p->GetSize ()
-      && header.GetContentType () == ThreeGppHttpHeader::EMBEDDED_OBJECT)
-    {
-      NS_LOG_LOGIC ("Client has succesfully received an embedded object of "
-                    << p->GetSize () << " bytes.");
-    }
-  else
-    {
-      NS_LOG_LOGIC ("Client failed to parse an embedded object. ");
+        NS_LOG_LOGIC("Client failed to parse a main object. ");
     }
 }
 
 void
-ClientStateTransitionCallback (std::string context, const std::string &oldState, const std::string &newState)
+ClientEmbeddedObjectReceived(std::string context,
+                             Ptr<const ThreeGppHttpClient>,
+                             Ptr<const Packet> packet)
 {
-  NS_LOG_LOGIC ("Node " << context << " old state " << oldState << " new state " << newState);
-
-  if (oldState == "READING" || oldState == "CONNECTING")
+    NS_LOG_LOGIC("Node " << context << " client embedded object received");
+    Ptr<Packet> p = packet->Copy();
+    ThreeGppHttpHeader header;
+    p->RemoveHeader(header);
+    if (header.GetContentLength() == p->GetSize() &&
+        header.GetContentType() == ThreeGppHttpHeader::EMBEDDED_OBJECT)
     {
-      NS_LOG_LOGIC ("Transition from READING");
-      g_transitionFromPageReading = Simulator::Now ();
+        NS_LOG_LOGIC("Client has succesfully received an embedded object of " << p->GetSize()
+                                                                              << " bytes.");
     }
-  if (newState == "READING")
+    else
     {
-      NS_LOG_LOGIC ("Transition to READING");
-      g_filePageLoadTime << Simulator::Now ().GetSeconds () << " " << (Simulator::Now () - g_transitionFromPageReading).GetSeconds () << std::endl;
+        NS_LOG_LOGIC("Client failed to parse an embedded object. ");
     }
 }
 
 void
-UnicastForwardTrace (const Ipv4Header & header, Ptr<const Packet> packet, uint32_t interface)
+ClientStateTransitionCallback(std::string context,
+                              const std::string& oldState,
+                              const std::string& newState)
 {
-  if (header.GetProtocol () == 6)
+    NS_LOG_LOGIC("Node " << context << " old state " << oldState << " new state " << newState);
+
+    if (oldState == "READING" || oldState == "CONNECTING")
     {
-      if (header.GetFragmentOffset () == 0)
+        NS_LOG_LOGIC("Transition from READING");
+        g_transitionFromPageReading = Simulator::Now();
+    }
+    if (newState == "READING")
+    {
+        NS_LOG_LOGIC("Transition to READING");
+        g_filePageLoadTime << Simulator::Now().GetSeconds() << " "
+                           << (Simulator::Now() - g_transitionFromPageReading).GetSeconds()
+                           << std::endl;
+    }
+}
+
+void
+UnicastForwardTrace(const Ipv4Header& header, Ptr<const Packet> packet, uint32_t interface)
+{
+    if (header.GetProtocol() == 6)
+    {
+        if (header.GetFragmentOffset() == 0)
         {
-          TcpHeader tcpHeader;
-          packet->PeekHeader (tcpHeader);
-          g_fileTcpPacketTrace << Simulator::Now ().GetSeconds ();
-          // Add 20 bytes IPv4 header
-          g_fileTcpPacketTrace << " " << packet->GetSize () + 20;
-          g_fileTcpPacketTrace << " " << header.GetSource () << " " << tcpHeader.GetSourcePort ();
-          g_fileTcpPacketTrace << " > " << header.GetDestination () << " " << tcpHeader.GetDestinationPort ();
-          g_fileTcpPacketTrace << " " << (uint16_t) header.GetProtocol ();
-          g_fileTcpPacketTrace << " " << std::hex << header.GetEcn () << std::dec;
-          g_fileTcpPacketTrace << std::endl;
+            TcpHeader tcpHeader;
+            packet->PeekHeader(tcpHeader);
+            g_fileTcpPacketTrace << Simulator::Now().GetSeconds();
+            // Add 20 bytes IPv4 header
+            g_fileTcpPacketTrace << " " << packet->GetSize() + 20;
+            g_fileTcpPacketTrace << " " << header.GetSource() << " " << tcpHeader.GetSourcePort();
+            g_fileTcpPacketTrace << " > " << header.GetDestination() << " "
+                                 << tcpHeader.GetDestinationPort();
+            g_fileTcpPacketTrace << " " << (uint16_t)header.GetProtocol();
+            g_fileTcpPacketTrace << " " << std::hex << header.GetEcn() << std::dec;
+            g_fileTcpPacketTrace << std::endl;
         }
-      else
+        else
         {
-          NS_LOG_WARN ("IP fragmentation of TCP segment detected; packet not counted");
+            NS_LOG_WARN("IP fragmentation of TCP segment detected; packet not counted");
         }
     }
 }
 
 void
-CloseFileDescriptors (void)
+CloseFileDescriptors()
 {
-  if (g_fileCm.is_open ()) { g_fileCm.close (); }
-  if (g_fileCmts.is_open ()) { g_fileCmts.close (); }
-  if (g_fileCmDrop.is_open ()) { g_fileCmDrop.close (); }
-  if (g_fileCmtsDrop.is_open ()) { g_fileCmtsDrop.close (); }
-  if (g_fileTcpFileCompletion.is_open ()) { g_fileTcpFileCompletion.close (); }
-  if (g_fileDctcpFileCompletion.is_open ()) { g_fileDctcpFileCompletion.close (); }
-  if (g_fileGrantsUnused.is_open ()) { g_fileGrantsUnused.close (); }
-  if (g_fileUnusedBandwidth.is_open ()) { g_fileUnusedBandwidth.close (); }
-  if (g_fileCGrantState.is_open ()) { g_fileCGrantState.close (); }
-  if (g_fileLGrantState.is_open ()) { g_fileLGrantState.close (); }
-  if (g_fileTcpPacketTrace.is_open ()) { g_fileTcpPacketTrace.close (); }
-  if (g_filePageLoadTime.is_open ()) { g_filePageLoadTime.close (); }
-  if (g_fileCQueueUpstreamBytes.is_open ()) { g_fileCQueueUpstreamBytes.close (); }
-  if (g_fileCQueueDownstreamBytes.is_open ()) { g_fileCQueueDownstreamBytes.close (); }
-  if (g_fileLQueueDownstreamBytes.is_open ()) { g_fileLQueueUpstreamBytes.close (); }
-  if (g_fileCQueueDropProbability.is_open ()) { g_fileCQueueDropProbability.close (); }
-  if (g_fileLQueueMarkProbability.is_open ()) { g_fileLQueueMarkProbability.close (); }
-  if (g_fileDualQLlSojourn.is_open ()) { g_fileDualQLlSojourn.close (); }
-  if (g_fileDualQClassicSojourn.is_open ()) { g_fileDualQClassicSojourn.close (); }
-  if (g_fileCalculatePState.is_open ()) { g_fileCalculatePState.close (); }
-  if (g_fileCongestionBytes.is_open ()) { g_fileCongestionBytes.close (); }
-  if (g_fileLQueueDownstreamBytes.is_open ()) { g_fileLQueueDownstreamBytes.close (); }
+    if (g_fileCm.is_open())
+    {
+        g_fileCm.close();
+    }
+    if (g_fileCmts.is_open())
+    {
+        g_fileCmts.close();
+    }
+    if (g_fileCmDrop.is_open())
+    {
+        g_fileCmDrop.close();
+    }
+    if (g_fileCmtsDrop.is_open())
+    {
+        g_fileCmtsDrop.close();
+    }
+    if (g_fileTcpFileCompletion.is_open())
+    {
+        g_fileTcpFileCompletion.close();
+    }
+    if (g_fileDctcpFileCompletion.is_open())
+    {
+        g_fileDctcpFileCompletion.close();
+    }
+    if (g_fileGrantsUnused.is_open())
+    {
+        g_fileGrantsUnused.close();
+    }
+    if (g_fileUnusedBandwidth.is_open())
+    {
+        g_fileUnusedBandwidth.close();
+    }
+    if (g_fileCGrantState.is_open())
+    {
+        g_fileCGrantState.close();
+    }
+    if (g_fileLGrantState.is_open())
+    {
+        g_fileLGrantState.close();
+    }
+    if (g_fileTcpPacketTrace.is_open())
+    {
+        g_fileTcpPacketTrace.close();
+    }
+    if (g_filePageLoadTime.is_open())
+    {
+        g_filePageLoadTime.close();
+    }
+    if (g_fileCQueueUpstreamBytes.is_open())
+    {
+        g_fileCQueueUpstreamBytes.close();
+    }
+    if (g_fileCQueueDownstreamBytes.is_open())
+    {
+        g_fileCQueueDownstreamBytes.close();
+    }
+    if (g_fileLQueueDownstreamBytes.is_open())
+    {
+        g_fileLQueueUpstreamBytes.close();
+    }
+    if (g_fileCQueueDropProbability.is_open())
+    {
+        g_fileCQueueDropProbability.close();
+    }
+    if (g_fileLQueueMarkProbability.is_open())
+    {
+        g_fileLQueueMarkProbability.close();
+    }
+    if (g_fileDualQLlSojourn.is_open())
+    {
+        g_fileDualQLlSojourn.close();
+    }
+    if (g_fileDualQClassicSojourn.is_open())
+    {
+        g_fileDualQClassicSojourn.close();
+    }
+    if (g_fileCalculatePState.is_open())
+    {
+        g_fileCalculatePState.close();
+    }
+    if (g_fileCongestionBytes.is_open())
+    {
+        g_fileCongestionBytes.close();
+    }
+    if (g_fileLQueueDownstreamBytes.is_open())
+    {
+        g_fileLQueueDownstreamBytes.close();
+    }
 }

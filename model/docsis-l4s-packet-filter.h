@@ -25,14 +25,17 @@
 #ifndef DOCSIS_LOW_LATENCY_PACKET_FILTER_H
 #define DOCSIS_LOW_LATENCY_PACKET_FILTER_H
 
+#include "microflow-descriptor.h"
+
 #include "ns3/object.h"
 #include "ns3/packet-filter.h"
 #include "ns3/traffic-control-layer.h"
-#include "microflow-descriptor.h"
 
-namespace ns3 {
+namespace ns3
+{
 
-namespace docsis {
+namespace docsis
+{
 
 /**
  * \ingroup docsis
@@ -44,32 +47,33 @@ namespace docsis {
  * classify DSCP EF-marked packets as low latency, as well as (optionally)
  * ECT(0) if needed (if Linux DCTCP is configured to only send ECT(0)).
  */
-class DocsisLowLatencyPacketFilter: public PacketFilter {
-public:
-  /**
-   * \brief Get the type ID.
-   * \return the object TypeId
-   */
-  static TypeId GetTypeId (void);
-  
-  static Uflw GenerateHash32 (Ptr<const QueueDiscItem> item, uint32_t perturbation);
+class DocsisLowLatencyPacketFilter : public PacketFilter
+{
+  public:
+    /**
+     * \brief Get the type ID.
+     * \return the object TypeId
+     */
+    static TypeId GetTypeId();
 
-  DocsisLowLatencyPacketFilter ();
-  virtual ~DocsisLowLatencyPacketFilter ();
+    static Uflw GenerateHash32(Ptr<const QueueDiscItem> item, uint32_t perturbation);
 
-private:
-  /**
-   * \return true if IPv4 packet, false otherwise
-   * \param item QueueDiscItem to inspect
-   */
-  virtual bool CheckProtocol (Ptr<QueueDiscItem> item) const;
-  /**
-   * \return 0 if Classic packet, 1 if LowLatency (Scalable) packet, and
-   *         PacketFilter::PF_NO_MATCH if IPv4 header not found
-   * \param item QueueDiscItem to inspect
-   */
-  virtual int32_t DoClassify (Ptr<QueueDiscItem> item) const;
-  bool m_classifyEct0AsLl {false}; /// Classify ECT(0) as LowLatency
+    DocsisLowLatencyPacketFilter();
+    ~DocsisLowLatencyPacketFilter() override;
+
+  private:
+    /**
+     * \return true if IPv4 packet, false otherwise
+     * \param item QueueDiscItem to inspect
+     */
+    bool CheckProtocol(Ptr<QueueDiscItem> item) const override;
+    /**
+     * \return 0 if Classic packet, 1 if LowLatency (Scalable) packet, and
+     *         PacketFilter::PF_NO_MATCH if IPv4 header not found
+     * \param item QueueDiscItem to inspect
+     */
+    int32_t DoClassify(Ptr<QueueDiscItem> item) const override;
+    bool m_classifyEct0AsLl{false}; /// Classify ECT(0) as LowLatency
 };
 
 } // namespace docsis

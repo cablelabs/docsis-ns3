@@ -14,15 +14,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "ns3/test.h"
-#include "ns3/object.h"
 #include "ns3/docsis-configuration.h"
+#include "ns3/object.h"
+#include "ns3/test.h"
 
-namespace ns3 {
+namespace ns3
+{
 
 class Node;
 
-namespace docsis {
+namespace docsis
+{
 
 class CmNetDevice;
 class CmtsNetDevice;
@@ -39,29 +41,31 @@ class DocsisChannel;
 //
 class DocsisLinkTestCase : public TestCase
 {
-public:
-  DocsisLinkTestCase (std::string name);
-  virtual ~DocsisLinkTestCase ();
+  public:
+    DocsisLinkTestCase(std::string name);
+    ~DocsisLinkTestCase() override;
 
-  void TraceBytesInQueue (std::string context, uint32_t oldValue, uint32_t newValue);
-protected:
-  virtual void SetupFourNodeTopology (void);
-  void SetUpstreamRate (DataRate upstreamRate);
-  Ptr<AggregateServiceFlow> GetUpstreamAsf (void) const;
-  Ptr<AggregateServiceFlow> GetDownstreamAsf (void) const;
+    void TraceBytesInQueue(std::string context, uint32_t oldValue, uint32_t newValue);
 
-  Ptr<CmNetDevice> m_upstream;
-  Ptr<CmtsNetDevice> m_downstream;
-  Ptr<DocsisChannel> m_channel;
-  Ptr<Node> m_cmtsNode;
-  Ptr<Node> m_cmNode;
-  Ptr<Node> m_lanNode;
-  Ptr<Node> m_wanNode;
-  uint32_t m_upstreamBytesInQueue;
-  uint32_t m_downstreamBytesInQueue;
-  DataRate m_upstreamRate;
-  DataRate m_downstreamRate;
-private:
+  protected:
+    virtual void SetupFourNodeTopology();
+    void SetUpstreamRate(DataRate upstreamRate);
+    Ptr<AggregateServiceFlow> GetUpstreamAsf() const;
+    Ptr<AggregateServiceFlow> GetDownstreamAsf() const;
+
+    Ptr<CmNetDevice> m_upstream;
+    Ptr<CmtsNetDevice> m_downstream;
+    Ptr<DocsisChannel> m_channel;
+    Ptr<Node> m_cmtsNode;
+    Ptr<Node> m_cmNode;
+    Ptr<Node> m_lanNode;
+    Ptr<Node> m_wanNode;
+    uint32_t m_upstreamBytesInQueue;
+    uint32_t m_downstreamBytesInQueue;
+    DataRate m_upstreamRate;
+    DataRate m_downstreamRate;
+
+  private:
 };
 
 } // namespace docsis

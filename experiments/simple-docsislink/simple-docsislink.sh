@@ -51,7 +51,7 @@ then
 		dirname='results'
 	fi
 
-	./waf build
+	${pathToTopLevelDir}/ns3 build
 	resultsDir=results/$dirname-`date +%Y%m%d-%H%M%S`
 	mkdir -p ${resultsDir}
 	repositoryVersion=`git rev-parse --abbrev-ref HEAD`
@@ -65,17 +65,34 @@ then
 	then
 		echo "$gitDiff" >> ${resultsDir}/version.txt
 	fi
-	PROFILE=$(./waf --check-profile | tail -1 | awk '{print $NF}')
+	PROFILE=$(${pathToTopLevelDir}/ns3 show profile | awk '{print $NF}')
 	VERSION=$(cat ${pathToTopLevelDir}/VERSION | tr -d '\n')
 	EXECUTABLE_NAME=ns${VERSION}-simple-docsislink-${PROFILE}
-	EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+	EXECUTABLE=${pathToTopLevelDir}/build/contrib/docsis/examples/${EXECUTABLE_NAME}
 	if [ -f "$EXECUTABLE" ]; then
 		cp ${EXECUTABLE} ${resultsDir}/simple-docsislink
 	else
-		echo "$EXECUTABLE not found, exiting"
-		exit 1
+		# Try the src directory
+		EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+		if [ -f "$EXECUTABLE" ]; then
+			cp ${EXECUTABLE} ${resultsDir}/simple-docsislink
+		else
+			echo "$EXECUTABLE not found, exiting"
+			exit 1
+		fi
 	fi
-	cp ${pathToTopLevelDir}/src/docsis/examples/simple-docsislink.cc ${resultsDir}/.
+	PROGRAM=${pathToTopLevelDir}/contrib/docsis/examples/simple-docsislink.cc
+	if [ -f "$PROGRAM" ]; then
+		cp ${PROGRAM} ${resultsDir}/
+	else
+		# Try the src directory
+		PROGRAM=${pathToTopLevelDir}/src/docsis/examples/simple-docsislink.cc
+		if [ -f "$PROGRAM" ]; then
+			cp ${PROGRAM} ${resultsDir}/
+		else
+			echo "$PROGRAM not found, but continuing"
+		fi
+	fi
 	cp plot-grants-sojourn.py ${resultsDir}/.
 	cp $0 ${resultsDir}/.
 	cd ${resultsDir}
@@ -85,7 +102,9 @@ then
  	echo "***************************************************************"
 	echo "* Launched:  ${resultsDir}/${0##*/}"
 	echo "* Output in:  $resultsDir/commandlog.out"
-	echo "* Kill this run with:  kill -SIGTERM -`ps h -o pgid -q $!`"  
+	if [ "$(uname -s)" == "Linux" ]; then
+		echo "* Kill this run with:  kill -SIGTERM -`ps h -o pgid -q $!`"  
+	fi
  	echo "***************************************************************"
 	echo
 	exit 0
@@ -146,7 +165,7 @@ if hash parallel; then
 else
 	for x in ${!scenario[@]}
 	do
-		run-scenario "${scenario[$x]}" &
+		run-scenario ${scenario[$x]} &
 		[[ $(( (x+1) % numSims)) -eq 0 ]] && wait # pause every numSims until those jobs complete
 	done
 fi

@@ -21,135 +21,140 @@
  */
 
 #include "docsis-channel.h"
+
 #include "docsis-net-device.h"
-#include "ns3/trace-source-accessor.h"
+
+#include "ns3/log.h"
 #include "ns3/packet.h"
 #include "ns3/simulator.h"
-#include "ns3/log.h"
+#include "ns3/trace-source-accessor.h"
 
-namespace ns3 {
-
-NS_LOG_COMPONENT_DEFINE ("DocsisChannel");
-
-namespace docsis {
-
-NS_OBJECT_ENSURE_REGISTERED (DocsisChannel);
-
-TypeId 
-DocsisChannel::GetTypeId (void)
+namespace ns3
 {
-  static TypeId tid = TypeId ("ns3::docsis::DocsisChannel")
-    .SetParent<Channel> ()
-    .SetGroupName ("Docsis")
-    .AddConstructor<DocsisChannel> ()
-    .AddAttribute ("Delay", "Propagation delay through the channel",
-                   TimeValue (Seconds (0)),
-                   MakeTimeAccessor (&DocsisChannel::m_delay),
-                   MakeTimeChecker ())
-    .AddTraceSource ("TxRxDocsis",
-                     "Trace source indicating start of transmission of packet "
-                     "on the DocsisChannel",
-                     MakeTraceSourceAccessor (&DocsisChannel::m_txrxDocsis),
-                     "ns3::DocsisChannel::TxRxDocsisCallback")
-  ;
-  return tid;
+
+NS_LOG_COMPONENT_DEFINE("DocsisChannel");
+
+namespace docsis
+{
+
+NS_OBJECT_ENSURE_REGISTERED(DocsisChannel);
+
+TypeId
+DocsisChannel::GetTypeId()
+{
+    static TypeId tid =
+        TypeId("ns3::docsis::DocsisChannel")
+            .SetParent<Channel>()
+            .SetGroupName("Docsis")
+            .AddConstructor<DocsisChannel>()
+            .AddAttribute("Delay",
+                          "Propagation delay through the channel",
+                          TimeValue(Seconds(0)),
+                          MakeTimeAccessor(&DocsisChannel::m_delay),
+                          MakeTimeChecker())
+            .AddTraceSource("TxRxDocsis",
+                            "Trace source indicating start of transmission of packet "
+                            "on the DocsisChannel",
+                            MakeTraceSourceAccessor(&DocsisChannel::m_txrxDocsis),
+                            "ns3::DocsisChannel::TxRxDocsisCallback");
+    return tid;
 }
 
 DocsisChannel::DocsisChannel()
-  :
-    Channel (),
-    m_delay (Seconds (0.)),
-    m_nDevices (0)
+    : Channel(),
+      m_delay(Seconds(0.)),
+      m_nDevices(0)
 {
-  NS_LOG_FUNCTION (this);
+    NS_LOG_FUNCTION(this);
 }
 
 void
-DocsisChannel::Attach (Ptr<DocsisNetDevice> device)
+DocsisChannel::Attach(Ptr<DocsisNetDevice> device)
 {
-  NS_LOG_FUNCTION (this << device);
-  NS_ASSERT_MSG (m_nDevices < N_DEVICES, "Only two devices permitted");
-  NS_ASSERT (device != 0);
+    NS_LOG_FUNCTION(this << device);
+    NS_ASSERT_MSG(m_nDevices < N_DEVICES, "Only two devices permitted");
+    NS_ASSERT(device);
 
-  m_link[m_nDevices++].m_src = device;
-  if (m_nDevices == N_DEVICES)
+    m_link[m_nDevices++].m_src = device;
+    if (m_nDevices == N_DEVICES)
     {
-      m_link[0].m_dst = m_link[1].m_src;
-      m_link[1].m_dst = m_link[0].m_src;
+        m_link[0].m_dst = m_link[1].m_src;
+        m_link[1].m_dst = m_link[0].m_src;
     }
 }
 
 bool
-DocsisChannel::TransmitStart (Ptr<Packet> p, Ptr<DocsisNetDevice> src,
-  Time txTime)
+DocsisChannel::TransmitStart(Ptr<Packet> p, Ptr<DocsisNetDevice> src, Time txTime)
 {
-  NS_LOG_FUNCTION (this << p << src);
-  NS_LOG_LOGIC ("UID is " << p->GetUid () << ")");
+    NS_LOG_FUNCTION(this << p << src);
+    NS_LOG_LOGIC("UID is " << p->GetUid() << ")");
 
-  uint32_t wire = src == m_link[0].m_src ? 0 : 1;
+    uint32_t wire = src == m_link[0].m_src ? 0 : 1;
 
-  NS_LOG_DEBUG ("Transmit time " << txTime.GetSeconds () << " delay " << m_delay.GetSeconds ());
-  Simulator::ScheduleWithContext (m_link[wire].m_dst->GetNode ()->GetId (),
-                                  txTime + m_delay, &DocsisNetDevice::Receive,
-                                  m_link[wire].m_dst, p);
+    NS_LOG_DEBUG("Transmit time " << txTime.GetSeconds() << " delay " << m_delay.GetSeconds());
+    Simulator::ScheduleWithContext(m_link[wire].m_dst->GetNode()->GetId(),
+                                   txTime + m_delay,
+                                   &DocsisNetDevice::Receive,
+                                   m_link[wire].m_dst,
+                                   p);
 
-  // Call the tx trace source callback
-  m_txrxDocsis (p, src, m_link[wire].m_dst, txTime, txTime + m_delay);
-  return true;
+    // Call the tx trace source callback
+    m_txrxDocsis(p, src, m_link[wire].m_dst, txTime, txTime + m_delay);
+    return true;
 }
 
 std::size_t
-DocsisChannel::GetNDevices (void) const
+DocsisChannel::GetNDevices() const
 {
-  return m_nDevices;
+    return m_nDevices;
 }
 
 Ptr<DocsisNetDevice>
-DocsisChannel::GetDocsisDevice (std::size_t i) const
+DocsisChannel::GetDocsisDevice(std::size_t i) const
 {
-  NS_ASSERT (i < 2);
-  return m_link[i].m_src;
+    NS_ASSERT(i < 2);
+    return m_link[i].m_src;
 }
 
 Ptr<NetDevice>
-DocsisChannel::GetDevice (std::size_t i) const
+DocsisChannel::GetDevice(std::size_t i) const
 {
-  return GetDocsisDevice (i);
+    return GetDocsisDevice(i);
 }
 
 void
-DocsisChannel::DoDispose (void)
+DocsisChannel::DoDispose()
 {
-  NS_LOG_FUNCTION (this);
-  for (uint32_t i = 0; i < N_DEVICES; i++)
+    NS_LOG_FUNCTION(this);
+    for (uint32_t i = 0; i < N_DEVICES; i++)
     {
-      m_link[i].m_src = 0;
-      m_link[i].m_dst = 0;
+        m_link[i].m_src = nullptr;
+        m_link[i].m_dst = nullptr;
     }
 }
 
 Time
-DocsisChannel::GetDelay (void) const
+DocsisChannel::GetDelay() const
 {
-  return m_delay;
+    return m_delay;
 }
 
 Ptr<DocsisNetDevice>
-DocsisChannel::GetSource (uint32_t i) const
+DocsisChannel::GetSource(uint32_t i) const
 {
-  return m_link[i].m_src;
+    return m_link[i].m_src;
 }
 
 Ptr<DocsisNetDevice>
-DocsisChannel::GetDestination (uint32_t i) const
+DocsisChannel::GetDestination(uint32_t i) const
 {
-  return m_link[i].m_dst;
+    return m_link[i].m_dst;
 }
 
 bool
-DocsisChannel::IsInitialized (void) const
+DocsisChannel::IsInitialized() const
 {
-  return true;
+    return true;
 }
 
 } // namespace docsis

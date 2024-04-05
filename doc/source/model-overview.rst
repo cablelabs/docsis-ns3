@@ -10,7 +10,7 @@ Model Overview
    ############# Paragraph (no number)
 
 The Data Over Cable Service Interface Specification (DOCSIS) specifications
-[DOCSIS3.1]_ are used by vendors to build interoperable equipment comprising two
+[DOCSIS3.1.I25]_ are used by vendors to build interoperable equipment comprising two
 device types:  the cable modem (CM) and the cable modem termination system (CMTS).
 DOCSIS links are multiple-access links in which access to the uplink
 and downlink channels on a hybrid fiber/coax (HFC) plant is controlled by a scheduler at the CMTS.  
@@ -18,7 +18,7 @@ and downlink channels on a hybrid fiber/coax (HFC) plant is controlled by a sche
 This module contains |ns3| models for sending Internet traffic between CM and 
 CMTS over an abstracted physical layer channel model representing the HFC plant.
 These |ns3| models are focused on the DOCSIS MAC layer specification
-for low-latency DOCSIS version 3.1, version I19, Oct. 2019 [DOCSIS3.1.I19]_.
+for low-latency DOCSIS, originally written based on version 3.1, revision I19, Oct. 2019 [DOCSIS3.1.I19]_, and updated to align with version 3.1, revision I25, Apr. 2023 [DOCSIS3.1.I25]_ .
 
 The |ns3| models contain high-fidelity models of the MAC layer packet forwarding 
 operation of these links, including detailed models of the active queue management (AQM)
@@ -32,7 +32,7 @@ direction, by modeling the channel access mechanism (requests and grants),
 scheduling, and queueing (via Active Queue Management (AQM)) present
 in the cable modem and CMTS. 
 
-The physical channel is a highly abstracted model ofthe Orthogonal Frequency 
+The physical channel is a highly abstracted model of the Orthogonal Frequency 
 Division Multiplexing (OFDM)-based downstream and OFDM with Multiple Access 
 (OFDMA)-based upstream PHY layer.  The channel model supports all of the basic 
 DOCSIS OFDM/OFDMA PHY configuration options (#subcarriers, bit loading, frame 
@@ -41,13 +41,12 @@ no physical-layer impairments implemented.
 
 Channel bonding and SC-QAM channels are not currently supported.
 
-Each instance of model supports a single CM / CMTS pair, and supports either a single 
+Each instance of the model supports a single CM / CMTS pair, and supports either a single 
 US/DS Service Flow pair (with or without PIE AQM), or an LLD single US/DS 
 Low Latency Aggregate Service Flow pair (each with a Classic SF and Low 
-Latency SF). Upstream shared-channel congestion (i.e. multiple CMs contending 
+Latency SF). Upstream and/or downstream shared-channel congestion (i.e. multiple CMs contending 
 for access to the channel) can be supported via an abstracted congestion 
-model, which supports a time-varying load on the channel. There is currently 
-no downstream shared-channel congestion model.
+model, which adds a time-varying dummy load on the channel.
 
 The model supports both contention requests and piggyback requests, but the 
 contention request model is simplified - there are no request collisions, 
@@ -94,7 +93,7 @@ are described in a later section of this document.
 CmtsNetDevice
 =============
 
-The CMTS functionality is encapsulated in an ns-3 class ``CmtsNetDevice``
+The CMTS data-plane functionality is encapsulated in an ns-3 class ``CmtsNetDevice``
 modeling a DOCSIS
 downstream link (from CMTS to the cable modem).  More specifically, 
 it models a single OFDM downstream channel upon which either a single 
@@ -106,6 +105,8 @@ As per the DOCSIS 3.1 specification, each service flow uses two token buckets
 (peak and sustained rate) for rate shaping that will accumulate tokens 
 according to their parameters.
 
+The upstream scheduling aspects of a CMTS are not modelled in this device model,
+but are instead implemented in a separate object, described next.
 
 CmNetDevice and CmtsUpstreamScheduler
 =====================================
@@ -405,8 +406,7 @@ The scheduling steps taken, each MAP generation time, are as follows:
    such that the equation for the number of bytes granted, defined in
    section C.2.2.10.13 of the specification, is followed.  Because segment
    headers are not modelled in |ns3|, the equation simplifies to
-
-.. math:: B_G \geq GGI*GGR
+   :math:`B_G \geq GGI*GGR`.
 
    The code does not enforce that PGS grants must fit within the free
    minislots when the congestion model is being used (i.e., the congestion
@@ -947,7 +947,7 @@ weighted deficit round robin (WDRR) scheduler that balances between the
 two internal queues, or based on grants that explicitly provide 
 transmission opportunities for each of the two service classes.
 The implementation of Dual Queue Coupled AQM closely follows the pseudocode
-found in Annexes M, N, and O of [DOCSIS3.1.I19]_.
+found in Annexes M, N, and O of [DOCSIS3.1.I25]_.
 
 Queue Protection
 ================
@@ -966,7 +966,7 @@ lighter users of the queue.  Queue Protection is optional and can be
 disabled from a simulation. 
 
 The implementation of Queue Protection closely follows the pseudocode
-found in Annex P of [DOCSIS3.1.I19]_.
+found in Annex P of [DOCSIS3.1.I25]_.
 
 
 

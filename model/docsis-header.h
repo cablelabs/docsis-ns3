@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -40,9 +40,11 @@
 
 #include "ns3/header.h"
 
-namespace ns3 {
+namespace ns3
+{
 
-namespace docsis {
+namespace docsis
+{
 /**
  * \ingroup docsis
  *
@@ -55,36 +57,35 @@ namespace docsis {
  *  field: FC : MAC_PARM : LEN : EH       : HCS
  *  bytes: 1    1          2     variable   2
  *
- *  To account for variable sized EH header, pass in an integer to the 
+ *  To account for variable sized EH header, pass in an integer to the
  *  constructor.  The header size will then be 6 bytes plus this value.
  *
  */
-class DocsisHeader : public Header 
+class DocsisHeader : public Header
 {
-public:
-  /**
-   * \brief Construct a null DOCSIS header
-   * \param extendedHeaderSize number of bytes for notional EH field
-   */
-  DocsisHeader (uint16_t extendedHeaderSize);
-  /**
-   * \brief Construct a null DOCSIS header with no EH bytes
-   */
-  DocsisHeader ();
+  public:
+    /**
+     * \brief Construct a null DOCSIS header
+     * \param extendedHeaderSize number of bytes for notional EH field
+     */
+    DocsisHeader(uint16_t extendedHeaderSize);
+    /**
+     * \brief Construct a null DOCSIS header with no EH bytes
+     */
+    DocsisHeader();
 
-  static TypeId GetTypeId (void);
-  virtual TypeId GetInstanceTypeId (void) const;
-  virtual void Print (std::ostream &os) const;
-  virtual uint32_t GetSerializedSize (void) const;
-  virtual void Serialize (Buffer::Iterator start) const;
-  virtual uint32_t Deserialize (Buffer::Iterator start);
-private:
+    static TypeId GetTypeId();
+    TypeId GetInstanceTypeId() const override;
+    void Print(std::ostream& os) const override;
+    uint32_t GetSerializedSize() const override;
+    void Serialize(Buffer::Iterator start) const override;
+    uint32_t Deserialize(Buffer::Iterator start) override;
 
-  uint16_t m_extendedHeaderSize;
+  private:
+    uint16_t m_extendedHeaderSize;
 };
 
-} // namespace docsis 
+} // namespace docsis
 } // namespace ns3
-
 
 #endif /* DOCSIS_HEADER_H */

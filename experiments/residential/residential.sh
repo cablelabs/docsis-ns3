@@ -68,7 +68,7 @@ then
 		exit 1	
 	fi
 
-	./waf build
+	${pathToTopLevelDir}/./ns3 build
 	resultsDir=results/$dirname-`date +%Y%m%d-%H%M%S`
 	mkdir -p ${resultsDir}
 	repositoryVersion=`git rev-parse --abbrev-ref HEAD`
@@ -82,17 +82,34 @@ then
 	then
 		echo "$gitDiff" >> ${resultsDir}/version.txt
 	fi
-	PROFILE=$(./waf --check-profile | tail -1 | awk '{print $NF}')
+	PROFILE=$(${pathToTopLevelDir}/ns3 show profile | awk '{print $NF}')
 	VERSION=$(cat ${pathToTopLevelDir}/VERSION | tr -d '\n')
 	EXECUTABLE_NAME=ns${VERSION}-residential-example-${PROFILE}
-	EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+	EXECUTABLE=${pathToTopLevelDir}/build/contrib/docsis/examples/${EXECUTABLE_NAME}
 	if [ -f "$EXECUTABLE" ]; then
 		cp ${EXECUTABLE} ${resultsDir}/residential-example
 	else
-		echo "$EXECUTABLE not found, exiting"
-		exit 1
+		# Try the src directory
+		EXECUTABLE=${pathToTopLevelDir}/build/src/docsis/examples/${EXECUTABLE_NAME}
+		if [ -f "$EXECUTABLE" ]; then
+			cp ${EXECUTABLE} ${resultsDir}/residential-example
+		else
+			echo "$EXECUTABLE not found, exiting"
+			exit 1
+		fi
 	fi
-	cp ${pathToTopLevelDir}/src/docsis/examples/residential-example.cc ${resultsDir}/.
+	PROGRAM=${pathToTopLevelDir}/contrib/docsis/examples/residential-example.cc 
+	if [ -f "$PROGRAM" ]; then
+		cp ${PROGRAM} ${resultsDir}/
+	else
+		# Try the src directory
+		PROGRAM=${pathToTopLevelDir}/src/docsis/examples/residential-example.cc 
+		if [ -f "$PROGRAM" ]; then
+			cp ${PROGRAM} ${resultsDir}/
+		else
+			echo "$PROGRAM not found, but continuing"
+		fi
+	fi
 	cp plot-latency.py ${resultsDir}/.
 	cp plot-http.py ${resultsDir}/.
 	cp plot-grants-unused.py ${resultsDir}/.
@@ -108,7 +125,9 @@ then
  	echo "***************************************************************"
 	echo "* Launched:  ${resultsDir}/${0##*/}"
 	echo "* Output in:  $resultsDir/commandlog.out"
-	echo "* Kill this run with:  kill -SIGTERM -`ps h -o pgid -q $!`"  
+	if [ "(uname)" == "Linux" ]; then
+		echo "* Kill this run with:  kill -SIGTERM -`ps h -o pgid -q $!`"  
+	fi
  	echo "***************************************************************"
 	echo
 	exit 0

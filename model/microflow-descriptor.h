@@ -1,7 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -40,8 +40,10 @@
 
 #include "ns3/address.h"
 
-namespace ns3 {
-namespace docsis {
+namespace ns3
+{
+namespace docsis
+{
 
 /**
  * \brief Structure for a microflow descriptor.  In the DOCSIS specification,
@@ -49,12 +51,12 @@ namespace docsis {
  */
 struct Uflw
 {
-  Address source;                 //!< Source address
-  Address destination;            //!< Destination address
-  uint8_t protocol {0};           //!< Protocol
-  uint16_t sourcePort {0};        //!< Source port if present
-  uint16_t destinationPort {0};   //!< Destination port if present
-  uint32_t h32 {0};               //!< Resulting 32-bit hash value
+    Address source;              //!< Source address
+    Address destination;         //!< Destination address
+    uint8_t protocol{0};         //!< Protocol
+    uint16_t sourcePort{0};      //!< Source port if present
+    uint16_t destinationPort{0}; //!< Destination port if present
+    uint32_t h32{0};             //!< Resulting 32-bit hash value
 };
 
 /**
@@ -63,12 +65,13 @@ struct Uflw
  * \param h The microflow to print.
  * \returns The output stream.
  */
-inline std::ostream & operator << (std::ostream & os, const Uflw & h)
+inline std::ostream&
+operator<<(std::ostream& os, const Uflw& h)
 {
-  os << "src: " << h.source << " srcPort: " << h.sourcePort << " dst: "
-     << h.destination << " dstPort: " << h.destinationPort << " proto: "
-     << (uint16_t) h.protocol << " h32: " << h.h32;
-  return os;
+    os << "src: " << h.source << " srcPort: " << h.sourcePort << " dst: " << h.destination
+       << " dstPort: " << h.destinationPort << " proto: " << (uint16_t)h.protocol
+       << " h32: " << h.h32;
+    return os;
 }
 
 /**
@@ -77,16 +80,14 @@ inline std::ostream & operator << (std::ostream & os, const Uflw & h)
  * \param rhs right operand
  * \return true if the operands are equal
  */
-inline bool operator == (const Uflw &rhs, const Uflw &lhs)
+inline bool
+operator==(const Uflw& rhs, const Uflw& lhs)
 {
-  return (rhs.source == lhs.source &&
-          rhs.destination == lhs.destination &&
-          rhs.protocol == lhs.protocol &&
-          rhs.sourcePort == lhs.sourcePort &&
-          rhs.destinationPort == lhs.destinationPort &&
-          rhs.h32 == lhs.h32);
+    return (rhs.source == lhs.source && rhs.destination == lhs.destination &&
+            rhs.protocol == lhs.protocol && rhs.sourcePort == lhs.sourcePort &&
+            rhs.destinationPort == lhs.destinationPort && rhs.h32 == lhs.h32);
 }
 
-}    // namespace docsis
-}    // namespace ns3
+} // namespace docsis
+} // namespace ns3
 #endif
