@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017 NITK Surathkal
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc. (DOCSIS changes)
@@ -51,7 +50,7 @@ class QueueProtection;
 class DocsisQueueDiscItem;
 
 /**
- * \brief Enumeration of the queue protection outcomes
+ * @brief Enumeration of the queue protection outcomes
  */
 enum class QueueProtectionOutcome
 {
@@ -60,9 +59,9 @@ enum class QueueProtectionOutcome
 };
 
 /**
- * \ingroup docsis
+ * @ingroup docsis
  *
- * \brief Implements DualQ Coupled AQM queue discipline, DOCSIS variant
+ * @brief Implements DualQ Coupled AQM queue discipline, DOCSIS variant
  *
  * This implementation corresponds to Annexes N through P of
  * DOCSIS 3.1 MAC and Upper Layer Protocols Interface Specification
@@ -75,23 +74,23 @@ class DualQueueCoupledAqm : public QueueDisc
 {
   public:
     /**
-     * \brief Get the type ID.
-     * \return the object TypeId
+     * @brief Get the type ID.
+     * @return the object TypeId
      */
     static TypeId GetTypeId();
 
     /**
-     * \brief DualQueueCoupledAqm Constructor
+     * @brief DualQueueCoupledAqm Constructor
      */
     DualQueueCoupledAqm();
 
     /**
-     * \brief DualQueueCoupledAqm Destructor
+     * @brief DualQueueCoupledAqm Destructor
      */
     ~DualQueueCoupledAqm() override;
 
     /**
-     * \brief Latency estimation policy for LL queue
+     * @brief Latency estimation policy for LL queue
      * The approach to estimating future latency for L queue is
      * attribute value 'LlEstimator'
      */
@@ -102,7 +101,7 @@ class DualQueueCoupledAqm : public QueueDisc
     };
 
     /**
-     * \brief Get the current size of the Low Latency queue in bytes
+     * @brief Get the current size of the Low Latency queue in bytes
      *
      * This method will return either the total Data PDU bytes in the
      * low latency queue (if the argument passed to the includeMacHeaders
@@ -112,13 +111,13 @@ class DualQueueCoupledAqm : public QueueDisc
      * bytes will be counted.  Data PDU and MAC Frame terminology corresponds
      * to Figure 18 of the MULPIv3.1 specification.
      *
-     * \param includeMacHeaders whether to include per-PDU MAC header bytes
-     * \returns The Low Latency queue size in bytes
+     * @param includeMacHeaders whether to include per-PDU MAC header bytes
+     * @returns The Low Latency queue size in bytes
      */
     uint32_t GetLowLatencyQueueSize(bool includeMacHeaders = true) const;
 
     /**
-     * \brief Get the current size of the classic queue in bytes
+     * @brief Get the current size of the classic queue in bytes
      *
      * This method will return either the total Data PDU bytes in the
      * classic queue (if the argument passed to the includeMacHeaders
@@ -128,23 +127,23 @@ class DualQueueCoupledAqm : public QueueDisc
      * bytes will be counted.  Data PDU and MAC Frame terminology corresponds
      * to Figure 18 of the MULPIv3.1 specification.
      *
-     * \param includeMacHeaders whether to include per-PDU MAC header bytes
-     * \returns The classic queue size in bytes
+     * @param includeMacHeaders whether to include per-PDU MAC header bytes
+     * @returns The classic queue size in bytes
      */
     uint32_t GetClassicQueueSize(bool includeMacHeaders = true) const;
 
     /**
-     * \brief Set a Queue Protection pointer.  Overwrites existing pointer
+     * @brief Set a Queue Protection pointer.  Overwrites existing pointer
      *        if already set.
      *
-     * \param qp The QueueProtection pointer
+     * @param qp The QueueProtection pointer
      */
     void SetQueueProtection(Ptr<QueueProtection> qp);
 
     /**
-     * \brief Get a Queue Protection pointer.
+     * @brief Get a Queue Protection pointer.
      *
-     * \return The QueueProtection pointer
+     * @return The QueueProtection pointer
      */
     Ptr<QueueProtection> GetQueueProtection() const;
 
@@ -152,7 +151,7 @@ class DualQueueCoupledAqm : public QueueDisc
      * Provide an external method to provide qdelaySingle () method that
      * relies on the rate shaping state of the underlying device.
      *
-     * \param qDelaySingleCallback the callback function
+     * @param qDelaySingleCallback the callback function
      */
     void SetQDelaySingleCallback(Callback<Time> qDelaySingleCallback);
 
@@ -160,7 +159,7 @@ class DualQueueCoupledAqm : public QueueDisc
      * Provide an external method to provide loopDelay () method for
      * smoothed estimate of the multiple access delay.
      *
-     * \param loopDelayCallback the callback function
+     * @param loopDelayCallback the callback function
      */
     void SetLoopDelayCallback(Callback<std::pair<Time, uint32_t>> loopDelayCallback);
 
@@ -172,7 +171,7 @@ class DualQueueCoupledAqm : public QueueDisc
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param asf pointer to the AggregateServiceFlow object
+     * @param asf pointer to the AggregateServiceFlow object
      */
     void SetAsf(Ptr<AggregateServiceFlow> asf);
 
@@ -184,14 +183,14 @@ class DualQueueCoupledAqm : public QueueDisc
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param sf pointer to the ServiceFlow object
+     * @param sf pointer to the ServiceFlow object
      */
     void SetSf(Ptr<ServiceFlow> sf);
 
     /**
      *  Get most recent estimate of the classic queuing delay (updated every interval)
-     * \param size size (bytes) of additional packet to consider in delay
-     * \return queuing delay
+     * @param size size (bytes) of additional packet to consider in delay
+     * @return queuing delay
      */
     Time GetClassicQueuingDelay(uint32_t size = 0) const;
 
@@ -204,45 +203,45 @@ class DualQueueCoupledAqm : public QueueDisc
     Time GetLowLatencyQueuingDelay();
 
     /**
-     *  \brief Return the Low Latency queue delay estimate
+     *  @brief Return the Low Latency queue delay estimate
      *
      * This corresponds to qdelayCoupledL(byte_length) in Annex O of the
      * specification.  In the specification, the units are ns, but in ns-3,
      * a Time object is returned, which can be converted to integer ns
      * via GetNanoSeconds ().
      *
-     * \param byteLength byte length to consider in delay
-     * \return first-in Low Latency queuing delay
+     * @param byteLength byte length to consider in delay
+     * @return first-in Low Latency queuing delay
      */
     Time QDelayCoupledL(uint32_t byteLength) const;
 
     /**
-     * \brief Get the classic drop probability.
+     * @brief Get the classic drop probability.
      * Note:  may be > 1
-     * \return classic drop probability
+     * @return classic drop probability
      */
     double GetClassicDropProbability() const;
 
     /**
-     * \brief Calculate the Low Latency internal marking probability (probNative)
+     * @brief Calculate the Low Latency internal marking probability (probNative)
      *
      * Implements the function defined in Annex O.1 of the specification.
      * The delay is passed in as a parameter so that the caller can control
      * the value of delay to use in the calculation.
-     * \param qdelay Low Latency queue delay to use
-     * \return Low Latency internal marking probability
+     * @param qdelay Low Latency queue delay to use
+     * @return Low Latency internal marking probability
      */
     double CalcProbNative(Time qdelay) const;
 
     /**
-     * \brief Get the Low Latency internal marking probability (probNative)
-     * \return Low Latency internal marking probability
+     * @brief Get the Low Latency internal marking probability (probNative)
+     * @return Low Latency internal marking probability
      */
     double GetProbNative() const;
 
     /**
-     * \brief Get the Low Latency coupled marking probability from C queue (probCL)
-     * \return Low Latency coupled marking probability
+     * @brief Get the Low Latency coupled marking probability from C queue (probCL)
+     * @return Low Latency coupled marking probability
      */
     double GetProbCL() const;
 
@@ -265,57 +264,57 @@ class DualQueueCoupledAqm : public QueueDisc
      * used by this model.  Return the number of streams (possibly zero) that
      * have been assigned.
      *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this model
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
 
     /**
      * Attempt to dequeue from Classic queue
-     * \return the item dequeued, or 0 if unsuccessful
+     * @return the item dequeued, or 0 if unsuccessful
      */
     Ptr<QueueDiscItem> ClassicDequeue();
 
     /**
      * Attempt to dequeue from Low Latency queue
-     * \return the item dequeued, or 0 if unsuccessful
+     * @return the item dequeued, or 0 if unsuccessful
      */
     Ptr<QueueDiscItem> LowLatencyDequeue();
 
     /**
-     * \brief Divide the integer SchedulingWeight (1..255) by 256 to yield
+     * @brief Divide the integer SchedulingWeight (1..255) by 256 to yield
      * a floating point scheduling weight.
      *
-     * \return value between 0 and 1 representing the Low Latency scheduling weight
+     * @return value between 0 and 1 representing the Low Latency scheduling weight
      */
     double GetWeight() const;
 
     /**
      * Set the value of DscpOverwrite for the L-queue
-     * \param overwrite the DscpOverwrite value
+     * @param overwrite the DscpOverwrite value
      */
     void SetLowLatencyDscpOverwrite(DscpOverwrite overwrite);
 
     /**
      * Get the value of DscpOverwrite for the L-queue
-     * \return the DscpOverwrite value
+     * @return the DscpOverwrite value
      */
     DscpOverwrite GetLowLatencyDscpOverwrite() const;
 
     /**
      * Set the value of DscpOverwrite for the C-queue
-     * \param overwrite the DscpOverwrite value
+     * @param overwrite the DscpOverwrite value
      */
     void SetClassicDscpOverwrite(DscpOverwrite overwrite);
 
     /**
      * Get the value of DscpOverwrite for the C-queue
-     * \return the DscpOverwrite value
+     * @return the DscpOverwrite value
      */
     DscpOverwrite GetClassicDscpOverwrite() const;
 
     /**
-     * \brief Burst types
+     * @brief Burst types
      */
     enum BurstStateT
     {
@@ -326,11 +325,11 @@ class DualQueueCoupledAqm : public QueueDisc
 
     /**
      * Callback signature for enqueue state
-     * \param qDelay queue delay
-     * \param qSize queue size
-     * \param dropProb drop probability
-     * \param burstReset burst reset counter
-     * \param state burst state
+     * @param qDelay queue delay
+     * @param qSize queue size
+     * @param dropProb drop probability
+     * @param burstReset burst reset counter
+     * @param state burst state
      */
     typedef void (*DualQEnqueueStateTracedCallback)(Time qDelay,
                                                     uint32_t qSize,
@@ -340,12 +339,12 @@ class DualQueueCoupledAqm : public QueueDisc
 
     /**
      * Callback signature for CalculateP() state
-     * \param qDelay queue delay
-     * \param qDelayOld old queue delay
-     * \param p p value
-     * \param classicProb classic drop probability
-     * \param baseProb base probability
-     * \param probCL probCL coupled probability
+     * @param qDelay queue delay
+     * @param qDelayOld old queue delay
+     * @param p p value
+     * @param classicProb classic drop probability
+     * @param baseProb base probability
+     * @param probCL probCL coupled probability
      */
     typedef void (*CalculatePStateTracedCallback)(Time qDelay,
                                                   Time qDelayOld,
@@ -356,18 +355,18 @@ class DualQueueCoupledAqm : public QueueDisc
 
     /**
      * Callback signature for Low Latency queue delay trace
-     * \param qDelay queue delay of LL queue
-     * \param size size of packet that was added to queue delay calculation
+     * @param qDelay queue delay of LL queue
+     * @param size size of packet that was added to queue delay calculation
      */
     typedef void (*DualQLlQueueDelayTracedCallback)(Time qDelay, uint32_t size);
 
     /**
      * Callback signature for Low Latency queue dequeue trace
-     * \param sojourn Sojourn time of packet
-     * \param delayEstimate Queue delay estimate of packet at time of enqueue
-     * \param classicDelay Classic queueing delay estimate upon dequeue
-     * \param isMarked Whether the packet is CE marked or not
-     * \param size size of packet
+     * @param sojourn Sojourn time of packet
+     * @param delayEstimate Queue delay estimate of packet at time of enqueue
+     * @param classicDelay Classic queueing delay estimate upon dequeue
+     * @param isMarked Whether the packet is CE marked or not
+     * @param size size of packet
      */
     typedef void (*DualQLlDequeueTracedCallback)(Time sojourn,
                                                  Time delayEstimate,
@@ -378,11 +377,11 @@ class DualQueueCoupledAqm : public QueueDisc
     /**
      * TracedCallback signature for AlignVq trace
      *
-     * \param [in] actualLen Current actual queue length (bytes)
-     * \param [in] Time Current virtual queue (time)
-     * \param [in] avgLen Current average queue length (bytes)
-     * \param [in] allowedLen Current allowed average queue length (bytes)
-     * \param [in] aligned Whether virtual queue was aligned
+     * @param [in] actualLen Current actual queue length (bytes)
+     * @param [in] Time Current virtual queue (time)
+     * @param [in] avgLen Current average queue length (bytes)
+     * @param [in] allowedLen Current allowed average queue length (bytes)
+     * @param [in] aligned Whether virtual queue was aligned
      */
     typedef void (*AlignVqTracedCallback)(uint32_t actualLen,
                                           Time vq,
@@ -392,7 +391,7 @@ class DualQueueCoupledAqm : public QueueDisc
 
   protected:
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
 
@@ -409,7 +408,7 @@ class DualQueueCoupledAqm : public QueueDisc
     Time GetMaxTh() const;
 
     /**
-     * \brief Enumeration of the queue types, for internal code readability
+     * @brief Enumeration of the queue types, for internal code readability
      */
     enum QueueType
     {
@@ -426,9 +425,9 @@ class DualQueueCoupledAqm : public QueueDisc
 
     /**
      * Immediate AQM Data Path (DOCSIS specification Annex N.4)
-     * \param item QueueDiscItem to operate on
-     * \param probNative probNative value from the algorithm
-     * \return true if EXIT_CE, false if EXIT_FWD
+     * @param item QueueDiscItem to operate on
+     * @param probNative probNative value from the algorithm
+     * @return true if EXIT_CE, false if EXIT_FWD
      */
     bool Iaqm(Ptr<QueueDiscItem> item, double probNative);
 
@@ -437,18 +436,18 @@ class DualQueueCoupledAqm : public QueueDisc
      * so that it will recur with a certain likelihood.  This method
      * averages likelihood over all invocations.
      *
-     * \param likelihood the desired likelihood
-     * \return whether the operation should be performed
+     * @param likelihood the desired likelihood
+     * @return whether the operation should be performed
      */
     bool Recur(double likelihood);
 
     /**
-     * \brief Initialize the queue parameters.
+     * @brief Initialize the queue parameters.
      */
     void InitializeParams() override;
 
     /**
-     * \brief Return the classic queue delay estimate
+     * @brief Return the classic queue delay estimate
      *
      * This corresponds to qdelayCoupledV(psize) in Annex O of the
      * specification.  In the specification, the units are s, but in ns-3,
@@ -457,46 +456,46 @@ class DualQueueCoupledAqm : public QueueDisc
      *
      * This method adds pSize bytes to the internal virtual queue length.
      *
-     * \param pSize packet size to add to the virtual queue length
-     * \return virtual queue delay estimate
+     * @param pSize packet size to add to the virtual queue length
+     * @return virtual queue delay estimate
      */
     Time QDelayCoupledV(uint32_t pSize);
 
     /**
-     * \brief Return the classic queue delay estimate
+     * @brief Return the classic queue delay estimate
      *
      * This corresponds to qdelayCoupledC(byte_length) in Annex O of the
      * specification.  In the specification, the units are s, but in ns-3,
      * a Time object is returned, which can be converted to floating point
      * seconds via GetSeconds(), and integer seconds via C++ round() or floor()
      *
-     * \param byteLength queue length in bytes
-     * \return classic queue delay estimate
+     * @param byteLength queue length in bytes
+     * @return classic queue delay estimate
      */
     Time QDelayCoupledC(uint32_t byteLength);
 
     /**
-     * \brief Periodically update dropping and marking probabilities (DOCSIS)
+     * @brief Periodically update dropping and marking probabilities (DOCSIS)
      */
     void CalculateDropProb();
 
     /**
-     * \brief M.3 PIE AQM Data Path
-     * \param item QueueDiscItem to consider
-     * \return true if item should be dropped
+     * @brief M.3 PIE AQM Data Path
+     * @param item QueueDiscItem to consider
+     * @return true if item should be dropped
      */
     bool DropEarly(Ptr<QueueDiscItem> item);
 
     /**
-     * \brief Attempt to enqueue a classic packet
-     * \param docsisItem (classic) DocsisQueueDiscItem to enqueue
-     * \return true if item was successfully enqueued
+     * @brief Attempt to enqueue a classic packet
+     * @param docsisItem (classic) DocsisQueueDiscItem to enqueue
+     * @return true if item was successfully enqueued
      */
     bool ClassicEnqueue(Ptr<DocsisQueueDiscItem> docsisItem);
 
     /**
-     * \brief Decrement the internal byte count of the virtual queue
-     * \param pSize size (in bytes) to decrement
+     * @brief Decrement the internal byte count of the virtual queue
+     * @param pSize size (in bytes) to decrement
      */
     void DecreaseVq(uint32_t pSize);
 

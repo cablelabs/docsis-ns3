@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -60,13 +59,13 @@ const uint8_t CLASSIC_SFID = 1;     //!< service flow ID for classic ServiceFlow
 const uint8_t LOW_LATENCY_SFID = 2; //!< service flow ID for low latency ServiceFlow
 
 /**
- * \brief Structure to hold values for the IP Type Of Service (DSCP) Overwrite
+ * @brief Structure to hold values for the IP Type Of Service (DSCP) Overwrite
  *
  * The values are applied to an IPv4 header DS field according to section
  * C.2.2.7.9 in the DOCSIS specification:
- * \code
+ * @code
  * new-ip-tos = ((orig-ip-tos AND tos-and-mask) OR tos-or-mask)
- * \endcode
+ * @endcode
  */
 struct DscpOverwrite
 {
@@ -102,13 +101,13 @@ class ServiceFlow : public Object
 {
   public:
     /**
-     * \brief Get the TypeId
-     * \return The TypeId for this class
+     * @brief Get the TypeId
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
     /**
      * Constructor for ServiceFlow
-     * \param sfId service flow ID
+     * @param sfId service flow ID
      */
     ServiceFlow(uint8_t sfId);
     /**
@@ -190,8 +189,8 @@ class AggregateServiceFlow : public Object
 {
   public:
     /**
-     * \brief Get the TypeId
-     * \return The TypeId for this class
+     * @brief Get the TypeId
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
     /**
@@ -203,28 +202,28 @@ class AggregateServiceFlow : public Object
      */
     ~AggregateServiceFlow() override;
     /**
-     * \brief return the number of service flows stored
-     * \return number of service flows
+     * @brief return the number of service flows stored
+     * @return number of service flows
      */
     uint32_t GetNumServiceFlows() const;
     /**
-     * \brief Set the classic service flow (overwriting any existing one)
-     * \param sf the service flow
+     * @brief Set the classic service flow (overwriting any existing one)
+     * @param sf the service flow
      */
     void SetClassicServiceFlow(Ptr<ServiceFlow> sf);
     /**
-     * \brief Set the low latency service flow (overwriting any existing one)
-     * \param sf the service flow
+     * @brief Set the low latency service flow (overwriting any existing one)
+     * @param sf the service flow
      */
     void SetLowLatencyServiceFlow(Ptr<ServiceFlow> sf);
     /**
-     * \brief get a const pointer to the classic service flow, if present
-     * \return the service flow
+     * @brief get a const pointer to the classic service flow, if present
+     * @return the service flow
      */
     Ptr<const ServiceFlow> GetClassicServiceFlow() const;
     /**
-     * \brief get a const pointer to the low latency service flow, if present
-     * \return the service flow
+     * @brief get a const pointer to the low latency service flow, if present
+     * @return the service flow
      */
     Ptr<const ServiceFlow> GetLowLatencyServiceFlow() const;
 

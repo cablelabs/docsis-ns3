@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -63,9 +62,9 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
- * \class CmPipeline
- * \brief A data structure to hold request, grant, or transmit pipeline
+ * @ingroup docsis
+ * @class CmPipeline
+ * @brief A data structure to hold request, grant, or transmit pipeline
  * information
  *
  * Stores data counters with eligibility timestamps associated with them
@@ -74,47 +73,47 @@ class CmPipeline
 {
   public:
     /**
-     * \return sum of values for elements whose timestamps <= deadline
+     * @return sum of values for elements whose timestamps <= deadline
      */
     uint32_t GetEligible(Time deadline) const;
     /**
-     * \return sum of values for elements whose timestamps <= Simulator::Now ()
+     * @return sum of values for elements whose timestamps <= Simulator::Now ()
      */
     uint32_t GetEligible() const;
     /**
-     * \return sum of values for all elements in the pipeline
+     * @return sum of values for all elements in the pipeline
      */
     uint32_t GetTotal() const;
     /**
      * Return the number of elements in the pipeline
      *
-     * \return number of elements in the pipeline
+     * @return number of elements in the pipeline
      */
     uint32_t GetSize() const;
     /**
      * Add an element to the pipeline.
      *
-     * \param value Add an element to the pipeline
-     * \param eligible deadline time to consider for eligibility
+     * @param value Add an element to the pipeline
+     * @param eligible deadline time to consider for eligibility
      */
     void Add(uint32_t value, Time eligible);
     /**
      * Peek element from front of pipeline.
      *
-     * \return element element peeked from front of pipeline
+     * @return element element peeked from front of pipeline
      */
     std::pair<uint32_t, Time> Peek() const;
     /**
      * Pop (remove) element from front of pipeline and return it.
      *
-     * \return element removed from front of pipeline
+     * @return element removed from front of pipeline
      */
     std::pair<uint32_t, Time> Pop();
     /**
      * Remove value from front of pipeline.  Any elements that become empty
      * are also removed.
      *
-     * \param value quantity to remove from the front
+     * @param value quantity to remove from the front
      */
     void Remove(uint32_t value);
     /**
@@ -127,9 +126,9 @@ class CmPipeline
 };
 
 /**
- * \ingroup docsis
- * \class CmNetDevice
- * \brief A model for upstream devices (i.e. cable modems)
+ * @ingroup docsis
+ * @class CmNetDevice
+ * @brief A model for upstream devices (i.e. cable modems)
  *
  * This CmNetDevice class models an upstream (CM) device.  It is a layer-2
  * device and must be bridged to another device (such as CsmaNetDevice) that
@@ -139,9 +138,9 @@ class CmNetDevice : public DocsisNetDevice
 {
   public:
     /**
-     * \brief Get the TypeId
+     * @brief Get the TypeId
      *
-     * \return The TypeId for this class
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
 
@@ -174,7 +173,7 @@ class CmNetDevice : public DocsisNetDevice
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param asf pointer to the AggregateServiceFlow object
+     * @param asf pointer to the AggregateServiceFlow object
      */
     void SetUpstreamAsf(Ptr<AggregateServiceFlow> asf);
     /**
@@ -185,17 +184,17 @@ class CmNetDevice : public DocsisNetDevice
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param sf pointer to the ServiceFlow object
+     * @param sf pointer to the ServiceFlow object
      */
     void SetUpstreamSf(Ptr<ServiceFlow> sf);
     /**
      * Get upstream aggregate service flow (if present).
-     * \return pointer to the AggregateServiceFlow object, if present
+     * @return pointer to the AggregateServiceFlow object, if present
      */
     Ptr<const AggregateServiceFlow> GetUpstreamAsf() const;
     /**
      * Get upstream service flow (if present).
-     * \return pointer to the ServiceFlow object, if present
+     * @return pointer to the ServiceFlow object, if present
      */
     Ptr<const ServiceFlow> GetUpstreamSf() const;
 
@@ -206,7 +205,7 @@ class CmNetDevice : public DocsisNetDevice
 
     /**
      * Add a time sample to the loop delay estimate
-     * \param sample time sample to add
+     * @param sample time sample to add
      */
     void AddLoopDelayEstimate(Time sample);
 
@@ -224,13 +223,13 @@ class CmNetDevice : public DocsisNetDevice
      * used by this model.  Return the number of streams (possibly zero) that
      * have been assigned.
      *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this model
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
 
     /**
-     * \brief Structure for reporting classic SFID state information
+     * @brief Structure for reporting classic SFID state information
      */
     struct CGrantState
     {
@@ -244,7 +243,7 @@ class CmNetDevice : public DocsisNetDevice
     };
 
     /**
-     * \brief Structure for reporting low latency SFID state information
+     * @brief Structure for reporting low latency SFID state information
      */
     struct LGrantState
     {
@@ -261,33 +260,33 @@ class CmNetDevice : public DocsisNetDevice
     /**
      * TracedCallback signature for CM state reporting
      *
-     * \param [in] state classic SFID state report
+     * @param [in] state classic SFID state report
      */
     typedef void (*CGrantStateTracedCallback)(CGrantState state);
 
     /**
      * TracedCallback signature for CM state reporting
      *
-     * \param [in] state low latency SFID state report
+     * @param [in] state low latency SFID state report
      */
     typedef void (*LGrantStateTracedCallback)(LGrantState state);
 
     /**
      * TracedCallback signature for grant reporting
      *
-     * \param [in] value value traced
+     * @param [in] value value traced
      */
     typedef void (*UintegerTracedCallback)(uint32_t value);
 
   protected:
     friend class DualQueueCoupledAqm;
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
 
     /**
-     * \brief Initialize the object
+     * @brief Initialize the object
      */
     void DoInitialize() override;
 
@@ -308,8 +307,8 @@ class CmNetDevice : public DocsisNetDevice
      * If the parameter includeMacHeaders is false, the quantities
      * return Data PDU bytes (without MAC header bytes counted).
      *
-     * \param includeMacHeaders if true, return MAC frame bytes
-     * \return number of corresponding bytes in the device
+     * @param includeMacHeaders if true, return MAC frame bytes
+     * @return number of corresponding bytes in the device
      */
     uint32_t GetCUnsentBytes(bool includeMacHeaders = true) const;
     uint32_t GetCDeviceBytes(bool includeMacHeaders = true) const;
@@ -322,7 +321,7 @@ class CmNetDevice : public DocsisNetDevice
     void Reset();
 
     /**
-     * \brief Information to store for assisting with packing D3.1 minislots
+     * @brief Information to store for assisting with packing D3.1 minislots
      */
     struct MapState
     {
@@ -350,21 +349,21 @@ class CmNetDevice : public DocsisNetDevice
     /**
      * Utility function analogous to std::round:  round to nearest number of
      * minislots required for bytes
-     * \param bytes number of bytes
-     * \return number of minislots
+     * @param bytes number of bytes
+     * @return number of minislots
      */
     uint32_t MinislotRound(uint32_t bytes) const;
     /**
      * Utility function analogous to std::ceil:  smallest integral number of
      * minislots required for bytes
-     * \param bytes number of bytes
-     * \return number of minislots
+     * @param bytes number of bytes
+     * @return number of minislots
      */
     uint32_t MinislotCeil(uint32_t bytes) const;
     /**
      * Utility function to convert minislots back to bytes
-     * \param minislots number of minislots
-     * \return number of bytes
+     * @param minislots number of minislots
+     * @return number of bytes
      */
     uint32_t MinislotsToBytes(uint32_t minislots) const;
 
@@ -387,7 +386,7 @@ class CmNetDevice : public DocsisNetDevice
      * interval allows for the modeling that some requests miss the deadline
      * to be serviced in time for a particular MAP interval.
      *
-     * \return a Time value between 0 and the offset in time between the start
+     * @return a Time value between 0 and the offset in time between the start
      *         of the MAP interval and the last frame in the MAP
      */
     Time GetInitialRequestOffset();
@@ -397,9 +396,9 @@ class CmNetDevice : public DocsisNetDevice
      * (taking into account serialization delay for DOCSIS 3.0 model, and the
      * current MAP state for DOCSIS 3.1 model).
      *
-     * \param bytes the number of bytes to determine completion time
-     * \param mapState current MAP state of the model
-     * \return the amount of time until transmission completes for bytes
+     * @param bytes the number of bytes to determine completion time
+     * @param mapState current MAP state of the model
+     * @return the amount of time until transmission completes for bytes
      */
     Time GetCompletionTime(uint32_t bytes, struct MapState mapState) const;
 

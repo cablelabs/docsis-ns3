@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -968,21 +967,21 @@ static class DualQueueCoupledAqmTestSuite : public TestSuite
 {
   public:
     DualQueueCoupledAqmTestSuite()
-        : TestSuite("dual-queue-coupled-aqm", UNIT)
+        : TestSuite("dual-queue-coupled-aqm", Type::UNIT)
     {
-        AddTestCase(new DualQIaqmThresholdsTestCase(), TestCase::QUICK);
-        AddTestCase(new DualQueueByteCountsTestCase(), TestCase::QUICK);
-        AddTestCase(new DualQueueBufferSizeTestCase(), TestCase::QUICK);
+        AddTestCase(new DualQIaqmThresholdsTestCase(), TestCase::Duration::QUICK);
+        AddTestCase(new DualQueueByteCountsTestCase(), TestCase::Duration::QUICK);
+        AddTestCase(new DualQueueBufferSizeTestCase(), TestCase::Duration::QUICK);
         // Boolean value controls whether to configure a MSR on a LL SF
         // Argument controls whether to use the LL SF MSR instead of the AMSR
         // for rate estimates; false means use the AMSR
 #if 0
     XXX need to recalibrate with VQ changes
-    AddTestCase (new DualQueueVirtualQueueTestCase (false), TestCase::QUICK);
-    AddTestCase (new DualQueueVirtualQueueTestCase (true), TestCase::QUICK);
+    AddTestCase (new DualQueueVirtualQueueTestCase (false), TestCase::Duration::QUICK);
+    AddTestCase (new DualQueueVirtualQueueTestCase (true), TestCase::Duration::QUICK);
     // Check the timed drain and reset behavior; this has some different
     // traces for certain enqueue/dequeue sequences
-    AddTestCase (new DualQueueTimedVirtualQueueTestCase (), TestCase::QUICK);
+    AddTestCase (new DualQueueTimedVirtualQueueTestCase (), TestCase::Duration::QUICK);
 #endif
     }
 } g_DualQCoupledAqmQueueTestSuite;

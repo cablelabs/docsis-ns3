@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -289,7 +288,6 @@ QueueProtectionBasicTestCase::EnqueueWithDelay(Ptr<DualQueueCoupledAqm> queue,
                                                uint32_t nPkt,
                                                StringValue trafficType)
 {
-    Address dest;
     double delay = 0.01; // enqueue packets with incremental delay of 10 ms
     for (uint32_t i = 0; i < nPkt; i++)
     {
@@ -385,8 +383,8 @@ static class QueueProtectionTestSuite : public TestSuite
 {
   public:
     QueueProtectionTestSuite()
-        : TestSuite("queue-protection", UNIT)
+        : TestSuite("queue-protection", Type::UNIT)
     {
-        AddTestCase(new QueueProtectionBasicTestCase(), TestCase::QUICK);
+        AddTestCase(new QueueProtectionBasicTestCase(), TestCase::Duration::QUICK);
     }
 } g_QueueProtectionTestSuite;

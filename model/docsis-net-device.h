@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -71,11 +70,11 @@ class CmtsUpstreamScheduler;
 class DualQueueCoupledAqm;
 
 /**
- * \defgroup docsis DOCSIS models for cable access networks
+ * @defgroup docsis DOCSIS models for cable access networks
  */
 
 /**
- *\ingroup docsis
+ *@ingroup docsis
  *
  * A MAP Information Element.
  */
@@ -99,9 +98,9 @@ struct MapMessage
 };
 
 /**
- * \ingroup docsis
- * \class DocsisNetDevice
- * \brief A base class for devices hooked to a DocsisChannel
+ * @ingroup docsis
+ * @class DocsisNetDevice
+ * @brief A base class for devices hooked to a DocsisChannel
  *
  * This DocsisNetDevice class specializes the NetDevice abstract
  * base class.  Together with a DocsisChannel (and a peer
@@ -116,9 +115,9 @@ class DocsisNetDevice : public NetDevice
 {
   public:
     /**
-     * \brief Get the TypeId
+     * @brief Get the TypeId
      *
-     * \return The TypeId for this class
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
 
@@ -135,8 +134,8 @@ class DocsisNetDevice : public NetDevice
     /**
      * Attach the device to a channel.
      *
-     * \param ch Ptr to the channel to which this object is being attached.
-     * \return true if the operation was successfull (always true actually)
+     * @param ch Ptr to the channel to which this object is being attached.
+     * @return true if the operation was successfull (always true actually)
      */
     bool Attach(Ptr<DocsisChannel> ch);
 
@@ -148,7 +147,7 @@ class DocsisNetDevice : public NetDevice
      * used by the channel to indicate that the last bit of a packet has
      * arrived at the device.
      *
-     * \param p Ptr to the received packet.
+     * @param p Ptr to the received packet.
      */
     void Receive(Ptr<Packet> p);
 
@@ -158,15 +157,15 @@ class DocsisNetDevice : public NetDevice
      * An alternative way to receive packets, in an emulation context, is
      * to use the ReceiveFromDevice method as a callback.
      *
-     * \param device Ptr to the incoming device
-     * \param packet Ptr to the received packet
-     * \param protocol protocol number
-     * \param source source address
-     * \param dest destination address
-     * \param packetType type of packet received (broadcast/multicast/unicast/otherhost)
-     * \param promiscuous Whether to receive packets in promiscuous mode
+     * @param device Ptr to the incoming device
+     * @param packet Ptr to the received packet
+     * @param protocol protocol number
+     * @param source source address
+     * @param dest destination address
+     * @param packetType type of packet received (broadcast/multicast/unicast/otherhost)
+     * @param promiscuous Whether to receive packets in promiscuous mode
      *
-     * \return whether the reception succeeds
+     * @return whether the reception succeeds
      */
     bool ReceiveFromDevice(Ptr<NetDevice> device,
                            Ptr<const Packet> packet,
@@ -181,14 +180,14 @@ class DocsisNetDevice : public NetDevice
      *
      * Method to hook to a device's PromiscReceiveCallback
      *
-     * \param device Ptr to the incoming device
-     * \param packet Ptr to the received packet
-     * \param protocol protocol number
-     * \param source source address
-     * \param dest destination address
-     * \param packetType type of packet received (broadcast/multicast/unicast/otherhost)
+     * @param device Ptr to the incoming device
+     * @param packet Ptr to the received packet
+     * @param protocol protocol number
+     * @param source source address
+     * @param dest destination address
+     * @param packetType type of packet received (broadcast/multicast/unicast/otherhost)
      *
-     * \return whether the reception succeeds
+     * @return whether the reception succeeds
      */
     bool PromiscReceiveFromDevice(Ptr<NetDevice> device,
                                   Ptr<const Packet> packet,
@@ -202,12 +201,12 @@ class DocsisNetDevice : public NetDevice
      *
      * Method to hook to a device's ReceiveCallback
      *
-     * \param device Ptr to the incoming device
-     * \param packet Ptr to the received packet
-     * \param protocol protocol number
-     * \param source source address
+     * @param device Ptr to the incoming device
+     * @param packet Ptr to the received packet
+     * @param protocol protocol number
+     * @param source source address
      *
-     * \return whether the reception succeeds
+     * @return whether the reception succeeds
      */
     bool NonPromiscReceiveFromDevice(Ptr<NetDevice> device,
                                      Ptr<const Packet> packet,
@@ -217,7 +216,7 @@ class DocsisNetDevice : public NetDevice
      * Forward packet up from the Phy.  Called after Receive() with any
      * delay necessary to model Phy processing delay.
      *
-     * \param p Ptr to the received packet.
+     * @param p Ptr to the received packet.
      */
     void ForwardUp(Ptr<Packet> p);
 
@@ -274,43 +273,43 @@ class DocsisNetDevice : public NetDevice
 
     /**
      * Provide the DualQueueCoupledAqm to the device
-     * \param dualQueue pointer to the queue
+     * @param dualQueue pointer to the queue
      */
     void SetQueue(Ptr<DualQueueCoupledAqm> dualQueue);
     /**
      * Fetch a pointer to the DualQueueCoupledAqm in the device
-     * \return pointer to the queue
+     * @return pointer to the queue
      */
     Ptr<DualQueueCoupledAqm> GetQueue() const;
 
     /**
-     * \brief set pointer to CmtsUpstreamScheduler object
-     * \param scheduler pointer to scheduler
+     * @brief set pointer to CmtsUpstreamScheduler object
+     * @param scheduler pointer to scheduler
      */
     void SetCmtsUpstreamScheduler(Ptr<CmtsUpstreamScheduler> scheduler);
     /**
-     * \brief return pointer to CmtsUpstreamScheduler object
-     * \return pointer to scheduler
+     * @brief return pointer to CmtsUpstreamScheduler object
+     * @return pointer to scheduler
      */
     Ptr<CmtsUpstreamScheduler> GetCmtsUpstreamScheduler() const;
     /**
-     * \brief Return predicted queueing delay
+     * @brief Return predicted queueing delay
      *
      * Method to be used by the AQM to query for predicted queueing delay
      * (RFC 8034 section 4.2, qdelaySingle from Annex M of specification).
      */
     virtual Time ExpectedDelay() const = 0;
     /**
-     * \brief Return estimated round-trip multiple access delay
+     * @brief Return estimated round-trip multiple access delay
      *
      * Method to be used by the AQM to query for estimated loop delay
      */
     virtual std::pair<Time, uint32_t> GetLoopDelayEstimate() const = 0;
 
     /**
-     * \brief Get the actual map interval time value
+     * @brief Get the actual map interval time value
      *
-     * \return map interval
+     * @return map interval
      */
     Time GetActualMapInterval() const;
     Time GetCmMapProcTime() const;
@@ -328,7 +327,7 @@ class DocsisNetDevice : public NetDevice
     uint32_t GetDsMacHdrSize() const;
     /*
      * Get minimum request/grant delay
-     * \return MinReqGrantDelay in units of frames
+     * @return MinReqGrantDelay in units of frames
      */
     uint32_t GetMinReqGntDelay() const;
 
@@ -348,14 +347,14 @@ class DocsisNetDevice : public NetDevice
      * values, this will roll over for simulation times on the order of
      * two to three thousand seconds.
      *
-     * \param simulationTime the simulation time to convert
-     * \return The number of minislots, modulo 2^32
+     * @param simulationTime the simulation time to convert
+     * @return The number of minislots, modulo 2^32
      */
     uint32_t TimeToMinislots(Time simulationTime) const;
 
     /*
-     * \param minislots the minislots to convert
-     * \return the simulation time at the start of the minislot
+     * @param minislots the minislots to convert
+     * @return the simulation time at the start of the minislot
      */
     Time MinislotsToTime(uint32_t minislots) const;
     /**
@@ -365,8 +364,8 @@ class DocsisNetDevice : public NetDevice
      * the data path.  This does not affect the notional control
      * channel.
      *
-     * \see ErrorModel
-     * \param em Ptr to the ErrorModel.
+     * @see ErrorModel
+     * @param em Ptr to the ErrorModel.
      */
     void SetReceiveErrorModel(Ptr<ErrorModel> em);
 
@@ -375,7 +374,7 @@ class DocsisNetDevice : public NetDevice
 
     /*
      * Start the CmtsUpstreamScheduler
-     * \return AllocStartTime of first MAP message that will be generated
+     * @return AllocStartTime of first MAP message that will be generated
      */
     uint32_t StartScheduler();
     /**
@@ -384,8 +383,8 @@ class DocsisNetDevice : public NetDevice
      * for 64-byte minimum frame size).  The IP packet is the SDU.
      * See Figure 18 (Generic MAC Frame Format) of specification
      *
-     * \param sduSize size in bytes of SDU (IP packet)
-     * \return size of frame in bytes
+     * @param sduSize size in bytes of SDU (IP packet)
+     * @return size of frame in bytes
      */
     uint32_t GetDataPduSize(uint32_t sduSize) const;
 
@@ -394,8 +393,8 @@ class DocsisNetDevice : public NetDevice
      * SDU size (by any Ethernet framing and padding, and the upstream MAC
      * header).
      *
-     * \param sduSize size in bytes of SDU (IP packet)
-     * \return size of frame in bytes
+     * @param sduSize size in bytes of SDU (IP packet)
+     * @return size of frame in bytes
      */
     uint32_t GetUsMacFrameSize(uint32_t sduSize) const;
 
@@ -404,16 +403,16 @@ class DocsisNetDevice : public NetDevice
      * SDU size (by any Ethernet framing and padding, and the downstream MAC
      * header).
      *
-     * \param sduSize size in bytes of SDU (IP packet)
-     * \return size of frame in bytes
+     * @param sduSize size in bytes of SDU (IP packet)
+     * @return size of frame in bytes
      */
     uint32_t GetDsMacFrameSize(uint32_t sduSize) const;
 
     /**
-     * \param p Packet to which Ethernet header and trailer should be added
-     * \param source MAC source address from which packet should be sent
-     * \param dest MAC destination address to which packet should be sent
-     * \param protocolNumber protocol number
+     * @param p Packet to which Ethernet header and trailer should be added
+     * @param source MAC source address from which packet should be sent
+     * @param dest MAC destination address to which packet should be sent
+     * @param protocolNumber protocol number
      */
     void AddHeaderTrailer(Ptr<Packet> p,
                           Mac48Address source,
@@ -421,12 +420,12 @@ class DocsisNetDevice : public NetDevice
                           uint16_t protocolNumber);
 
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
 
     /**
-     * \brief Initialize the object
+     * @brief Initialize the object
      */
     void DoInitialize() override;
 
@@ -441,58 +440,44 @@ class DocsisNetDevice : public NetDevice
      * packets as ECT0 to be remarked as ECT1 so that the DualQ can handle
      * appropriately.
      *
-     * \param packet the packet to check
-     * \return whether packet was remarked
+     * @param packet the packet to check
+     * @return whether packet was remarked
      */
     bool RemarkTcpEcnValue(Ptr<Packet> packet);
 
   private:
     /**
-     * \brief Assign operator
+     * @brief Assign operator
      *
      * The method is private, so it is DISABLED.
      *
-     * \param o Other NetDevice
-     * \return New instance of the NetDevice
+     * @param o Other NetDevice
+     * @return New instance of the NetDevice
      */
     DocsisNetDevice& operator=(const DocsisNetDevice& o) = delete;
 
     /**
-     * \brief Copy constructor
+     * @brief Copy constructor
      *
      * The method is private, so it is DISABLED.
 
-     * \param o Other NetDevice
+     * @param o Other NetDevice
      */
     DocsisNetDevice(const DocsisNetDevice& o) = delete;
 
   private:
     /**
-     * \returns the address of the remote device connected to this device
+     * @returns the address of the remote device connected to this device
      * through the point to point channel.
      */
     Address GetRemote() const;
 
     /**
-     * \brief Make the link up and running
+     * @brief Make the link up and running
      *
      * It calls also the linkChange callback.
      */
     void NotifyLinkUp();
-
-    /**
-     * Enumeration of the states of the transmit machine of the net device.
-     */
-    enum TxMachineState
-    {
-        READY, /**< The transmitter is ready to begin transmission of a packet */
-        BUSY   /**< The transmitter is busy transmitting a packet */
-    };
-
-    /**
-     * The state of the Net Device transmit state machine.
-     */
-    TxMachineState m_txMachineState;
 
     /**
      * The data rate that the Net Device uses to simulate packet transmission
@@ -538,7 +523,7 @@ class DocsisNetDevice : public NetDevice
     /**
      * TracedCallback signature for Ptr<Packet>
      *
-     * \param [in] packet The packet.
+     * @param [in] packet The packet.
      */
     typedef void (*DeviceEgressCallback)(Ptr<Packet> packet);
 
@@ -733,15 +718,15 @@ class DocsisNetDevice : public NetDevice
      * Subclasses are expected to define this to pick the applicable upstream
      * or downstream MAC header size.
      *
-     * \param sduSize size in bytes of SDU (IP packet)
-     * \return size of frame in bytes
+     * @param sduSize size in bytes of SDU (IP packet)
+     * @return size of frame in bytes
      */
     virtual uint32_t GetMacFrameSize(uint32_t sduSize) const = 0;
 
     static const uint16_t DEFAULT_MTU = 1500; //!< Default MTU
 
     /**
-     * \brief The Maximum Transmission Unit
+     * @brief The Maximum Transmission Unit
      *
      * This corresponds to the maximum
      * number of bytes that can be transmitted as seen from higher layers.

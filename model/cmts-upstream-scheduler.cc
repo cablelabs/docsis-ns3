@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -141,11 +140,11 @@ CmtsUpstreamScheduler::DoDispose()
     m_sf = nullptr;
     m_classicSf = nullptr;
     m_llSf = nullptr;
-    if (m_generateMapEvent.IsRunning())
+    if (m_generateMapEvent.IsPending())
     {
         m_generateMapEvent.Cancel();
     }
-    if (m_mapArrivalEvent.IsRunning())
+    if (m_mapArrivalEvent.IsPending())
     {
         m_mapArrivalEvent.Cancel();
     }

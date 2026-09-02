@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -46,7 +45,7 @@ namespace docsis
 {
 
 /**
- * \brief Structure for a microflow descriptor.  In the DOCSIS specification,
+ * @brief Structure for a microflow descriptor.  In the DOCSIS specification,
  * this corresponds to 'uflw'.
  */
 struct Uflw
@@ -60,10 +59,10 @@ struct Uflw
 };
 
 /**
- * \brief Output operator.
- * \param os The output stream.
- * \param h The microflow to print.
- * \returns The output stream.
+ * @brief Output operator.
+ * @param os The output stream.
+ * @param h The microflow to print.
+ * @returns The output stream.
  */
 inline std::ostream&
 operator<<(std::ostream& os, const Uflw& h)
@@ -76,9 +75,9 @@ operator<<(std::ostream& os, const Uflw& h)
 
 /**
  * Comparison operator
- * \param lhs left operand
- * \param rhs right operand
- * \return true if the operands are equal
+ * @param lhs left operand
+ * @param rhs right operand
+ * @return true if the operands are equal
  */
 inline bool
 operator==(const Uflw& rhs, const Uflw& lhs)

@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -649,7 +648,7 @@ DocsisLldUpstreamPacketTest::DoRun()
         MakeCallback(&DocsisLldUpstreamPacketTest::DeviceTxDropCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldUpstreamPacketTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
 
@@ -763,7 +762,7 @@ DocsisLldDownstreamPacketTest::DoRun()
         MakeCallback(&DocsisLldDownstreamPacketTest::DeviceTxCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldDownstreamPacketTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
 
@@ -880,10 +879,9 @@ DocsisLldDualQUpstreamPacketTest::DoSetup()
     InetSocketAddress destAddressUdpEf(Ipv4Address("10.1.1.2"), 10);
     uint16_t tos = Ipv4Header::DSCP_EF << 2;
     tos = tos | 0x01; // for ECT(1)
-    destAddressUdpEf.SetTos(tos);
-
     UdpClientHelper efClient(destAddressUdpEf);
     efClient.SetAttribute("OnDemand", BooleanValue(true));
+    efClient.SetAttribute("Tos", UintegerValue(tos));
     ApplicationContainer efClientApp = efClient.Install(m_lanNode);
     m_efClient = efClientApp.Get(0)->GetObject<UdpClient>();
 
@@ -902,11 +900,11 @@ DocsisLldDualQUpstreamPacketTest::DoRun()
         MakeCallback(&DocsisLldDualQUpstreamPacketTest::DeviceTxCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldDualQUpstreamPacketTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_efServer->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldDualQUpstreamPacketTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
 
@@ -1039,10 +1037,9 @@ DocsisLldDualQUpstreamTwoPacketReactiveTest::DoSetup()
     InetSocketAddress destAddressUdpEf(Ipv4Address("10.1.1.2"), 10);
     uint16_t tos = Ipv4Header::DSCP_EF << 2;
     tos = tos | 0x01; // for ECT(1)
-    destAddressUdpEf.SetTos(tos);
-
     UdpClientHelper efClient(destAddressUdpEf);
     efClient.SetAttribute("OnDemand", BooleanValue(true));
+    efClient.SetAttribute("Tos", UintegerValue(tos));
     ApplicationContainer efClientApp = efClient.Install(m_lanNode);
     m_efClient = efClientApp.Get(0)->GetObject<UdpClient>();
 
@@ -1061,11 +1058,11 @@ DocsisLldDualQUpstreamTwoPacketReactiveTest::DoRun()
         MakeCallback(&DocsisLldDualQUpstreamTwoPacketReactiveTest::DeviceTxCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldDualQUpstreamTwoPacketReactiveTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_efServer->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldDualQUpstreamTwoPacketReactiveTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
 
@@ -1162,10 +1159,9 @@ DocsisQueueDiscItemTest::DoSetup()
     InetSocketAddress destAddressUdpEf(Ipv4Address("10.1.1.2"), 10);
     uint16_t tos = Ipv4Header::DSCP_EF << 2;
     tos = tos | 0x01; // for ECT(1)
-    destAddressUdpEf.SetTos(tos);
-
     UdpClientHelper efClient(destAddressUdpEf);
     efClient.SetAttribute("OnDemand", BooleanValue(true));
+    efClient.SetAttribute("Tos", UintegerValue(tos));
     ApplicationContainer efClientApp = efClient.Install(m_lanNode);
     m_efClient = efClientApp.Get(0)->GetObject<UdpClient>();
 
@@ -1535,7 +1531,7 @@ DocsisLldGgiTest::DoRun()
         MakeCallback(&DocsisLldGgiTest::DeviceTxDropCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisLldGgiTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_upstream->GetCmtsUpstreamScheduler()->TraceConnectWithoutContext(
@@ -1686,10 +1682,9 @@ DocsisCheckWraparoundTest::DoSetup()
     InetSocketAddress destAddressUdpEf(Ipv4Address("10.1.1.2"), 10);
     uint16_t tos = Ipv4Header::DSCP_EF << 2;
     tos = tos | 0x01; // for ECT(1)
-    destAddressUdpEf.SetTos(tos);
-
     UdpClientHelper myLlClient(destAddressUdpEf);
     myLlClient.SetAttribute("OnDemand", BooleanValue(true));
+    myLlClient.SetAttribute("Tos", UintegerValue(tos));
     ApplicationContainer llClientApp = myLlClient.Install(m_lanNode);
     m_llClient = llClientApp.Get(0)->GetObject<UdpClient>();
 
@@ -1714,10 +1709,10 @@ DocsisCheckWraparoundTest::DoRun()
         MakeCallback(&DocsisCheckWraparoundTest::DeviceTxDropCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
     connected = m_server->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisCheckWraparoundTest::UdpServerCallback, this));
     connected = m_llServer->TraceConnectWithoutContext(
-        "Rx",
+        "RxWithoutAddress",
         MakeCallback(&DocsisCheckWraparoundTest::UdpServerCallback, this));
     NS_TEST_ASSERT_MSG_EQ(connected, true, "Could not hook callback");
 
@@ -1771,20 +1766,20 @@ class DocsisLldTestSuite : public TestSuite
 };
 
 DocsisLldTestSuite::DocsisLldTestSuite()
-    : TestSuite("docsis-lld", UNIT)
+    : TestSuite("docsis-lld", Type::UNIT)
 {
-    AddTestCase(new DocsisLldSingleUpstreamPacketTest, TestCase::QUICK);
-    AddTestCase(new DocsisLldSingleDownstreamPacketTest, TestCase::QUICK);
+    AddTestCase(new DocsisLldSingleUpstreamPacketTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLldSingleDownstreamPacketTest, TestCase::Duration::QUICK);
     // 5000 packets, random packet sizes between 18 and 1472 bytes
-    AddTestCase(new DocsisLldUpstreamPacketTest(false, 5000), TestCase::QUICK);
+    AddTestCase(new DocsisLldUpstreamPacketTest(false, 5000), TestCase::Duration::QUICK);
     // 5000 packets, packet sizes stepped from 18 through 1472 bytes
-    AddTestCase(new DocsisLldUpstreamPacketTest(true, 5000), TestCase::QUICK);
-    AddTestCase(new DocsisLldDownstreamPacketTest, TestCase::QUICK);
-    AddTestCase(new DocsisLldDualQUpstreamPacketTest, TestCase::QUICK);
-    AddTestCase(new DocsisLldDualQUpstreamTwoPacketReactiveTest, TestCase::QUICK);
-    AddTestCase(new DocsisQueueDiscItemTest, TestCase::QUICK);
-    AddTestCase(new DocsisPacketBurstTest, TestCase::QUICK);
-    AddTestCase(new DocsisTimeToMinislotsTest, TestCase::QUICK);
+    AddTestCase(new DocsisLldUpstreamPacketTest(true, 5000), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLldDownstreamPacketTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLldDualQUpstreamPacketTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLldDualQUpstreamTwoPacketReactiveTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisQueueDiscItemTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisPacketBurstTest, TestCase::Duration::QUICK);
+    AddTestCase(new DocsisTimeToMinislotsTest, TestCase::Duration::QUICK);
     // Test GGI and GGR configuration
     // MAP interval, AMSR, GGR, GGI
     AddTestCase(new DocsisLldGgiTest(MilliSeconds(1),
@@ -1792,9 +1787,9 @@ DocsisLldTestSuite::DocsisLldTestSuite()
                                      DataRate(0),
                                      DataRate("5Mb/s"),
                                      135),
-                TestCase::QUICK);
+                TestCase::Duration::QUICK);
     // Test that long simulation, with wraparound of time values, works correctly
-    AddTestCase(new DocsisCheckWraparoundTest, TestCase::QUICK);
+    AddTestCase(new DocsisCheckWraparoundTest, TestCase::Duration::QUICK);
 }
 
 static DocsisLldTestSuite docsisLldTestSuite;

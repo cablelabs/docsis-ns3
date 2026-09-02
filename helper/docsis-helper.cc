@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2008 INRIA
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc. (DOCSIS changes)
@@ -498,11 +497,10 @@ DocsisHelper::AddGameSession(Ptr<Node> client,
     Ipv4Address serverAddr = GetEndpointIpv4Address(server);
     // DSCP configuration
     InetSocketAddress serverSocketAddr(serverAddr, serverPort);
-    uint16_t tos = dscpValue << 2;
-    serverSocketAddr.SetTos(tos);
 
     Ptr<GameClient> gameClient = CreateObject<GameClient>();
     gameClient->SetRemote(serverSocketAddr);
+    gameClient->SetAttribute("Tos", UintegerValue(dscpValue << 2));
     gameClient->SetAttribute("InterarrivalTime", TimeValue(iaTime));
     gameClient->SetAttribute("InterarrivalDeviation", TimeValue(iaStdDev));
     gameClient->SetAttribute("Size", UintegerValue(pktSize));
@@ -693,10 +691,11 @@ DocsisHelper::AddPacketBurstCount(Ptr<Node> client,
     udpClient->SetAttribute("PacketSize", UintegerValue(udpSize));
     InetSocketAddress serverSocketAddr(serverAddr, serverPort);
     uint16_t tos = (dscpValue << 2) | ecnValue;
-    serverSocketAddr.SetTos(tos);
-    udpClient->SetAttribute("RemoteAddress", AddressValue(serverSocketAddr));
+    udpClient->SetAttribute("Remote", AddressValue(serverSocketAddr));
+    udpClient->SetAttribute("Tos", UintegerValue(tos));
     udpClient->SetAttribute("MaxPackets", UintegerValue(frameCount));
-    udpClient->SetAttribute("LocalPort", UintegerValue(clientPort));
+    udpClient->SetAttribute("Local",
+                            AddressValue(InetSocketAddress(Ipv4Address::GetAny(), clientPort)));
     udpClient->SetStartTime(startTime);
     udpClient->SetStopTime(startTime + frameCount * interval);
     client->AddApplication(udpClient);
@@ -733,12 +732,12 @@ DocsisHelper::AddDutyCycleUdpStream(Ptr<Node> client,
     // DSCP configuration
     InetSocketAddress serverSocketAddr(serverAddr, serverPort);
     uint16_t tos = (dscpValue << 2) | ecnValue;
-    serverSocketAddr.SetTos(tos);
 
     InetSocketAddress clientSocketAddr(Ipv4Address::GetAny(), clientPort);
 
     // Back off the frame size due to headers and trailers.
     OnOffHelper onOffHelper("ns3::UdpSocketFactory", serverSocketAddr);
+    onOffHelper.SetAttribute("Tos", UintegerValue(tos));
     onOffHelper.SetAttribute("PacketSize", UintegerValue(packetSize));
     onOffHelper.SetAttribute("DataRate", DataRateValue(rate));
     onOffHelper.SetAttribute("Local", AddressValue(clientSocketAddr));
@@ -783,8 +782,8 @@ DocsisHelper::AddFileTransfer(Ptr<Node> client,
     Ipv4Address serverAddr = GetEndpointIpv4Address(server);
     InetSocketAddress serverSocketAddr(serverAddr, serverPort);
     uint16_t tos = dscpValue << 2;
-    serverSocketAddr.SetTos(tos);
     FileTransferHelper source("ns3::TcpSocketFactory", serverSocketAddr);
+    source.SetAttribute("Tos", UintegerValue(tos));
     // A conventional file transfer, fixed size, not time limited
     source.SetAttribute("FileSize", UintegerValue(fileSize));
     source.SetAttribute("UseFileTransferDuration", BooleanValue(false));

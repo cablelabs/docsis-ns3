@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017 NITK Surathkal
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc. (DOCSIS changes)

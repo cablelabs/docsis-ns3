@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2008 INRIA
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc. (DOCSIS changes)
@@ -63,8 +62,8 @@ class AggregateServiceFlow;
 class ServiceFlow;
 
 /**
- * \ingroup docsis
- * \brief Helper code for constructing DOCSIS simulations
+ * @ingroup docsis
+ * @brief Helper code for constructing DOCSIS simulations
  *
  * This helper is used to add a DOCSIS link between a pair of
  * nodes, one notional CMTS node and one notional CM node.  It
@@ -104,8 +103,8 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * This only has effect on devices installed by future calls to the
      * Install() method.
      *
-     * \param name the name of the attribute to set
-     * \param value the value of the attribute to set
+     * @param name the name of the attribute to set
+     * @param value the value of the attribute to set
      *
      */
     void SetCmAttribute(std::string name, const AttributeValue& value);
@@ -115,8 +114,8 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * This only has effect on devices installed by future calls to the
      * Install() method.
      *
-     * \param name the name of the attribute to set
-     * \param value the value of the attribute to set
+     * @param name the name of the attribute to set
+     * @param value the value of the attribute to set
      *
      */
     void SetCmtsAttribute(std::string name, const AttributeValue& value);
@@ -126,8 +125,8 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * This only has effect on channels installed by future calls to the
      * Install() method.
      *
-     * \param name the name of the attribute to set
-     * \param value the value of the attribute to set
+     * @param name the name of the attribute to set
+     * @param value the value of the attribute to set
      *
      */
     void SetChannelAttribute(std::string name, const AttributeValue& value);
@@ -141,9 +140,9 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * added (see GetUpstream() and GetDownstream() methods, and their
      * respective methods to add service flow configurations))
      *
-     * \param cmts The CMTS node
-     * \param cm A single CM node
-     * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+     * @param cmts The CMTS node
+     * @param cm A single CM node
+     * @return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
      * \sa GetUpstream()
      * \sa GetDownstream()
      */
@@ -154,11 +153,11 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
      * on the CM node, and service flow configurations.
      *
-     * \param cmts The CMTS node
-     * \param cm A single CM node
-     * \param upstreamAsf Upstream ASF
-     * \param downstreamAsf Downstream ASF
-     * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+     * @param cmts The CMTS node
+     * @param cm A single CM node
+     * @param upstreamAsf Upstream ASF
+     * @param downstreamAsf Downstream ASF
+     * @return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
      */
     NetDeviceContainer Install(Ptr<Node> cmts,
                                Ptr<Node> cm,
@@ -170,11 +169,11 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
      * on the CM node, and service flow configurations.
      *
-     * \param cmts The CMTS node
-     * \param cm A single CM node
-     * \param upstreamAsf Upstream ASF
-     * \param downstreamSf Downstream SF
-     * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+     * @param cmts The CMTS node
+     * @param cm A single CM node
+     * @param upstreamAsf Upstream ASF
+     * @param downstreamSf Downstream SF
+     * @return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
      */
     NetDeviceContainer Install(Ptr<Node> cmts,
                                Ptr<Node> cm,
@@ -186,11 +185,11 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
      * on the CM node, and service flow configurations.
      *
-     * \param cmts The CMTS node
-     * \param cm A single CM node
-     * \param upstreamSf Upstream SF
-     * \param downstreamAsf Downstream ASF
-     * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+     * @param cmts The CMTS node
+     * @param cm A single CM node
+     * @param upstreamSf Upstream SF
+     * @param downstreamAsf Downstream ASF
+     * @return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
      */
     NetDeviceContainer Install(Ptr<Node> cmts,
                                Ptr<Node> cm,
@@ -202,11 +201,11 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * and to install a CmtsNetDevice on the CMTS node, and a CmNetDevice
      * on the CM node, and service flow configurations.
      *
-     * \param cmts The CMTS node
-     * \param cm A single CM node
-     * \param upstreamSf Upstream SF
-     * \param downstreamSf Downstream SF
-     * \return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
+     * @param cmts The CMTS node
+     * @param cm A single CM node
+     * @param upstreamSf Upstream SF
+     * @param downstreamSf Downstream SF
+     * @return a NetDeviceContainer (first element is the CmtsNetDevice, second is the CmNetDevice)
      */
     NetDeviceContainer Install(Ptr<Node> cmts,
                                Ptr<Node> cm,
@@ -214,23 +213,23 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
                                Ptr<ServiceFlow> downstreamSf);
 
     /**
-     * \brief Utility function to return properly casted device pointer
-     * \return pointer to a CmNetDevice
-     * \param device NetDevice container, with CMTS in slot 0 and CM in slot 1
+     * @brief Utility function to return properly casted device pointer
+     * @return pointer to a CmNetDevice
+     * @param device NetDevice container, with CMTS in slot 0 and CM in slot 1
      */
     Ptr<CmNetDevice> GetUpstream(const NetDeviceContainer& device) const;
 
     /**
-     * \brief Utility function to return properly casted device pointer
-     * \return pointer to a CmtsNetDevice
-     * \param device NetDevice container, with CMTS in slot 0 and CM in slot 1
+     * @brief Utility function to return properly casted device pointer
+     * @return pointer to a CmtsNetDevice
+     * @param device NetDevice container, with CMTS in slot 0 and CM in slot 1
      */
     Ptr<CmtsNetDevice> GetDownstream(const NetDeviceContainer& device) const;
 
     /**
-     * \brief Utility function to return properly casted device pointer
-     * \return pointer to a DocsisChannel
-     * \param device NetDevice container, with CMTS in slot 0 and CM in slot 1
+     * @brief Utility function to return properly casted device pointer
+     * @return pointer to a DocsisChannel
+     * @param device NetDevice container, with CMTS in slot 0 and CM in slot 1
      */
     Ptr<DocsisChannel> GetChannel(const NetDeviceContainer& device) const;
 
@@ -245,9 +244,9 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * The value returned is the number of stream indices that have been used;
      * in general, stream assignments should not be reused in a simulation.
      *
-     * \param docsisDevices container with a CmtsNetDevice and CmNetDevice
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this helper
+     * @param docsisDevices container with a CmtsNetDevice and CmNetDevice
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this helper
      */
     int64_t AssignStreams(const NetDeviceContainer& docsisDevices, int64_t stream);
 
@@ -261,13 +260,13 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * off for headers.  Packets are IPv4 and marked as DSCP EF unless the
      * DSCP value is optionally overridden.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
-     * \return pointer to the traffic generating GameClient
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
+     * @return pointer to the traffic generating GameClient
      */
     Ptr<GameClient> AddUpstreamGameSession(
         Ptr<Node> client,
@@ -287,13 +286,13 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * off for headers.  Packets are IPv4 and marked as DSCP EF unless the
      * DSCP value is optionally overridden.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
-     * \return pointer to the traffic generating GameClient
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
+     * @return pointer to the traffic generating GameClient
      */
     Ptr<GameClient> AddDownstreamGameSession(
         Ptr<Node> client,
@@ -311,13 +310,13 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * throughput but with variability (rate adaptation).  The configured
      * RTT and competing connections will cause this throughput to vary.
      * 2.485 seconds read time allows 15 ms for the connection to close
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param tcpSocketFactoryType TypeId corresponding to the TCP type
-     * \param maxDashBytes number of bytes per notional segment
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param tcpSocketFactoryType TypeId corresponding to the TCP type
+     * @param maxDashBytes number of bytes per notional segment
      */
     void AddDashSession(Ptr<Node> client,
                         Ptr<Node> server,
@@ -341,14 +340,14 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * of 'fileSize' bytes (the special value of zero is for unlimited size).
      *
      * The reading time between successive transfers is 100ms.
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param tcpSocketFactoryType TypeId corresponding to the TCP type
-     * \param fileModel Model for FTP files (empirical, speedtest, unlimited)
-     * \return pointer to file transfer application created by this method
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param tcpSocketFactoryType TypeId corresponding to the TCP type
+     * @param fileModel Model for FTP files (empirical, speedtest, unlimited)
+     * @return pointer to file transfer application created by this method
      */
     Ptr<FileTransferApplication> AddFtpSession(Ptr<Node> client,
                                                Ptr<Node> server,
@@ -370,17 +369,17 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * with payload size of (125-18-20-8) = 79 bytes to be generated at
      * intervals of 1 ms.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param clientPort Client port
-     * \param dataRate data rate during burst, measured at Ethernet level
-     * \param frameSize Ethernet frame size
-     * \param startTime time that first packet of burst is sent
-     * \param duration duration of packet generation
-     * \param dscpValue DSCP value for the IP packets
-     * \param ecnValue ECN value for the IP packets
-     * \return pointers to the UdpClient and UdpServer
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param clientPort Client port
+     * @param dataRate data rate during burst, measured at Ethernet level
+     * @param frameSize Ethernet frame size
+     * @param startTime time that first packet of burst is sent
+     * @param duration duration of packet generation
+     * @param dscpValue DSCP value for the IP packets
+     * @param ecnValue ECN value for the IP packets
+     * @return pointers to the UdpClient and UdpServer
      */
     std::pair<Ptr<UdpClient>, Ptr<UdpServer>> AddPacketBurstDuration(
         Ptr<Node> client,
@@ -402,17 +401,17 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      *
      * \sa DocsisHelper::AddPacketBurstDuration
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param clientPort Client port
-     * \param dataRate data rate during burst, measured at Ethernet level
-     * \param frameSize Ethernet frame size
-     * \param startTime time that first packet of burst is sent
-     * \param frameCount number of frames to send
-     * \param dscpValue DSCP value for the socket
-     * \param ecnValue ECN value for the socket
-     * \return pointers to the UdpClient and UdpServer
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param clientPort Client port
+     * @param dataRate data rate during burst, measured at Ethernet level
+     * @param frameSize Ethernet frame size
+     * @param startTime time that first packet of burst is sent
+     * @param frameCount number of frames to send
+     * @param dscpValue DSCP value for the socket
+     * @param ecnValue ECN value for the socket
+     * @return pointers to the UdpClient and UdpServer
      */
     std::pair<Ptr<UdpClient>, Ptr<UdpServer>> AddPacketBurstCount(
         Ptr<Node> client,
@@ -439,19 +438,19 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * be between 14 and 1472 bytes to result in Ethernet frame sizes of between
      * 64 and 1518 bytes.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param clientPort Client port
-     * \param rate data rate for the on period
-     * \param packetSize target application packet size (UDP payload)
-     * \param onTime On time
-     * \param offTime Off time
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param dscpValue (optional) DSCP value for the UDP packets
-     * \param ecnValue (optional) ECN value for the UDP packets
-     * \return pointer to the sending-side OnOffApplication
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param clientPort Client port
+     * @param rate data rate for the on period
+     * @param packetSize target application packet size (UDP payload)
+     * @param onTime On time
+     * @param offTime Off time
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param dscpValue (optional) DSCP value for the UDP packets
+     * @param ecnValue (optional) ECN value for the UDP packets
+     * @return pointer to the sending-side OnOffApplication
      */
     Ptr<OnOffApplication> AddDutyCycleUdpStream(
         Ptr<Node> client,
@@ -471,15 +470,15 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      * Add a TCP file transfer consisting of an ns3::FileTransferApplication
      * on the sending side, and an ns3::PacketSink on the receive side.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param fileSize file size (bytes)
-     * \param useReadingTime whether to use readingTime and repeat the transfer
-     * \param dscpValue (optional) DSCP value for the socket
-     * \return pointer to the sending-side file transfer application
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param fileSize file size (bytes)
+     * @param useReadingTime whether to use readingTime and repeat the transfer
+     * @param dscpValue (optional) DSCP value for the socket
+     * @return pointer to the sending-side file transfer application
      */
     Ptr<FileTransferApplication> AddFileTransfer(
         Ptr<Node> client,
@@ -492,12 +491,12 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
         Ipv4Header::DscpType dscpValue = Ipv4Header::DscpDefault) const;
 
     /**
-     * \brief Utility function to print out summaries of observed IPv4
+     * @brief Utility function to print out summaries of observed IPv4
      *        TCP and UDP flows.
      *
-     * \param ostr output stream
-     * \param flowHelper FlowMonitorHelper to use
-     * \param flowMonitor FlowMonitor to use
+     * @param ostr output stream
+     * @param flowHelper FlowMonitorHelper to use
+     * @param flowMonitor FlowMonitor to use
      */
     void PrintFlowSummaries(std::ostream& ostr,
                             FlowMonitorHelper& flowHelper,
@@ -506,8 +505,8 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
     /**
      * Print out DOCSIS-related configuration
      *
-     * \param ostr output stream
-     * \param c container of CmNetDevice and CmtsNetDevice
+     * @param ostr output stream
+     * @param c container of CmNetDevice and CmtsNetDevice
      */
     void PrintConfiguration(std::ostream& ostr, const NetDeviceContainer& c) const;
 
@@ -515,8 +514,8 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
     /**
      * Find and return the IPv4 address on the endpoint node.  The node must
      * have only one interface and one IPv4 address.
-     * \param node the node to query
-     * \return IPv4 address for the node's interface
+     * @param node the node to query
+     * @return IPv4 address for the node's interface
      */
     Ipv4Address GetEndpointIpv4Address(Ptr<Node> node) const;
     /**
@@ -529,17 +528,17 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
      *  off for headers.  Packets are IPv4 and marked as DSCP EF unless the
      * DSCP value is optionally overridden.
      *
-     * \param client Node pointer to client (packet sender)
-     * \param server Node pointer to server (packet receiver)
-     * \param serverPort Server port
-     * \param iaTime mean interarrival time
-     * \param iaStdDev interarrival standard deviation
-     * \param pktSize mean packet size (bytes)
-     * \param pktStdDev packet size standard deviation (bytes)
-     * \param startTime Start time
-     * \param stopTime Stop time
-     * \param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
-     * \return pointer to the traffic generating GameClient
+     * @param client Node pointer to client (packet sender)
+     * @param server Node pointer to server (packet receiver)
+     * @param serverPort Server port
+     * @param iaTime mean interarrival time
+     * @param iaStdDev interarrival standard deviation
+     * @param pktSize mean packet size (bytes)
+     * @param pktStdDev packet size standard deviation (bytes)
+     * @param startTime Start time
+     * @param stopTime Stop time
+     * @param dscpValue (optional) DSCP value for the socket, if not DSCP_EF
+     * @return pointer to the traffic generating GameClient
      */
     Ptr<GameClient> AddGameSession(Ptr<Node> client,
                                    Ptr<Node> server,
@@ -553,15 +552,15 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
                                    Ipv4Header::DscpType dscpValue = Ipv4Header::DSCP_EF) const;
 
     /**
-     * \brief Enable pcap output the indicated net device.
+     * @brief Enable pcap output the indicated net device.
      *
      * NetDevice-specific implementation mechanism for hooking the trace and
      * writing to the trace file.
      *
-     * \param prefix Filename prefix to use for pcap files.
-     * \param nd Net device for which you want to enable tracing.
-     * \param promiscuous If true capture all possible packets available at the device.
-     * \param explicitFilename Treat the prefix as an explicit filename if true
+     * @param prefix Filename prefix to use for pcap files.
+     * @param nd Net device for which you want to enable tracing.
+     * @param promiscuous If true capture all possible packets available at the device.
+     * @param explicitFilename Treat the prefix as an explicit filename if true
      */
     void EnablePcapInternal(std::string prefix,
                             Ptr<NetDevice> nd,
@@ -569,15 +568,15 @@ class DocsisHelper : public PcapHelperForDevice, public AsciiTraceHelperForDevic
                             bool explicitFilename) override;
 
     /**
-     * \brief Enable ascii trace output on the indicated net device.
+     * @brief Enable ascii trace output on the indicated net device.
      *
      * NetDevice-specific implementation mechanism for hooking the trace and
      * writing to the trace file.
      *
-     * \param stream The output stream object to use when logging ascii traces.
-     * \param prefix Filename prefix to use for ascii trace files.
-     * \param nd Net device for which you want to enable tracing.
-     * \param explicitFilename Treat the prefix as an explicit filename if true
+     * @param stream The output stream object to use when logging ascii traces.
+     * @param prefix Filename prefix to use for ascii trace files.
+     * @param nd Net device for which you want to enable tracing.
+     * @param explicitFilename Treat the prefix as an explicit filename if true
      */
     void EnableAsciiInternal(Ptr<OutputStreamWrapper> stream,
                              std::string prefix,

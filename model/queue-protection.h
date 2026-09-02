@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -59,9 +58,9 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
+ * @ingroup docsis
  *
- * \brief Queue Protection implementation for Dual Queue Coupled AQM
+ * @brief Queue Protection implementation for Dual Queue Coupled AQM
  *
  * Based on pseudocode description of Annex P, CM-SP-MULPIv3.1-I19-191016
  *
@@ -75,47 +74,47 @@ namespace docsis
  * callback.
  *
  * Typical code for creating and connecting these objects is as follows:
- * \code
+ * @code
  * Ptr<DualQueueCoupledAqm> dual = CreateObject<DualQueueCoupledAqm> ();
  * Ptr<QueueProtection> queueProtection = CreateObject<QueueProtection> ();
  * queueProtection->SetHashCallback (MakeCallback(&DocsisL4SPacketFilter::GenerateHash32));
  * queueProtection->SetQueue (dual);
  * dual->SetQueueProtection (queueProtection);
- * \endcode
+ * @endcode
  *
  */
 class QueueProtection : public Object
 {
   public:
     /**
-     * \brief Get the type ID.
-     * \return the object TypeId
+     * @brief Get the type ID.
+     * @return the object TypeId
      */
     static TypeId GetTypeId();
     /**
-     * \brief QueueProtection constructor
+     * @brief QueueProtection constructor
      */
     QueueProtection();
     /**
-     * \brief QueueProtection Destructor
+     * @brief QueueProtection Destructor
      */
     ~QueueProtection() override;
     /**
-     * \brief Set pointer to the DualQueueCoupledAqm
-     * \param queue Pointer to DualQueueCoupledAqm
+     * @brief Set pointer to the DualQueueCoupledAqm
+     * @param queue Pointer to DualQueueCoupledAqm
      */
     void SetQueue(Ptr<DualQueueCoupledAqm> queue);
     /**
-     * \brief Get pointer to the DualQueueCoupledAqm
-     * \return Pointer to DualQueueCoupledAqm
+     * @brief Get pointer to the DualQueueCoupledAqm
+     * @return Pointer to DualQueueCoupledAqm
      */
     Ptr<DualQueueCoupledAqm> GetQueue() const;
     /**
-     * \brief Perform queue protection action on the packet
-     * \param item a QueueDiscItem containing a packet to evaluate
-     * \param qDelay the queue delay used in evaluation
-     * \param probNative the probNative value used in evaluation
-     * \return the outcome of queue protection action
+     * @brief Perform queue protection action on the packet
+     * @param item a QueueDiscItem containing a packet to evaluate
+     * @param qDelay the queue delay used in evaluation
+     * @param probNative the probNative value used in evaluation
+     * @return the outcome of queue protection action
      */
     QueueProtectionOutcome QueueProtect(Ptr<const QueueDiscItem> item,
                                         Time qDelay,
@@ -125,15 +124,15 @@ class QueueProtection : public Object
      * Decoupled by a callback function because this module does not have a
      * dependency on the internet module.
      *
-     * \param hashCallback the callback function
+     * @param hashCallback the callback function
      */
     void SetHashCallback(Callback<Uflw, Ptr<const QueueDiscItem>, uint32_t> hashCallback);
     /**
      * TracedCallback signature for bucket score reporting
      *
-     * \param [in] flowId unique flow ID assigned to the flow
-     * \param [in] bucketId bucket ID (index)
-     * \param [in] bucketDepth bucket depth (may be negative)
+     * @param [in] flowId unique flow ID assigned to the flow
+     * @param [in] bucketId bucket ID (index)
+     * @param [in] bucketDepth bucket depth (may be negative)
      *
      * The bucket depth is state maintained as an absolute time (units of T_RES)
      * in the variable m_exp, but the reported depth here is the time
@@ -145,14 +144,14 @@ class QueueProtection : public Object
     /**
      * TracedCallback signature for queue protection outcome reporting
      *
-     * \param [in] item the queue disc item containing the packet
-     * \param [in] flowId unique flow ID assigned to the flow
-     * \param [in] qsize size in the LL queue (bytes) at time of outcome
-     * \param [in] qDelay latency of LL queue at time of outcome (units of T_RES)
-     * \param [in] qLscore bucket score at time of outcome (t_exp - now)
-     * \param [in] criticalQl threshold against which qDelay is evaluated
-     * \param [in] criticalQlProduct term used in second threshold decision
-     * \param [in] bckt_id bucket ID
+     * @param [in] item the queue disc item containing the packet
+     * @param [in] flowId unique flow ID assigned to the flow
+     * @param [in] qsize size in the LL queue (bytes) at time of outcome
+     * @param [in] qDelay latency of LL queue at time of outcome (units of T_RES)
+     * @param [in] qLscore bucket score at time of outcome (t_exp - now)
+     * @param [in] criticalQl threshold against which qDelay is evaluated
+     * @param [in] criticalQlProduct term used in second threshold decision
+     * @param [in] bckt_id bucket ID
      *
      * In the case of a report of a success, the qsize and qDela will report
      * the values including the addition of the packet to the queue.  In the
@@ -170,14 +169,14 @@ class QueueProtection : public Object
     /**
      * TracedCallback signature for reporting new flows
      *
-     * \param [in] flowId new flow ID
-     * \param [in] flow microflow structure for the new flow
+     * @param [in] flowId new flow ID
+     * @param [in] flow microflow structure for the new flow
      */
     typedef void (*FlowTracedCallback)(uint32_t flowId, Uflw flow);
 
   protected:
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
 
@@ -197,44 +196,44 @@ class QueueProtection : public Object
     };
 
     /**
-     * \brief Get value to use as CRITICALqL
-     * \return value to use as CRITICALqL, in units of ns
+     * @brief Get value to use as CRITICALqL
+     * @return value to use as CRITICALqL, in units of ns
      */
     int64_t GetCriticalQl() const;
     /**
-     * \brief Get value to use as CRITICALqLSCORE
-     * \return value to use as CRITICALqLSCORE, in units of T_RES
+     * @brief Get value to use as CRITICALqLSCORE
+     * @return value to use as CRITICALqLSCORE, in units of T_RES
      */
     int64_t GetCriticalQlScore() const;
     /**
-     * \brief Get value to use as MAX_QLSCORE
-     * \return value to use as MAX_QLSCORE, in units of T_RES
+     * @brief Get value to use as MAX_QLSCORE
+     * @return value to use as MAX_QLSCORE, in units of T_RES
      */
     int64_t GetMaxQlScore() const;
     /**
-     * \brief Calculate the congestion score term to add to a flow's bucket
-     * \param probNative probNative value to use in calculation
-     * \param pktSize Size of incoming packet in bytes
-     * \return congestion value to use, in units of (bytes * ns)/ T_RES
+     * @brief Calculate the congestion score term to add to a flow's bucket
+     * @param probNative probNative value to use in calculation
+     * @param pktSize Size of incoming packet in bytes
+     * @return congestion value to use, in units of (bytes * ns)/ T_RES
      */
     int64_t GetCongestionScore(double probNative, uint32_t pktSize) const;
     /**
-     * \brief utility function to resize the width of array of buckets
-     * \param size bit-width of index number for non-default buckets (BI_SIZE)
+     * @brief utility function to resize the width of array of buckets
+     * @param size bit-width of index number for non-default buckets (BI_SIZE)
      */
     void SetBucketIdSize(uint8_t size);
     /**
-     * \brief Fill and drain bucket based on congestion score and aging
-     * \param bucketId bucket ID to fill
-     * \param pktSize Size of incoming packet in bytes
-     * \param probNative probNative value to use in calculation
-     * \return qLscore in units of T_RES
+     * @brief Fill and drain bucket based on congestion score and aging
+     * @param bucketId bucket ID to fill
+     * @param pktSize Size of incoming packet in bytes
+     * @param probNative probNative value to use in calculation
+     * @return qLscore in units of T_RES
      */
     int64_t FillBucket(uint32_t bucketId, uint32_t pktSize, double probNative);
     /**
-     * \brief Pick a bucket for incoming packet
-     * \param item QueueDiscItem to evaluate
-     * \return pair of values; first value is flowId, second value is bucket ID
+     * @brief Pick a bucket for incoming packet
+     * @param item QueueDiscItem to evaluate
+     * @return pair of values; first value is flowId, second value is bucket ID
      */
     std::pair<uint32_t, uint16_t> PickBucket(Ptr<const QueueDiscItem> item);
 

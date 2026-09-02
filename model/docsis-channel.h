@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2007 University of Washington
  *               2017-2020 Cable Television Laboratories, Inc. (DOCSIS changes)
@@ -42,8 +41,8 @@ namespace docsis
 class DocsisNetDevice;
 
 /**
- * \ingroup docsis
- * \brief DOCSIS channel object
+ * @ingroup docsis
+ * @brief DOCSIS channel object
  *
  * This class is used to connect two DocsisNetDevice instances.  In the
  * current ns-3 abstraction, one CmNetDevice is connected to one
@@ -61,49 +60,49 @@ class DocsisChannel : public Channel
 {
   public:
     /**
-     * \brief Get the TypeId
+     * @brief Get the TypeId
      *
-     * \return The TypeId for this class
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
 
     /**
-     * \brief Create a DocsisChannel
+     * @brief Create a DocsisChannel
      */
     DocsisChannel();
 
     /**
-     * \brief Attach a given DocsisNetDevice to this channel
-     * \param device pointer to the DocsisNetDevice to attach to the channel
+     * @brief Attach a given DocsisNetDevice to this channel
+     * @param device pointer to the DocsisNetDevice to attach to the channel
      */
     void Attach(Ptr<DocsisNetDevice> device);
 
     /**
-     * \brief Transmit a packet over this channel
-     * \param p Packet to transmit
-     * \param src Source DocsisNetDevice
-     * \param txTime Transmit time to apply
-     * \returns true if successful (currently always true)
+     * @brief Transmit a packet over this channel
+     * @param p Packet to transmit
+     * @param src Source DocsisNetDevice
+     * @param txTime Transmit time to apply
+     * @returns true if successful (currently always true)
      */
     virtual bool TransmitStart(Ptr<Packet> p, Ptr<DocsisNetDevice> src, Time txTime);
 
     /**
-     * \brief Get number of devices on this channel
-     * \returns number of devices on this channel
+     * @brief Get number of devices on this channel
+     * @returns number of devices on this channel
      */
     std::size_t GetNDevices() const override;
 
     /**
-     * \brief Get DocsisNetDevice corresponding to index i on this channel
-     * \param i Index number of the device requested
-     * \returns Ptr to DocsisNetDevice requested
+     * @brief Get DocsisNetDevice corresponding to index i on this channel
+     * @param i Index number of the device requested
+     * @returns Ptr to DocsisNetDevice requested
      */
     Ptr<DocsisNetDevice> GetDocsisDevice(std::size_t i) const;
 
     /**
-     * \brief Get NetDevice corresponding to index i on this channel
-     * \param i Index number of the device requested
-     * \returns Ptr to NetDevice requested
+     * @brief Get NetDevice corresponding to index i on this channel
+     * @param i Index number of the device requested
+     * @returns Ptr to NetDevice requested
      */
     Ptr<NetDevice> GetDevice(std::size_t i) const override;
 
@@ -115,29 +114,29 @@ class DocsisChannel : public Channel
     void DoDispose() override;
 
     /**
-     * \brief Get the delay associated with this channel
-     * \returns Time delay
+     * @brief Get the delay associated with this channel
+     * @returns Time delay
      */
     Time GetDelay() const;
 
     /**
-     * \brief Check to make sure the link is initialized
-     * \returns true if initialized, asserts otherwise
+     * @brief Check to make sure the link is initialized
+     * @returns true if initialized, asserts otherwise
      */
     bool IsInitialized() const;
 
     /**
-     * \brief Get the net-device source
-     * \param i the link requested
-     * \returns Ptr to DocsisNetDevice source for the
+     * @brief Get the net-device source
+     * @param i the link requested
+     * @returns Ptr to DocsisNetDevice source for the
      * specified link
      */
     Ptr<DocsisNetDevice> GetSource(uint32_t i) const;
 
     /**
-     * \brief Get the net-device destination
-     * \param i the link requested
-     * \returns Ptr to DocsisNetDevice destination for
+     * @brief Get the net-device destination
+     * @param i the link requested
+     * @returns Ptr to DocsisNetDevice destination for
      * the specified link
      */
     Ptr<DocsisNetDevice> GetDestination(uint32_t i) const;
@@ -145,11 +144,11 @@ class DocsisChannel : public Channel
     /**
      * TracedCallback signature for packet transmission animation events.
      *
-     * \param [in] packet The packet being transmitted.
-     * \param [in] txDevice the transmitting NetDevice.
-     * \param [in] rxDevice the receiving NetDevice.
-     * \param [in] duration The amount of time to transmit the packet.
-     * \param [in] lastBitTime Last bit receive time (relative to now)
+     * @param [in] packet The packet being transmitted.
+     * @param [in] txDevice the transmitting NetDevice.
+     * @param [in] rxDevice the receiving NetDevice.
+     * @param [in] duration The amount of time to transmit the packet.
+     * @param [in] lastBitTime Last bit receive time (relative to now)
      */
     typedef void (*TxRxDocsisCallback)(Ptr<Packet> packet,
                                        Ptr<const NetDevice> txDevice,
@@ -173,7 +172,7 @@ class DocsisChannel : public Channel
      *
      * Ptr<Packet> is non-const to allow for removal of tags
      *
-     * \see class CallBackTraceSource
+     * @see class CallBackTraceSource
      */
     TracedCallback<Ptr<Packet>,          // Packet being transmitted
                    Ptr<const NetDevice>, // Transmitting NetDevice
@@ -184,12 +183,12 @@ class DocsisChannel : public Channel
         m_txrxDocsis;
 
     /**
-     * \brief Wire model for the DocsisChannel
+     * @brief Wire model for the DocsisChannel
      */
     class Link
     {
       public:
-        /** \brief Create the link, it will be in INITIALIZING state
+        /** @brief Create the link, it will be in INITIALIZING state
          *
          */
         Link()

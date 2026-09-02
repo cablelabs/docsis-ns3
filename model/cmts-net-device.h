@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -58,8 +57,8 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
- * \class CmtsNetDevice
+ * @ingroup docsis
+ * @class CmtsNetDevice
  *
  * This DocsisNetDevice class models a downstream (CMTS) device.  It is
  * a layer-2 device and must be bridged to another device (CsmaNetDevice);
@@ -69,9 +68,9 @@ class CmtsNetDevice : public DocsisNetDevice
 {
   public:
     /**
-     * \brief Get the TypeId
+     * @brief Get the TypeId
      *
-     * \return The TypeId for this class
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
 
@@ -95,12 +94,12 @@ class CmtsNetDevice : public DocsisNetDevice
     /**
      * TracedCallback signature for state reporting
      *
-     * \param [in] tokensUsed tokens
-     * \param [in] tokensRemaining tokens remaining
-     * \param [in] peakTokensRemaining peak tokens remaining
-     * \param [in] internalBytes internally queued bytes waiting for transmission
-     * \param [in] feederBytes feeder queue bytes waiting for transmission
-     * \param [in] pipeline pipeline of data scheduled for transmission
+     * @param [in] tokensUsed tokens
+     * @param [in] tokensRemaining tokens remaining
+     * @param [in] peakTokensRemaining peak tokens remaining
+     * @param [in] internalBytes internally queued bytes waiting for transmission
+     * @param [in] feederBytes feeder queue bytes waiting for transmission
+     * @param [in] pipeline pipeline of data scheduled for transmission
      */
     typedef void (*StateTracedCallback)(uint32_t tokensUsed,
                                         uint32_t tokensRemaining,
@@ -124,7 +123,7 @@ class CmtsNetDevice : public DocsisNetDevice
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param asf pointer to the AggregateServiceFlow object
+     * @param asf pointer to the AggregateServiceFlow object
      */
     void SetDownstreamAsf(Ptr<AggregateServiceFlow> asf);
 
@@ -136,19 +135,19 @@ class CmtsNetDevice : public DocsisNetDevice
      * be present, but not both.  It is a simulation error (misconfiguration)
      * to try to set both.
      *
-     * \param sf pointer to the ServiceFlow object
+     * @param sf pointer to the ServiceFlow object
      */
     void SetDownstreamSf(Ptr<ServiceFlow> sf);
 
     /**
      * Get downstream aggregate service flow (if present).
-     * \return pointer to the AggregateServiceFlow object, if present
+     * @return pointer to the AggregateServiceFlow object, if present
      */
     Ptr<const AggregateServiceFlow> GetDownstreamAsf() const;
 
     /**
      * Get downstream service flow (if present).
-     * \return pointer to the ServiceFlow object, if present
+     * @return pointer to the ServiceFlow object, if present
      */
     Ptr<const ServiceFlow> GetDownstreamSf() const;
 
@@ -157,14 +156,14 @@ class CmtsNetDevice : public DocsisNetDevice
      * used by this model.  Return the number of streams (possibly zero) that
      * have been assigned.
      *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this model
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
 
   protected:
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
     void DoInitialize() override;
@@ -189,7 +188,7 @@ class CmtsNetDevice : public DocsisNetDevice
    * Peek the feeder queue and return the expected Ethernet frame size
    * for the next packet in queue.  Return 0 if queue empty.
    *
-   * \return frame size (including header, trailer, padding) of next frame
+   * @return frame size (including header, trailer, padding) of next frame
    */
   uint32_t GetPendingFrameSize (void) const;
 #endif
@@ -220,7 +219,7 @@ class CmtsNetDevice : public DocsisNetDevice
      * Use free capacity and free capacity variation variables to calculate
      * the amount of notional free capacity in the symbol
      *
-     * \return amount of free capacity in this symbol (bytes)
+     * @return amount of free capacity in this symbol (bytes)
      */
     uint32_t CalculateFreeCapacity();
 

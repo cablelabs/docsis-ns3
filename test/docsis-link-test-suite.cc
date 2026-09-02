@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -469,7 +468,7 @@ DocsisLinkCbrTwoServiceFlowTest::DoSetup()
 
     m_cClient = CreateObject<UdpClient>();
     InetSocketAddress remote = InetSocketAddress(Ipv4Address("10.1.1.2"), 9);
-    m_cClient->SetAttribute("RemoteAddress", AddressValue(remote));
+    m_cClient->SetAttribute("Remote", AddressValue(remote));
     m_cClient->SetAttribute("OnDemand", BooleanValue(true));
     m_lanNode->AddApplication(m_cClient);
 
@@ -480,9 +479,9 @@ DocsisLinkCbrTwoServiceFlowTest::DoSetup()
     m_lClient = CreateObject<UdpClient>();
     remote = InetSocketAddress(Ipv4Address("10.1.1.2"), 10);
     uint16_t tos = Ipv4Header::DSCP_EF << 2;
-    remote.SetTos(tos);
-    m_lClient->SetAttribute("RemoteAddress", AddressValue(remote));
+    m_lClient->SetAttribute("Remote", AddressValue(remote));
     m_lClient->SetAttribute("OnDemand", BooleanValue(true));
+    m_lClient->SetAttribute("Tos", UintegerValue(tos));
     m_lanNode->AddApplication(m_lClient);
 
     //  100 ms to start packets, 250 ms reasonable upper bound on queue depth and
@@ -586,34 +585,38 @@ class DocsisLinkTestSuite : public TestSuite
 };
 
 DocsisLinkTestSuite::DocsisLinkTestSuite()
-    : TestSuite("docsis-link", UNIT)
+    : TestSuite("docsis-link", Type::UNIT)
 {
     // Check transmission of single packet, point-to-point mode enabled/disabled
-    AddTestCase(new DocsisLinkSingleUpstreamPacketTest(false), TestCase::QUICK);
-    AddTestCase(new DocsisLinkSingleUpstreamPacketTest(true), TestCase::QUICK);
+    AddTestCase(new DocsisLinkSingleUpstreamPacketTest(false), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkSingleUpstreamPacketTest(true), TestCase::Duration::QUICK);
     // Check that point-to-point mode works for multiple packets
-    AddTestCase(new DocsisLinkMultipleUpstreamPacketTest(true), TestCase::QUICK);
+    AddTestCase(new DocsisLinkMultipleUpstreamPacketTest(true), TestCase::Duration::QUICK);
     // Set MSR to 50 Mb/s and configure bursts at almost half of MSR for
     // each service flow.   Each argument below is the number of back-to-back
     // packets to test (sent at intervals of 329 us corresponding to 25 Mbps)
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(1, 0), TestCase::QUICK);
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10, 0), TestCase::QUICK);
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(100, 0), TestCase::QUICK);
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(1000, 0), TestCase::QUICK);
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(5000, 0), TestCase::QUICK);
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 0), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(1, 0), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10, 0), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(100, 0), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(1000, 0), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(5000, 0), TestCase::Duration::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 0), TestCase::Duration::QUICK);
     // 30000 yields about 10 seconds
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(30000, 0), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(30000, 0), TestCase::Duration::QUICK);
     // Check for typical values of GGR (5.68 Mbps yields two slots per frame)
     // 135 microseconds = 1 PGS grant per frame
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 135), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 135),
+                TestCase::Duration::QUICK);
     // Every other frame
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 270), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 270),
+                TestCase::Duration::QUICK);
     // Every 1ms
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 1000), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 5680000, 1000),
+                TestCase::Duration::QUICK);
     // Check that classic queue is not starved when GGR is at the weighted MSR
     // and peak rate > MSR is available. This tests the unused grant accounting
-    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 49800000, 135), TestCase::QUICK);
+    AddTestCase(new DocsisLinkCbrTwoServiceFlowTest(10000, 49800000, 135),
+                TestCase::Duration::QUICK);
 }
 
 static DocsisLinkTestSuite docsisLinkTestSuite;

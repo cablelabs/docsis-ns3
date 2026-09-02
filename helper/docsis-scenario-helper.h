@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -50,8 +49,8 @@ class ServiceFlow;
 class DocsisHelper;
 
 /**
- * \ingroup docsis
- * \brief A helper to create a basic DOCSIS network with clients and servers
+ * @ingroup docsis
+ * @brief A helper to create a basic DOCSIS network with clients and servers
  *
  * This helper creates and maintains state of a basic DOCSIS network with
  * sixteen clients and servers, easing configuration of a common case
@@ -75,7 +74,7 @@ class DocsisScenarioHelper
     }
 
     /**
-     * \brief Create a basic DOCSIS network topology with 16 client nodes
+     * @brief Create a basic DOCSIS network topology with 16 client nodes
      *        on the LAN and 16 server nodes on the WAN
      *
      * This method requires the caller to later add upstream and downstream
@@ -84,35 +83,35 @@ class DocsisScenarioHelper
     void CreateBasicNetwork();
 
     /**
-     * \brief Create a basic DOCSIS network topology with 16 client nodes
+     * @brief Create a basic DOCSIS network topology with 16 client nodes
      *        on the LAN and 16 server nodes on the WAN
-     * \param upstreamAsf Upstream ASF
-     * \param downstreamAsf Downstream ASF
+     * @param upstreamAsf Upstream ASF
+     * @param downstreamAsf Downstream ASF
      */
     void CreateBasicNetwork(Ptr<AggregateServiceFlow> upstreamAsf,
                             Ptr<AggregateServiceFlow> downstreamAsf);
 
     /**
-     * \brief Create a basic DOCSIS network topology with 16 client nodes
+     * @brief Create a basic DOCSIS network topology with 16 client nodes
      *        on the LAN and 16 server nodes on the WAN
-     * \param upstreamAsf Upstream ASF
-     * \param downstreamSf Downstream SF
+     * @param upstreamAsf Upstream ASF
+     * @param downstreamSf Downstream SF
      */
     void CreateBasicNetwork(Ptr<AggregateServiceFlow> upstreamAsf, Ptr<ServiceFlow> downstreamSf);
 
     /**
-     * \brief Create a basic DOCSIS network topology with 16 client nodes
+     * @brief Create a basic DOCSIS network topology with 16 client nodes
      *        on the LAN and 16 server nodes on the WAN
-     * \param upstreamSf Upstream SF
-     * \param downstreamAsf Downstream ASF
+     * @param upstreamSf Upstream SF
+     * @param downstreamAsf Downstream ASF
      */
     void CreateBasicNetwork(Ptr<ServiceFlow> upstreamSf, Ptr<AggregateServiceFlow> downstreamAsf);
 
     /**
-     * \brief Create a basic DOCSIS network topology with 16 client nodes
+     * @brief Create a basic DOCSIS network topology with 16 client nodes
      *        on the LAN and 16 server nodes on the WAN
-     * \param upstreamSf Upstream SF
-     * \param downstreamSf Downstream SF
+     * @param upstreamSf Upstream SF
+     * @param downstreamSf Downstream SF
      */
     void CreateBasicNetwork(Ptr<ServiceFlow> upstreamSf, Ptr<ServiceFlow> downstreamSf);
 
@@ -127,7 +126,7 @@ class DocsisScenarioHelper
      * overwrite the previous ASF.  If a SF has already been set, this method
      * will abort the simulation.
      *
-     * \param asf pointer to the AggregateServiceFlow object
+     * @param asf pointer to the AggregateServiceFlow object
      */
     void SetUpstreamAsf(Ptr<AggregateServiceFlow> asf);
 
@@ -142,7 +141,7 @@ class DocsisScenarioHelper
      * overwrite the previous ASF.  If a SF has already been set, this method
      * will abort the simulation.
      *
-     * \param asf pointer to the AggregateServiceFlow object
+     * @param asf pointer to the AggregateServiceFlow object
      */
     void SetDownstreamAsf(Ptr<AggregateServiceFlow> asf);
 
@@ -157,7 +156,7 @@ class DocsisScenarioHelper
      * overwrite the previous SF.  If an ASF has already been set, this method
      * will abort the simulation.
      *
-     * \param sf pointer to the ServiceFlow object
+     * @param sf pointer to the ServiceFlow object
      */
     void SetUpstreamSf(Ptr<ServiceFlow> sf);
 
@@ -172,68 +171,68 @@ class DocsisScenarioHelper
      * overwrite the previous SF.  If a ASF has already been set, this method
      * will abort the simulation.
      *
-     * \param sf pointer to the ServiceFlow object
+     * @param sf pointer to the ServiceFlow object
      */
     void SetDownstreamSf(Ptr<ServiceFlow> sf);
 
     /**
-     * \brief Utility function to return properly casted device pointer
-     * \return pointer to a CmNetDevice
+     * @brief Utility function to return properly casted device pointer
+     * @return pointer to a CmNetDevice
      */
     Ptr<CmNetDevice> GetCmNetDevice() const;
 
     /**
-     * \brief Utility function to return properly casted device pointer
-     * \return pointer to a CmNetDevice
+     * @brief Utility function to return properly casted device pointer
+     * @return pointer to a CmNetDevice
      */
     Ptr<CmtsNetDevice> GetCmtsNetDevice() const;
 
     /**
      * Get pointer to i'th client node
      * Must be called after CreateBasicNetwork ()
-     * \param index index of requested client node
-     * \return pointer to requested client node
+     * @param index index of requested client node
+     * @return pointer to requested client node
      */
     Ptr<Node> GetClient(uint32_t index) const;
 
     /**
      * Get pointer to i'th server node
      * Must be called after CreateBasicNetwork ()
-     * \param index index of requested server node
-     * \return pointer to requested server node
+     * @param index index of requested server node
+     * @return pointer to requested server node
      */
     Ptr<Node> GetServer(uint32_t index) const;
 
     /**
      * Get pointer to upstream dual queue object
      * Must be called after CreateBasicNetwork ()
-     * \return pointer to upstream DualQueueCoupledAqm object
+     * @return pointer to upstream DualQueueCoupledAqm object
      */
     Ptr<DualQueueCoupledAqm> GetUpstreamDualQueue() const;
 
     /**
      * Get pointer to downstream dual queue object
      * Must be called after CreateBasicNetwork ()
-     * \return pointer to downstream DualQueueCoupledAqm object
+     * @return pointer to downstream DualQueueCoupledAqm object
      */
     Ptr<DualQueueCoupledAqm> GetDownstreamDualQueue() const;
 
     /**
      * Get pointer to upstream dual queue object
      * Must be called after CreateBasicNetwork ()
-     * \return pointer to upstream QueueProtection object
+     * @return pointer to upstream QueueProtection object
      */
     Ptr<QueueProtection> GetUpstreamQueueProtection() const;
 
     /**
      * Get pointer to downstream queue protection object
      * Must be called after CreateBasicNetwork ()
-     * \return pointer to downstream QueueProtection object
+     * @return pointer to downstream QueueProtection object
      */
     Ptr<QueueProtection> GetDownstreamQueueProtection() const;
 
     /**
-     * \brief Wrapper to hook a callback to the Drop trace of the dual queue
+     * @brief Wrapper to hook a callback to the Drop trace of the dual queue
      *
      * To use, create a function or method that returns void and takes a
      * Ptr<const QueueDiscItem> argument and wrap it using MakeCallback()
@@ -242,28 +241,28 @@ class DocsisScenarioHelper
      * trace will not distinguish between a drop due to C-queue early drop
      * or overflow, or a tail drop from the L-queue if any such exist.
      *
-     * \param cb Callback to connect
+     * @param cb Callback to connect
      */
     void TraceUpstreamQueueDrop(Callback<void, Ptr<const QueueDiscItem>> cb);
 
     /**
-     * \brief Wrapper to hook a callback to the Enqueue trace of the upstream
+     * @brief Wrapper to hook a callback to the Enqueue trace of the upstream
      *        dual queue
      *
      * To use, create a function or method that returns void and takes a
      * Ptr<const QueueDiscItem> argument and wrap it using MakeCallback()
      *
-     * \param cb Callback to connect
+     * @param cb Callback to connect
      */
     void TraceUpstreamQueueEnqueue(Callback<void, Ptr<const QueueDiscItem>> cb);
     /**
-     * \brief Wrapper to hook a callback to the sojourn time trace of the
+     * @brief Wrapper to hook a callback to the sojourn time trace of the
      *        upstream classic queue.
      *
      * To use, create a function or method that returns void and takes a
      * Ptr<Time> argument and wrap it using MakeCallback()
      *
-     * \param cb Callback to connect
+     * @param cb Callback to connect
      */
     void TraceUpstreamClassicSojournTime(Callback<void, Time> cb);
 
@@ -274,7 +273,7 @@ class DocsisScenarioHelper
      * Configure pcap tracing on the LAN side of the CM and the WAN side
      * of the CMTS.  Must be called after CreateBasicNetwork ()
      *
-     * \param prefix of pcap file name
+     * @param prefix of pcap file name
      */
     void EnablePcap(std::string prefix);
 
@@ -289,8 +288,8 @@ class DocsisScenarioHelper
      * value returned is the number of stream indices that have been used;
      * in general, stream assignments should not be reused in a simulation.
      *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this helper
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this helper
      */
     int64_t AssignStreams(int64_t stream);
 

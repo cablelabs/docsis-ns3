@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -46,9 +45,9 @@ namespace ns3
 namespace docsis
 {
 /**
- * \ingroup docsis
+ * @ingroup docsis
  *
- * \brief Packet header for DOCSIS
+ * @brief Packet header for DOCSIS
  *
  * Note:  This is just a placeholder for adding ~10 bytes for now
  *
@@ -65,12 +64,12 @@ class DocsisHeader : public Header
 {
   public:
     /**
-     * \brief Construct a null DOCSIS header
-     * \param extendedHeaderSize number of bytes for notional EH field
+     * @brief Construct a null DOCSIS header
+     * @param extendedHeaderSize number of bytes for notional EH field
      */
     DocsisHeader(uint16_t extendedHeaderSize);
     /**
-     * \brief Construct a null DOCSIS header with no EH bytes
+     * @brief Construct a null DOCSIS header with no EH bytes
      */
     DocsisHeader();
 

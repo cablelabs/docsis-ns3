@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -493,8 +492,7 @@ DocsisNetDevice::GetTypeId()
 }
 
 DocsisNetDevice::DocsisNetDevice()
-    : m_txMachineState(READY),
-      m_channel(nullptr),
+    : m_channel(nullptr),
       m_linkUp(false),
 #if 0
     m_fdNetDevice (0),

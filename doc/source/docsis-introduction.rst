@@ -68,8 +68,8 @@ will skip over them.
 What version of ns-3 is this?
 =============================
 
-This extension module is designed to be run with *ns3.39* release (July
-2023) or later versions of |ns3|.
+This extension module is designed to be run with *ns3.48* release (June
+2026) or later versions of |ns3|.
 
 Prerequisites
 =============

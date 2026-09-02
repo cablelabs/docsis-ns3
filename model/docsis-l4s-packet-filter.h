@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2016 Universita' degli Studi di Napoli Federico II
  *               2016 University of Washington
@@ -38,7 +37,7 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
+ * @ingroup docsis
  *
  * Packet filter for Dual Queue Coupled AQM to classify packets into the
  * low latency queue.  In general, the LL queue of the dual queue is
@@ -51,8 +50,8 @@ class DocsisLowLatencyPacketFilter : public PacketFilter
 {
   public:
     /**
-     * \brief Get the type ID.
-     * \return the object TypeId
+     * @brief Get the type ID.
+     * @return the object TypeId
      */
     static TypeId GetTypeId();
 
@@ -63,14 +62,14 @@ class DocsisLowLatencyPacketFilter : public PacketFilter
 
   private:
     /**
-     * \return true if IPv4 packet, false otherwise
-     * \param item QueueDiscItem to inspect
+     * @return true if IPv4 packet, false otherwise
+     * @param item QueueDiscItem to inspect
      */
     bool CheckProtocol(Ptr<QueueDiscItem> item) const override;
     /**
-     * \return 0 if Classic packet, 1 if LowLatency (Scalable) packet, and
+     * @return 0 if Classic packet, 1 if LowLatency (Scalable) packet, and
      *         PacketFilter::PF_NO_MATCH if IPv4 header not found
-     * \param item QueueDiscItem to inspect
+     * @param item QueueDiscItem to inspect
      */
     int32_t DoClassify(Ptr<QueueDiscItem> item) const override;
     bool m_classifyEct0AsLl{false}; /// Classify ECT(0) as LowLatency

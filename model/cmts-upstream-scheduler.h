@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -60,7 +59,7 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
+ * @ingroup docsis
  *
  * Objects of type CmtsUpstreamScheduler model the upstream grant scheduling
  * process on a CMTS.  This class may be subclassed to implement different
@@ -76,9 +75,9 @@ class CmtsUpstreamScheduler : public Object
 {
   public:
     /**
-     * \brief Get the TypeId
+     * @brief Get the TypeId
      *
-     * \return The TypeId for this class
+     * @return The TypeId for this class
      */
     static TypeId GetTypeId();
 
@@ -141,30 +140,30 @@ class CmtsUpstreamScheduler : public Object
     /**
      * TracedCallback signature for MapTrace trace
      *
-     * \param [in] report structure of values to report
+     * @param [in] report structure of values to report
      */
     typedef void (*MapTracedCallback)(MapReport report);
 
     /**
      * Set upstream device pointer
-     * \param upstream upstream device pointer
+     * @param upstream upstream device pointer
      */
     void SetUpstream(Ptr<CmNetDevice> upstream);
 
     /**
      * Get upstream device pointer
-     * \return upstream device pointer
+     * @return upstream device pointer
      */
     Ptr<CmNetDevice> GetUpstream() const;
 
     /**
-     * \brief Process a request for grant from a CM
-     * \param request grant request
+     * @brief Process a request for grant from a CM
+     * @param request grant request
      */
     void ReceiveRequest(GrantRequest request);
 
     /**
-     * \brief Start the scheduling of MAP messages
+     * @brief Start the scheduling of MAP messages
      *
      * This method starts the generation of MAP messages from the scheduler,
      * and is called from the CmNetDevice during initialization.  The
@@ -185,68 +184,68 @@ class CmtsUpstreamScheduler : public Object
      * value to estimate the Ack Time that would correspond to the
      * Alloc Start Time
      *
-     * \param allocStartTime Alloc Start Time (minislots) for the first MAP message
-     * \param minReqGntDelaySlots Difference (minislots) between Alloc Start Time and Ack Time
+     * @param allocStartTime Alloc Start Time (minislots) for the first MAP message
+     * @param minReqGntDelaySlots Difference (minislots) between Alloc Start Time and Ack Time
      */
     void Start(uint32_t allocStartTime, uint32_t minReqGntDelaySlots);
 
     /**
-     * \brief Provision the aggregate service flow
-     * \param flow the aggregate service flow
+     * @brief Provision the aggregate service flow
+     * @param flow the aggregate service flow
      */
     void ProvisionAggregateServiceFlow(Ptr<const AggregateServiceFlow> flow);
 
     /**
-     * \brief Get a pointer to the aggregate service flow
-     * \return the aggregate service flow
+     * @brief Get a pointer to the aggregate service flow
+     * @return the aggregate service flow
      */
     Ptr<const AggregateServiceFlow> GetAggregateServiceFlow() const;
 
     /**
-     * \brief Remove the aggregate service flow
+     * @brief Remove the aggregate service flow
      */
     void RemoveAggregateServiceFlow();
 
     /**
-     * \brief Provision the single service flow
-     * \param flow the single service flow
+     * @brief Provision the single service flow
+     * @param flow the single service flow
      */
     void ProvisionSingleServiceFlow(Ptr<ServiceFlow> flow);
 
     /**
-     * \brief Get a pointer to the single service flow
-     * \return the single service flow
+     * @brief Get a pointer to the single service flow
+     * @return the single service flow
      */
     Ptr<const ServiceFlow> GetSingleServiceFlow() const;
 
     /**
-     * \brief Remove the single service flow
+     * @brief Remove the single service flow
      */
     void RemoveSingleServiceFlow();
 
     /**
-     * \brief Return a pointer to the classic service flow, if present
-     * \return the classic service flow
+     * @brief Return a pointer to the classic service flow, if present
+     * @return the classic service flow
      */
     Ptr<const ServiceFlow> GetClassicServiceFlow() const;
 
     /**
-     * \brief Return a pointer to the low latency service flow, if present
-     * \return the low latency service flow
+     * @brief Return a pointer to the low latency service flow, if present
+     * @return the low latency service flow
      */
     Ptr<const ServiceFlow> GetLowLatencyServiceFlow() const;
 
     /**
-     * \brief Receive an update that may report upon unused grants (unused
+     * @brief Receive an update that may report upon unused grants (unused
      *        grant tracking)
-     * \param state The state report for the LL service flow
+     * @param state The state report for the LL service flow
      */
     void ReceiveUnusedLGrantUpdate(CmNetDevice::LGrantState state);
 
     /**
-     * \brief Receive an update that may report upon unused grants (unused
+     * @brief Receive an update that may report upon unused grants (unused
      *        grant tracking)
-     * \param state The state report for the classic service flow
+     * @param state The state report for the classic service flow
      */
     void ReceiveUnusedCGrantUpdate(CmNetDevice::CGrantState state);
 
@@ -255,29 +254,29 @@ class CmtsUpstreamScheduler : public Object
      * used by this model.  Return the number of streams (possibly zero) that
      * have been assigned.
      *
-     * \param stream first stream index to use
-     * \return the number of stream indices assigned by this model
+     * @param stream first stream index to use
+     * @return the number of stream indices assigned by this model
      */
     int64_t AssignStreams(int64_t stream);
 
   protected:
     /**
-     * \brief Dispose of the object
+     * @brief Dispose of the object
      */
     void DoDispose() override;
     /**
-     * \brief Perform runtime initialization
+     * @brief Perform runtime initialization
      */
     void DoInitialize() override;
 
   private:
     /**
-     * \brief Initialize the building of the MAP report trace
+     * @brief Initialize the building of the MAP report trace
      */
     void InitializeMapReport();
 
     /**
-     * \brief Generate a MAP message and send to upstream modem
+     * @brief Generate a MAP message and send to upstream modem
      */
     void GenerateMap();
 
@@ -292,14 +291,14 @@ class CmtsUpstreamScheduler : public Object
      * simultaneous requests from modems and will temporarily starve some
      * flows while flooding others.
      *
-     * \return minislots of capacity available
+     * @return minislots of capacity available
      */
     uint32_t CalculateFreeCapacity();
 
     /**
      * Construct a MAP message from the provided grant list
-     * \param grantList the grant list
-     * \return a MAP message struct
+     * @param grantList the grant list
+     * @return a MAP message struct
      */
     MapMessage BuildMapMessage(const std::map<uint32_t, Grant>& grantList);
 
@@ -309,12 +308,12 @@ class CmtsUpstreamScheduler : public Object
      * been previously allocated are taken into consideration.  Return the
      * number of minislots actually scheduled (typically, the same as the number
      * that have been requested, unless constraints arise).
-     * \param grantList the grant list to modify and return
-     * \param pgsGrantList the list of grants allocated by PGS (possibly empty)
-     * \param pgsMinislots the number of PGS minislots granted
-     * \param cMinislotsToSchedule the number of classic minislots to schedule
-     * \param lMinislotsToSchedule the number of low latency minislots to schedule
-     * \return a pair of values (classic and low latency minislots scheduled)
+     * @param grantList the grant list to modify and return
+     * @param pgsGrantList the list of grants allocated by PGS (possibly empty)
+     * @param pgsMinislots the number of PGS minislots granted
+     * @param cMinislotsToSchedule the number of classic minislots to schedule
+     * @param lMinislotsToSchedule the number of low latency minislots to schedule
+     * @return a pair of values (classic and low latency minislots scheduled)
      */
     virtual std::pair<uint32_t, uint32_t> ScheduleGrant(
         std::map<uint32_t, Grant>& grantList,
@@ -328,12 +327,12 @@ class CmtsUpstreamScheduler : public Object
      * based on a number of constraints (free minislots, token bucket state,
      * previously allocated PGS minislots) and based on the number of requested
      * bytes for one or both service flows.
-     * \param freeMinislots Number of free minislots available
-     * \param pgsMinislots Number of PGS minislots already granted
-     * \param availableTokens Number of available tokens (bytes)
-     * \param cRequestedBytes Number of classic requested bytes
-     * \param lRequestedBytes Number of low-latency requested bytes
-     * \return a pair of values (classic and low latency minislots allocated)
+     * @param freeMinislots Number of free minislots available
+     * @param pgsMinislots Number of PGS minislots already granted
+     * @param availableTokens Number of available tokens (bytes)
+     * @param cRequestedBytes Number of classic requested bytes
+     * @param lRequestedBytes Number of low-latency requested bytes
+     * @return a pair of values (classic and low latency minislots allocated)
      */
     virtual std::pair<uint32_t, uint32_t> Allocate(uint32_t freeMinislots,
                                                    uint32_t pgsMinislots,
@@ -344,54 +343,54 @@ class CmtsUpstreamScheduler : public Object
     /**
      * Utility function analogous to std::round:  round to nearest number of
      * minislots required for bytes
-     * \param bytes number of bytes
-     * \return number of minislots
+     * @param bytes number of bytes
+     * @return number of minislots
      */
     uint32_t MinislotRound(uint32_t bytes) const;
 
     /**
      * Utility function analogous to std::ceil:  smallest integral number of
      * minislots required for bytes
-     * \param bytes number of bytes
-     * \return number of minislots
+     * @param bytes number of bytes
+     * @return number of minislots
      */
     uint32_t MinislotCeil(uint32_t bytes) const;
 
     /**
      * Utility function to convert minislots back to bytes
-     * \param minislots number of minislots
-     * \return number of bytes
+     * @param minislots number of minislots
+     * @return number of bytes
      */
     uint32_t MinislotsToBytes(uint32_t minislots) const;
 
     /**
      * Increment the rate-shaping token bucket associated with the ASF or SF
-     * \return pair of values (msr tokens, peak tokens)
+     * @return pair of values (msr tokens, peak tokens)
      */
     std::pair<int32_t, uint32_t> IncrementTokenBucketCounters();
 
     /**
      * Decrement the rate-shaping token bucket associated with the ASF or SF
-     * \param decrement the number of bytes to decrement
+     * @param decrement the number of bytes to decrement
      */
     void DecrementTokenBucketCounters(uint32_t decrement);
 
     /**
-     * \brief Assignment operator
+     * @brief Assignment operator
      *
      * The method is private to disable
      *
-     * \param o Other CmtsUpstreamScheduler
-     * \return New instance of the CmtsUpstreamScheduler
+     * @param o Other CmtsUpstreamScheduler
+     * @return New instance of the CmtsUpstreamScheduler
      */
     CmtsUpstreamScheduler& operator=(const CmtsUpstreamScheduler& o);
 
     /**
-     * \brief Copy constructor
+     * @brief Copy constructor
      *
      * The method is private to disable
      *
-     * \param o Other CmtsUpstreamScheduler
+     * @param o Other CmtsUpstreamScheduler
      */
     CmtsUpstreamScheduler(const CmtsUpstreamScheduler& o);
 

@@ -1,4 +1,3 @@
-/* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
  * Copyright (c) 2017-2020 Cable Television Laboratories, Inc.
  *
@@ -51,8 +50,8 @@ namespace docsis
 {
 
 /**
- * \ingroup docsis
- * \class DocsisQueueDiscItem
+ * @ingroup docsis
+ * @class DocsisQueueDiscItem
  * The Docsis device holds a queue of packets that are pending transmission.
  * The ns-3 Queue class requires objects of type QueueDiscItem (more generalized
  * than simply packets).  The below specialization holds the packet as well
@@ -79,35 +78,35 @@ class DocsisQueueDiscItem : public QueueDiscItem
     void SetValue(uint32_t value);
 
     /**
-     * \brief Size of the packet within the queue disc, including Ethernet and DOCSIS MAC header
+     * @brief Size of the packet within the queue disc, including Ethernet and DOCSIS MAC header
      *
-     * \note The encapsulated packet should not have already added the
+     * @note The encapsulated packet should not have already added the
      * Ethernet framing; this method will add Ethernet framing bytes to
      * the value that it retrieves from Packet::GetSize ().
      *
-     * \return the size of the DOCSIS packet (inc. Ethernet and DOCSIS header) included in this
+     * @return the size of the DOCSIS packet (inc. Ethernet and DOCSIS header) included in this
      * item, in bytes
      */
     uint32_t GetSize() const override;
 
     /**
-     * \brief Set the delay estimate calculated at queue enqueue (Iaqm) time
+     * @brief Set the delay estimate calculated at queue enqueue (Iaqm) time
      *
-     * \param estimate the delay estimate
+     * @param estimate the delay estimate
      */
     void SetQueueDelayEstimate(Time estimate);
 
     /**
-     * \brief Return the delay estimate calculated at queue enqueue (Iaqm) time
+     * @brief Return the delay estimate calculated at queue enqueue (Iaqm) time
      *
-     * \return the delay estimate
+     * @return the delay estimate
      */
     Time GetQueueDelayEstimate() const;
 
     /**
-     * \brief Return whether the packet is CE marked or not
+     * @brief Return whether the packet is CE marked or not
      *
-     * \return whether the packet is CE marked or not
+     * @return whether the packet is CE marked or not
      */
     bool IsMarked() const;
 
